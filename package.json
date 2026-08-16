@@ -1,0 +1,14 @@
+{
+  "name": "nhom7-java-naitei-26",
+  "version": "1.0.0",
+  "description": "Dev tooling for Co-working Space Booking System",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "husky": "^9.0.0"
+  }
+}

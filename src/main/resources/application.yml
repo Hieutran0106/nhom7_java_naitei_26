@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: coworking-space
+
+  datasource:
+    # URL Supabase
+    url: jdbc:postgresql://[HOST]:[PORT]/postgres
+    username: postgres
+    # Không commit password lên Git – set biến môi trường DB_PASSWORD trên máy local
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+
+server:
+  port: 8080
+
+# Swagger / OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+  packages-to-scan: com.nhom7.coworkingspace.controller.api
+
+# JWT
+app:
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production}
+    expiration-ms: 86400000 # 1 day
+    refresh-expiration-ms: 604800000 # 7 days
+
+logging:
+  level:
+    com.nhom7.coworkingspace: DEBUG
+    org.springframework.security: INFO
