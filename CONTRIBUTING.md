@@ -8,7 +8,7 @@ Tài liệu này hướng dẫn cách thiết lập môi trường, viết commi
 
 | Layer           | Technology                             |
 | --------------- | -------------------------------------- |
-| Language        | Java 21                                |
+| Language        | Java 21+                               |
 | Framework       | Spring Boot 3.3.4                      |
 | Database        | PostgreSQL                             |
 | UI (Admin/Mod)  | Thymeleaf                              |
@@ -20,7 +20,7 @@ Tài liệu này hướng dẫn cách thiết lập môi trường, viết commi
 
 ## Thiết lập môi trường lần đầu
 
-> **Yêu cầu cài sẵn trên máy:** Java 21, Maven 3.9+, Node.js 18+
+> **Yêu cầu cài sẵn trên máy:** Java 21+ (21 hoặc cao hơn), Maven 3.9+, Node.js 18+
 
 ### Bước 1 – Fork và clone repo
 
@@ -69,41 +69,72 @@ npm install
 
 ### Bước 3 – Lấy password Supabase
 
-Dự án dùng **PostgreSQL trên Supabase**
-URL và username đã được đặt sẵn trong `application.yml`, **không cần sửa gì**.
+Dự án dùng **PostgreSQL trên Supabase**.
+URL và username đã được đặt sẵn trong `application.yml`.
 
 Liên hệ Khánh/Hiếu để được cấp **Supabase database password**.
 
-### Bước 4 – Set biến môi trường password
+### Bước 4 – Tạo file cấu hình local
 
-Chỉ cần set **biến duy nhất** `DB_PASSWORD` trên máy local (không commit mật khẩu lên Git):
+File `application-local.yml` chứa các secret riêng của từng máy và **đã được gitignore** – không bao giờ commit lên Git.
 
-**Windows (PowerShell – chỉ tồn tại trong phiên làm việc hiện tại):**
+**4.1 – Copy file mẫu:**
+
+```bash
+cp src/main/resources/application-local.example.yml src/main/resources/application-local.yml
+```
+
+**4.2 – Mở file vừa tạo và điền giá trị thật:**
+
+```yaml
+spring:
+  datasource:
+    password: YOUR_SUPABASE_PASSWORD # ← Thay bằng password lấy từ Bước 3
+
+app:
+  jwt:
+    secret: YOUR_JWT_SECRET
+```
+
+**4.3 – Tạo JWT secret (mỗi người tạo riêng, không cần giống nhau):**
 
 ```powershell
-$env:DB_PASSWORD = "your_supabase_password"
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-**Hoặc** đặt vĩnh viễn qua System Environment Variables của Windows để không phải set lại mỗi lần:
+Copy kết quả và dán vào `secret:` ở trên.
 
+### Bước 5 – Set profile local (1 lần duy nhất)
+
+Chạy lệnh này trong PowerShell **một lần duy nhất**, sau đó không cần chạy lại:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("SPRING_PROFILES_ACTIVE", "local", "User")
 ```
-Win + S → "Edit environment variables" → New → DB_PASSWORD = your_supabase_password
-```
 
-> Password lấy từ **Bước 3**
+> Restart terminal sau khi chạy để có hiệu lực.
+>
+> Lệnh này báo cho Spring Boot biết phải load thêm `application-local.yml` khi khởi động.
 
-### Bước 5 – Chạy ứng dụng
+### Bước 6 – Chạy ứng dụng
 
 ```bash
 mvn spring-boot:run
 ```
 
-### Bước 6 – Kiểm tra
+Khởi động thành công khi thấy:
+
+```
+HikariPool-1 - Start completed.
+Started CoworkingSpaceApplication in X.XXX seconds
+```
+
+### Bước 7 – Kiểm tra
 
 | URL                                     | Mô tả             |
 | --------------------------------------- | ----------------- |
-| `http://localhost:8080`                 | Trang chủ         |
-| `http://localhost:8080/swagger-ui.html` | API docs cho User |
+| `http://localhost:8081`                 | Trang chủ         |
+| `http://localhost:8081/swagger-ui.html` | API docs cho User |
 
 ---
 
@@ -152,34 +183,34 @@ git commit -m "test(service): add unit test for BookingService"
 
 Dự án tuân thủ [Sun\* Coding Standards](https://coding-standards.sun-asterisk.vn/).
 
-### Cài Sunlint CLI (một lần, global)
+### Lưu ý về Sunlint với Java (Tùy chọn)
+
+> Với Java, Sunlint chỉ tạo ra rules cho AI coding assistant (trong `.agent/skills/`) để AI tự áp dụng khi viết code.
+
+### Cài Sunlint CLI (Một lần, global) (Tùy chọn)
 
 ```bash
-npm install -g @sun-asterisk/sunlint-cli
+npm install -g @sun-asterisk/sunlint
 ```
 
-### Khởi tạo config (lần đầu trong project)
+### Khởi tạo rules cho AI (Lần đầu) (Tùy chọn)
 
 ```bash
 sunlint init
 ```
 
-Chọn ngôn ngữ **Java** khi được hỏi.
+Chọn ngôn ngữ **Java** khi được hỏi. Lệnh này sẽ tạo ra file rules trong `.agent/skills/sunlint-code-quality/` để AI assistant tuân theo khi viết code Java.
 
 ### Check code trước khi tạo Pull Request
 
-```bash
-sunlint check ./src/main/java
-```
+**Tự review code** theo checklist:
 
-Output sẽ hiển thị:
-
-- `[ERROR]` – **Bắt buộc fix 100%** trước khi tạo PR
-- `[WARNING]` – Khuyến khích sửa
-
-### Evidence cho Pull Request
-
-Sau khi fix xong, chạy lại `sunlint check` và **chụp màn hình** kết quả `0 errors` đính kèm vào **comment trên Pull Request**.
+- [ ] Không có SQL/NoSQL concatenation (dùng parameterized query)
+- [ ] Không hardcode secret, password trong code
+- [ ] Mọi `catch` block phải có log lỗi với context cụ thể
+- [ ] Không có dead code, unused imports
+- [ ] Tên method theo dạng `Verb-Noun` (ví dụ: `createUser`, `findBooking`)
+- [ ] Validate input đầu vào ở tầng service
 
 ---
 
@@ -234,3 +265,60 @@ src/main/resources/
 ├── i18n/             # messages.properties (EN + VI)
 └── application.yml
 ```
+
+---
+
+## Cập nhật CHANGELOG.md
+
+Mỗi khi hoàn thành một tính năng hoặc thay đổi đáng kể, **bắt buộc** cập nhật [`CHANGELOG.md`](./CHANGELOG.md) trước khi tạo Pull Request.
+
+### Cách thêm entry mới:
+
+Thêm vào **đầu phần `[Unreleased]`**, theo đúng template sau:
+
+```markdown
+### YYYY-MM-DD - [Tên tính năng ngắn gọn]
+
+**Người thực hiện:** [Tên của bạn]
+
+#### Added
+
+- Mô tả những gì đã thêm mới
+
+#### Changed
+
+- Mô tả những gì đã thay đổi
+
+#### Fixed
+
+- Mô tả những bug đã sửa
+
+#### Removed
+
+- Mô tả những gì đã xóa
+```
+
+> Chỉ ghi những mục có thay đổi, bỏ qua mục không có nội dung.
+
+### Ví dụ thực tế:
+
+```markdown
+### 2026-08-19 - Auth Module
+
+**Người thực hiện:** Nguyễn Văn A
+
+#### Added
+
+- Tạo `AuthService` với chức năng đăng nhập, đăng xuất
+- Tạo `JwtProvider` để generate và validate JWT token
+- Endpoint `POST /api/auth/login`
+
+#### Changed
+
+- Cập nhật `SecurityConfig` để cho phép truy cập `/api/auth/**`
+```
+
+### Lưu ý:
+
+- Commit `CHANGELOG.md` **cùng với code** trong cùng 1 commit
+- Dùng type `docs` nếu chỉ sửa CHANGELOG: `docs: update CHANGELOG for auth module`

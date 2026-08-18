@@ -1,0 +1,11 @@
+# Do not commit application-local.yml file
+
+spring:
+  datasource:
+    password: YOUR_SUPABASE_PASSWORD
+
+app:
+  jwt:
+    # Run this command in PowerShell
+    # [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+    secret: YOUR_JWT_SECRET_AT_LEAST_32_CHARACTERS_LONG

@@ -4,8 +4,8 @@ spring:
 
   datasource:
     # URL Supabase
-    url: jdbc:postgresql://[HOST]:[PORT]/postgres
-    username: postgres
+    url: jdbc:postgresql://aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres
+    username: postgres.iwiqpjhtzbsvnqczqnud
     # Không commit password lên Git – set biến môi trường DB_PASSWORD trên máy local
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -17,7 +17,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
 
   thymeleaf:
     cache: false
@@ -41,8 +41,13 @@ spring:
     basename: i18n/messages
     encoding: UTF-8
 
+  # Set default language to Vietnamese (temporary setting)
+  web:
+    locale: vi
+    locale-resolver: fixed
+
 server:
-  port: 8080
+  port: 8081 # Change to 8081 except port 8080
 
 # Swagger / OpenAPI
 springdoc:
