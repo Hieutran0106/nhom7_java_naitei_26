@@ -61,3 +61,7 @@ node_modules/
 *.rar
 hs_err_pid*
 replay_pid*
+
+### AI Agent ###
+.agent/
+AGENTS.md
