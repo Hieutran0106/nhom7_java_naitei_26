@@ -7,6 +7,16 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-20 - Fix CORS allowed-origins config format
+
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
+
+#### Fixed
+
+- `application.yml`: sửa `app.cors.allowed-origins` từ dạng YAML list sang chuỗi phân tách bởi dấu phẩy (`http://localhost:3000, http://localhost:5173`) — `SecurityConfig.corsAllowedOrigins` dùng `@Value("${app.cors.allowed-origins}")` bind vào `List<String>`, chỉ parse đúng khi giá trị là chuỗi comma-separated chứ không phải YAML list nhiều dòng
+
+---
+
 ### 2026-08-20 - Security Layer (JWT + Spring Security)
 
 **Người thực hiện:** [Trịnh Yến Nhi]
