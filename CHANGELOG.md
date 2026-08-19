@@ -7,7 +7,23 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
-### 2026-08-18 - Setup & Entity Layer
+### 2026-08-20 - Security Layer (JWT + Spring Security)
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- `SecurityConfig`: cấu hình `SecurityFilterChain`, phân quyền URL, CORS, `BCryptPasswordEncoder`, `DaoAuthenticationProvider`
+- `JwtTokenProvider`: generate/validate access token (1 ngày) và refresh token (7 ngày)
+- `JwtAuthenticationFilter`: xác thực JWT mỗi request, set `SecurityContext`
+- `CustomUserDetailsService`: load user từ DB, map `Set<Role>` → `List<GrantedAuthority>`
+- `JwtProperties`: bind JWT config từ `application.yml` qua `@ConfigurationProperties`
+
+#### Changed
+
+- `application.yml`: thêm config `app.jwt` (secret từ env `JWT_SECRET`), `app.cors.allowed-origins`
+
+---
 
 **Người thực hiện:** [Trịnh Yến Nhi]
 

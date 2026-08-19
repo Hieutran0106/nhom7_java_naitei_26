@@ -62,9 +62,13 @@ springdoc:
 # JWT
 app:
   jwt:
-    secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production}
+    secret: ${JWT_SECRET}
     expiration-ms: 86400000 # 1 day
     refresh-expiration-ms: 604800000 # 7 days
+  cors:
+    allowed-origins:
+      - http://localhost:3000 # React (CRA) dev server
+      - http://localhost:5173 # Vite dev server
 
 logging:
   level:
