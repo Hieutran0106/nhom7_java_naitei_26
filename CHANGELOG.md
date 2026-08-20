@@ -62,6 +62,23 @@ File ghi lại những thay đổi của dự án.
 - `EmailService` hỗ trợ gửi email plain text và HTML qua `JavaMailSender`
 - Xử lý lỗi gửi mail tập trung bằng `EmailSendingException`
 - Unit test cho nội dung email, validation và lỗi SMTP
+### 2026-08-20 - Search & Filter Co-working spaces API
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- `SpaceRepository` & `BookingRepository`: repository interfaces cho `Space` (hỗ trợ `JpaSpecificationExecutor`) và `Booking`
+- `SpaceSearchRequest`: DTO tiếp nhận tham số tìm kiếm (`name`, `city`, `street`, `address`, `type`, `minPrice`, `maxPrice`, `priceUnit`, `openTime`, `closeTime`, `bookingStart`, `bookingEnd`, phân trang)
+- `SpaceResponse`: DTO phản hồi thông tin chi tiết không gian và venue
+- `PageResponse` & `ApiResponse`: DTO envelope bọc dữ liệu phản hồi và phân trang
+- `SpaceSpecification`: JPA Specification xây dựng query động theo nhiều tiêu chí (tên, địa chỉ, loại không gian, khoảng giá, giờ hoạt động, loại trừ lịch trùng booking)
+- `SpaceMapper`: MapStruct mapper chuyển đổi `Space` entity sang `SpaceResponse` DTO
+- `SpaceService` & `SpaceServiceImpl`: xử lý logic nghiệp vụ tìm kiếm và phân trang
+- `SpaceController`: REST API endpoint `GET /api/spaces/search`, áp dụng phân quyền `@PreAuthorize` (cho vai trò `USER`, `HOST`, `MODERATOR`, `ADMIN`) và tài liệu Swagger OpenAPI
+
+---
+
 ### 2026-08-20 - Authentication and Authorization APIs (#99251)
 
 **Người thực hiện:** [Trịnh Yến Nhi]
