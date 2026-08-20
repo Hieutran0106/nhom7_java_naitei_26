@@ -40,6 +40,6 @@ public class SpaceController {
             @ModelAttribute SpaceSearchRequest request
     ) {
         PageResponse<SpaceResponse> result = spaceService.searchSpaces(request);
-        return ResponseEntity.ok(ApiResponse.success("Fetched co-working spaces successfully", result));
+        return ResponseEntity.ok(ApiResponse.success(result, "Fetched co-working spaces successfully"));
     }
 }

@@ -9,6 +9,7 @@ import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
 import com.nhom7.coworkingspace.service.SpaceService;
+import com.nhom7.coworkingspace.service.TokenBlacklistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,9 @@ class SpaceControllerTest {
 
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
 
     @Test
     @WithMockUser(username = "user@test.com", roles = {"USER"})
