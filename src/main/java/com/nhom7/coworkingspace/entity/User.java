@@ -34,8 +34,11 @@ public class User {
     @Column(name = "status", length = 30)
     private String status;
 
-    @Column(name = "is_verified")
-    private Boolean isVerified;
+    @Column(name = "is_identity_verified")
+    private Boolean isIdentityVerified; // CCCD verified
+
+    @Column(name = "is_business_verified")
+    private Boolean isBusinessVerified; // Business license verified
 
     @Column(name = "language", length = 10)
     private String language;
@@ -47,11 +50,7 @@ public class User {
     private String businessLicenseUrl;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "user_roles",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
 }
