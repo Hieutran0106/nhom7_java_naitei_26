@@ -4,6 +4,12 @@ spring:
   datasource:
     password: YOUR_SUPABASE_PASSWORD
 
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
+      connection-timeout: 10000
+      idle-timeout: 30000
+
 app:
   jwt:
     # Run this command in PowerShell
