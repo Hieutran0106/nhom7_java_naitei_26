@@ -13,33 +13,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Xử lý các nghiệp vụ liên quan đến User.
- */
+
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    /**
-     * Dùng để tìm và lưu User.
-     */
+    
     private final UserRepository userRepository;
 
-    /**
-     * Dùng để tìm Role.
-     */
+   
     private final RoleRepository roleRepository;
 
     @Override
     @Transactional
     public UserRoleResponse addRole(Long userId, String roleName) {
 
-        /*
-         * 1. Tìm user theo ID.
-         *
-         * Ví dụ:
-         * userId = 3
-         */
+        
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new RuntimeException(
@@ -47,21 +36,11 @@ public class UserServiceImpl implements UserService {
                         )
                 );
 
-        /*
-         * 2. Chuẩn hóa tên role.
-         *
-         * Ví dụ:
-         * "moderator" -> "MODERATOR"
-         */
+       
         String normalizedRoleName =
                 roleName.trim().toUpperCase();
 
-        /*
-         * 3. Tìm role trong database.
-         *
-         * Ví dụ:
-         * MODERATOR -> id = 3
-         */
+        
         Role role = roleRepository.findByName(normalizedRoleName)
                 .orElseThrow(() ->
                         new RuntimeException(
@@ -69,50 +48,19 @@ public class UserServiceImpl implements UserService {
                         )
                 );
 
-        /*
-         * 4. Thêm role mới.
-         *
-         * KHÔNG dùng clear()
-         *
-         * Ví dụ:
-         *
-         * trước:
-         * [USER]
-         *
-         * thêm:
-         * MODERATOR
-         *
-         * sau:
-         * [USER, MODERATOR]
-         */
+        
         user.getRoles().add(role);
 
-        /*
-         * 5. Lưu xuống database.
-         *
-         * JPA/Hibernate sẽ tự cập nhật bảng user_roles.
-         */
+        
         User updatedUser = userRepository.save(user);
 
-        /*
-         * 6. Chuyển Set<Role> thành Set<String>
-         * để response dễ đọc.
-         *
-         * Ví dụ:
-         * Role(USER), Role(MODERATOR)
-         *
-         * ->
-         *
-         * ["USER", "MODERATOR"]
-         */
+        
         Set<String> roleNames = updatedUser.getRoles()
                 .stream()
                 .map(Role::getName)
                 .collect(Collectors.toSet());
 
-        /*
-         * 7. Trả thông tin user sau khi thêm role.
-         */
+        
         return UserRoleResponse.builder()
                 .id(updatedUser.getId())
                 .name(updatedUser.getName())
