@@ -4,6 +4,7 @@ import com.nhom7.coworkingspace.config.AppOtpProperties;
 import com.nhom7.coworkingspace.constant.OtpPurpose;
 import com.nhom7.coworkingspace.entity.OtpToken;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.repository.OtpTokenRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.service.impl.OtpServiceImpl;
@@ -74,7 +75,7 @@ class OtpServiceImplTest {
                 .id(1L)
                 .name("Test User")
                 .email("user@coworking.test")
-                .status("INACTIVE")
+                .status(UserStatus.INACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("123456");
@@ -121,7 +122,7 @@ class OtpServiceImplTest {
         User user = User.builder()
                 .id(1L)
                 .email("active@coworking.test")
-                .status("ACTIVE")
+                .status(UserStatus.ACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
 
@@ -136,7 +137,7 @@ class OtpServiceImplTest {
                 .id(2L)
                 .name("Active User")
                 .email("active@coworking.test")
-                .status("ACTIVE")
+                .status(UserStatus.ACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("654321");
@@ -162,7 +163,7 @@ class OtpServiceImplTest {
         User user = User.builder()
                 .id(3L)
                 .email("active@coworking.test")
-                .status("ACTIVE")
+                .status(UserStatus.ACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("111222");

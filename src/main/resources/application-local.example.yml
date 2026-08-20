@@ -19,3 +19,6 @@ app:
     secret: YOUR_JWT_SECRET_AT_LEAST_32_CHARACTERS_LONG
   mail:
     from: YOUR_VERIFIED_SENDER_EMAIL
+  supabase:
+    # Supabase anon or service_role key from Supabase Dashboard -> Project Settings -> API
+    key: YOUR_SUPABASE_KEY

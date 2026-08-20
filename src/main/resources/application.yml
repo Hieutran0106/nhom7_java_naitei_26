@@ -1,10 +1,12 @@
 spring:
   application:
     name: coworking-space
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
   datasource:
-    # URL Supabase
-    url: jdbc:postgresql://aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres
+    # URL Supabase (Port 6543 for Transaction Pooler / bypass port blocking)
+    url: jdbc:postgresql://aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?prepareThreshold=0
     username: postgres.iwiqpjhtzbsvnqczqnud
     # Không commit password lên Git – set biến môi trường DB_PASSWORD trên máy local
     password: ${DB_PASSWORD}
@@ -80,6 +82,10 @@ app:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
   cors:
     allowed-origins: http://localhost:3000, http://localhost:5173 # React (CRA) and Vite dev servers
+  supabase:
+    url: ${SUPABASE_URL:https://iwiqpjhtzbsvnqczqnud.supabase.co}
+    key: ${SUPABASE_KEY:}
+    bucket: ${SUPABASE_BUCKET:coworking-space}
 
 logging:
   level:

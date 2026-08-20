@@ -4,6 +4,7 @@ import com.nhom7.coworkingspace.config.AppOtpProperties;
 import com.nhom7.coworkingspace.constant.OtpPurpose;
 import com.nhom7.coworkingspace.entity.OtpToken;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.repository.OtpTokenRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.service.EmailService;
@@ -25,8 +26,6 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class OtpServiceImpl implements OtpService {
 
-    private static final String INACTIVE_STATUS = "INACTIVE";
-    private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String CONFIRMATION_SUBJECT = "Confirm your account";
     private static final String PASSWORD_RESET_SUBJECT = "Reset your password";
 
@@ -47,7 +46,7 @@ public class OtpServiceImpl implements OtpService {
         }
 
         User user = userRepository.findByEmail(normalizeEmail(email)).orElse(null);
-        if (user == null || !INACTIVE_STATUS.equals(user.getStatus())) {
+        if (user == null || user.getStatus() != UserStatus.INACTIVE) {
             return;
         }
 
@@ -66,7 +65,7 @@ public class OtpServiceImpl implements OtpService {
         }
 
         User user = userRepository.findByEmail(normalizeEmail(email)).orElse(null);
-        if (user == null || !ACTIVE_STATUS.equals(user.getStatus())) {
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
             return;
         }
 

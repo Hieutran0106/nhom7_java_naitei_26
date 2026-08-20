@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
+import com.nhom7.coworkingspace.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,8 +32,10 @@ public class User {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
-    private String status;
+    @Builder.Default
+    private UserStatus status = UserStatus.INACTIVE;
 
     @Column(name = "is_identity_verified")
     private Boolean isIdentityVerified; // CCCD verified
