@@ -7,6 +7,20 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-20 - Unit test for JwtAuthenticationFilter
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- `JwtAuthenticationFilterTest`: 14 unit test cho `JwtAuthenticationFilter` dùng Mockito
+  - Không có token / header sai prefix → SecurityContext rỗng, filter chain vẫn được gọi
+  - Token không hợp lệ / hết hạn → không gọi `loadUserByUsername`, không set Authentication
+  - Token hợp lệ → Authentication set đúng principal, authorities và credentials null
+  - User nhiều role → tất cả role đều có trong Authentication
+
+---
+
 ### 2026-08-20 - Fix CORS allowed-origins config format
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]
