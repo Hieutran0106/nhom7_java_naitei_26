@@ -21,7 +21,6 @@ public class ApiResponse<T> {
     private int code = 200;
 
     private String message;
-
     private T data;
 
     @Builder.Default
@@ -31,6 +30,24 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> success(int code, String message, T data) {
         return ApiResponse.<T>builder()
                 .code(code)
+                .message(message)
+                .data(data)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static <T> ApiResponse<T> success(T data) {
+        return ApiResponse.<T>builder()
+                .code(200)
+                .message("Success")
+                .data(data)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return ApiResponse.<T>builder()
+                .code(200)
                 .message(message)
                 .data(data)
                 .timestamp(LocalDateTime.now())
