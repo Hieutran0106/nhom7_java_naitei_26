@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.security;
 
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +43,16 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .map(role -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + role.getName()))
                 .toList();
 
+        boolean isEnabled = user.getStatus() != UserStatus.BLOCKED;
+        boolean isAccountNonLocked = user.getStatus() != UserStatus.BLOCKED;
+
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
+                isEnabled,
+                true,
+                true,
+                isAccountNonLocked,
                 authorities
         );
     }

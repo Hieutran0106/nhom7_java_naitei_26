@@ -7,6 +7,39 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-20 - Authentication and Authorization APIs (#99251)
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- `POST /api/auth/signup`: API đăng ký tài khoản kèm upload ảnh CCCD lên Supabase Storage (Private Bucket), chuẩn hóa họ tên, hash mật khẩu BCrypt, gán quyền `USER` và trạng thái `INACTIVE`
+- `POST /api/auth/login`: API đăng nhập xác thực email/mật khẩu qua `AuthenticationManager`, trả về JWT Access Token (1 ngày) và Refresh Token (7 ngày)
+- `POST /api/auth/logout`: API đăng xuất vô hiệu hóa token trên server với cơ chế Token Blacklist (SunLint S041) và dọn dẹp định kỳ `@Scheduled`
+- `FileStorageService` & `FileStorageServiceImpl`: Service lưu trữ file nhị phân lên Supabase Storage Private Bucket qua REST API, sinh tên file ngẫu nhiên bằng UUID (SunLint S036)
+- `TokenBlacklistService` & `TokenBlacklistServiceImpl`: Quản lý danh sách token đã đăng xuất bằng `ConcurrentHashMap` an toàn đa luồng
+- `OpenApiConfig`: Cấu hình Swagger OpenAPI tích hợp nút Authorize (Bearer JWT)
+- `ValidImage` & `ImageFileValidator`: Custom validator kiểm tra file ảnh không rỗng, đúng định dạng (JPEG, PNG, WEBP) và dung lượng <= 5MB
+- `AppException` & `FileStorageException`: Custom Exception classes kế thừa từ `RuntimeException` theo chuẩn SunLint C030
+- `UserStatus`: Enum định nghĩa 3 trạng thái của tài khoản người dùng: `ACTIVE`, `INACTIVE`, `BLOCKED`
+- `AuthServiceImplTest`: 9 unit test kiểm thử toàn diện các luồng nghiệp vụ Signup, Login, Logout
+- `AuthControllerTest`: 5 unit test kiểm thử Controller cho các endpoint `/signup`, `/login`, `/logout` với MockMvc
+
+#### Changed
+
+- `User`: Chuyển trường `status` từ kiểu `String` sang Enum `UserStatus` kèm `@Enumerated(EnumType.STRING)`
+- `SignupResponse`: Cập nhật trường `status` sang kiểu Enum `UserStatus`
+- `ValidPassword`: Tăng cường regex validation mật khẩu mạnh, bắt buộc chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số và 1 ký tự đặc biệt
+- `messages_vi.properties` & `messages.properties`: Cập nhật thông báo định dạng số điện thoại chi tiết (đầu số 03, 05, 07, 08, 09) và thêm thông báo khóa tài khoản `auth.account.blocked`
+- `AuthServiceImpl` & `CustomUserDetailsService`: Xử lý tài khoản có trạng thái `BLOCKED`, trả về HTTP 403 Forbidden và thông báo "Tài khoản của bạn đã bị khóa"
+- `GlobalExceptionHandler`: Bổ sung handler cho `DisabledException` và `LockedException` để xử lý các tài khoản bị vô hiệu hóa / khóa
+- `AuthController`: Bổ sung `@Parameter` mô tả chi tiết định dạng `Bearer <accessToken>` trên Swagger UI cho API Logout
+- `ApiResponse`: Chuẩn hóa 2 phương thức `success` và 2 phương thức `error` cân đối, hỗ trợ mã HTTP status 201 cho Signup và 200 cho Login/Logout
+- `application.yml`: Đổi port kết nối Supabase Pooler từ `5432` sang `6543` để giải quyết tình trạng bị chặn port hoặc ngắt kết nối
+- `UserRepository`: Thêm `@EntityGraph(attributePaths = {"roles"})` tối ưu truy vấn nạp roles trong 1 câu SQL JOIN, ngăn ngừa `LazyInitializationException`
+
+---
+
 ### 2026-08-20 - Unit test for JwtAuthenticationFilter
 
 **Người thực hiện:** [Trịnh Yến Nhi]
