@@ -7,6 +7,45 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-21 - View Statistics and Payment History
+
+**Người thực hiện:** [Trần Trung Hiếu]
+
+#### Added
+
+- Endpoint `GET /api/admin/statistics/overview`: thống kê tổng số user, số booking thành công và số venue đang hoạt động
+- Endpoint `GET /api/admin/statistics/revenue`: thống kê tổng doanh thu theo năm và doanh thu chi tiết theo từng tháng
+- Endpoint `GET /api/admin/payments`: lấy toàn bộ lịch sử thanh toán trên hệ thống, sắp xếp giao dịch mới nhất trước
+- `StatisticsOverviewResponse`: DTO phản hồi dữ liệu thống kê tổng quan hệ thống
+- `RevenueStatisticsResponse`: DTO phản hồi tổng doanh thu và doanh thu theo 12 tháng
+- `PaymentResponse`: DTO phản hồi thông tin lịch sử thanh toán
+- `PaymentRepository`: bổ sung truy vấn thống kê tổng doanh thu theo năm, doanh thu theo tháng và lấy danh sách payment theo thời gian thanh toán giảm dần
+- `StatisticsService` & `StatisticsServiceImpl`: xử lý logic thống kê tổng quan, thống kê doanh thu và lịch sử thanh toán
+- `AdminStatisticsController`: cung cấp API thống kê tổng quan và thống kê doanh thu cho Admin
+- `AdminPaymentController`: cung cấp API xem toàn bộ lịch sử thanh toán cho Admin
+- `StatisticsServiceImplTest`: unit test cho thống kê tổng quan, thống kê doanh thu và lịch sử thanh toán
+
+#### Changed
+
+- Giới hạn các API thống kê và lịch sử thanh toán chỉ cho tài khoản có vai trò `ADMIN`
+- Doanh thu theo năm được trả về kèm đầy đủ 12 tháng, các tháng không có giao dịch có giá trị doanh thu bằng `0`
+
+### 2026-08-20 - Change User Role
+
+**Người thực hiện:** [Trần Trung Hiếu]
+
+#### Added
+
+- Chức năng cho phép `ADMIN` thay đổi role của user trong hệ thống
+- Xử lý cập nhật quan hệ giữa user và role theo mô hình phân quyền RBAC
+- Bổ sung logic service phục vụ chức năng thay đổi quyền người dùng
+- Bổ sung xử lý truy cập dữ liệu role và quan hệ `user_roles`
+
+#### Changed
+
+- Cập nhật thông tin phân quyền của user sau khi Admin thay đổi role
+- Giới hạn chức năng thay đổi role chỉ cho tài khoản có vai trò `ADMIN`
+
 ### 2026-08-20 - Booking Status Email Notification
 
 **Người thực hiện:** [Kaio]
