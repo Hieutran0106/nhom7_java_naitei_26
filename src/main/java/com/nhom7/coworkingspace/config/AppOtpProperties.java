@@ -12,4 +12,6 @@ import org.springframework.stereotype.Component;
 public class AppOtpProperties {
 
     private long expirationMinutes = 5;
+    private long resendCooldownSeconds = 60;
+    private int maxFailedAttempts = 5;
 }

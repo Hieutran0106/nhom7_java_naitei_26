@@ -60,6 +60,10 @@ public class JwtTokenProvider {
         return parseClaims(token).getExpiration();
     }
 
+    public Date extractIssuedAt(String token) {
+        return parseClaims(token).getIssuedAt();
+    }
+
     public boolean validateToken(String token) {
         try {
             parseClaims(token);

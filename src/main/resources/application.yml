@@ -77,7 +77,9 @@ app:
     expiration-ms: 86400000 # 1 day
     refresh-expiration-ms: 604800000 # 7 days
   otp:
-    expiration-minutes: ${OTP_EXPIRATION_MINUTES:5}
+    expiration-minutes: ${OTP_EXPIRATION_MINUTES:5} # 5 minutes
+    resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60} # 60 seconds
+    max-failed-attempts: ${OTP_MAX_FAILED_ATTEMPTS:5} # 5 attempts
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
   cors:

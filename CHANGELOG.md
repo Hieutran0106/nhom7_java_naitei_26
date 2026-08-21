@@ -7,6 +7,24 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-21 - Account Confirmation and Password Reset via OTP
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- Endpoint `POST /api/auth/confirm-account` xác thực mã OTP 6 chữ số và kích hoạt tài khoản (`INACTIVE` sang `ACTIVE`)
+- Endpoint `POST /api/auth/reset-password` xác thực OTP và đổi mật khẩu mới (mã hóa bcrypt) cho tài khoản đang `ACTIVE`
+- DTO `ConfirmAccountRequest` và `ResetPasswordRequest` kèm validation (định dạng email, OTP đúng 6 chữ số, độ dài mật khẩu)
+- Phương thức `OtpService.confirmAccount(...)` và `OtpService.resetPassword(...)` bảo mật (so khớp hash OTP, kiểm tra hạn dùng theo Clock, xóa token sau khi sử dụng để chống tấn công replay)
+- Method `OtpTokenRepository.findByUserAndPurpose(...)` hỗ trợ tra cứu OTP theo người dùng và mục đích
+- Cơ chế giới hạn số lần nhập sai OTP: Hủy và vô hiệu hóa mã OTP ngay lập tức khi nhập sai $\ge 5$ lần (`failed_attempts` trong entity `OtpToken`)
+- Cơ chế Cooldown gửi OTP: Chặn và trả về HTTP 429 nếu yêu cầu gửi lại OTP trong vòng 60 giây kể từ lần gửi gần nhất
+- Thu hồi và vô hiệu hóa toàn bộ JWT Token cũ khi đặt lại mật khẩu thành công thông qua `passwordChangedAt` và `TokenBlacklistService` trong `JwtAuthenticationFilter`
+- Bổ sung cấu hình `app.otp.resend-cooldown-seconds` và `app.otp.max-failed-attempts` có thể tùy biến qua biến môi trường
+- Thông điệp đa ngôn ngữ i18n tiếng Anh và tiếng Việt cho xác nhận tài khoản, đổi mật khẩu, cooldown và lỗi vượt quá số lần nhập sai OTP
+- Unit test đầy đủ cho `OtpServiceImpl`, `AuthController`, `JwtAuthenticationFilter` bao gồm các trường hợp thành công, OTP hết hạn, cooldown, sai mã OTP, giới hạn số lần thử và thu hồi token
+
 ### 2026-08-20 - Booking Status Email Notification
 
 **Người thực hiện:** [Kaio]
@@ -62,6 +80,7 @@ File ghi lại những thay đổi của dự án.
 - `EmailService` hỗ trợ gửi email plain text và HTML qua `JavaMailSender`
 - Xử lý lỗi gửi mail tập trung bằng `EmailSendingException`
 - Unit test cho nội dung email, validation và lỗi SMTP
+
 ### 2026-08-20 - Search & Filter Co-working spaces API
 
 **Người thực hiện:** Nguyễn Minh An

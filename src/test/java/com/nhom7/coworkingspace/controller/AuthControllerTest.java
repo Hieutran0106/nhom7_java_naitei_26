@@ -242,5 +242,57 @@ class AuthControllerTest {
 
                         verify(otpService).sendPasswordResetOtp("active@coworking.test");
                 }
+
+                @Test
+                void confirmAccountShouldReturnOkWhenOtpIsValid() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.confirmation.success"), any(), any(Locale.class)))
+                                        .willReturn("Account confirmed successfully");
+
+                        mockMvc.perform(post("/api/auth/confirm")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"user@coworking.test\",\"otp\":\"123456\"}"))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.code").value(200))
+                                        .andExpect(jsonPath("$.message").value("Account confirmed successfully"));
+
+                        verify(otpService).confirmAccount("user@coworking.test", "123456");
+                }
+
+                @Test
+                void confirmAccountShouldRejectInvalidOtpFormat() throws Exception {
+                        mockMvc.perform(post("/api/auth/confirm")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"user@coworking.test\",\"otp\":\"123\"}"))
+                                        .andExpect(status().isBadRequest());
+
+                        verifyNoInteractions(otpService);
+                }
+
+                @Test
+                void resetPasswordShouldReturnOkWhenRequestIsValid() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.password.reset.success"), any(), any(Locale.class)))
+                                        .willReturn("Password reset successfully");
+
+                        mockMvc.perform(post("/api/auth/reset-password")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"user@coworking.test\",\"otp\":\"123456\",\"newPassword\":\"Password123@\"}"))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.code").value(200))
+                                        .andExpect(jsonPath("$.message").value("Password reset successfully"));
+
+                        verify(otpService).resetPassword("user@coworking.test", "123456", "Password123@");
+                }
+
+                @Test
+                void resetPasswordShouldRejectWeakPassword() throws Exception {
+                        mockMvc.perform(post("/api/auth/reset-password")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"user@coworking.test\",\"otp\":\"123456\",\"newPassword\":\"weak\"}"))
+                                        .andExpect(status().isBadRequest());
+
+                        verifyNoInteractions(otpService);
+                }
         }
 }
