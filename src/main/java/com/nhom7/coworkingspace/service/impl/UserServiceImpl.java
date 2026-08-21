@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.service.impl;
 
+import com.nhom7.coworkingspace.dto.request.UpdateUserRequest;
 import com.nhom7.coworkingspace.dto.response.UpdateUserRoleResponse;
 import com.nhom7.coworkingspace.dto.response.UserProfileResponse;
 import com.nhom7.coworkingspace.entity.Role;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Set;
@@ -75,6 +77,43 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
 
+        return buildProfileResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileResponse updateMyProfile(String email, UpdateUserRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        if (request.getName() != null) {
+            String trimmedName = request.getName().trim();
+            if (trimmedName.isEmpty()) {
+                throw new AppException("validation.name.required", HttpStatus.BAD_REQUEST);
+            }
+            user.setName(trimmedName);
+        }
+
+        if (request.getPhone() != null) {
+            String trimmedPhone = request.getPhone().trim();
+            if (userRepository.existsByPhoneAndIdNot(trimmedPhone, user.getId())) {
+                throw new AppException("user.phone.exists", HttpStatus.CONFLICT);
+            }
+            user.setPhone(trimmedPhone);
+        }
+
+        MultipartFile cccdImage = request.getCccdImage();
+        if (cccdImage != null && !cccdImage.isEmpty()) {
+            String cccdPath = fileStorageService.storeFile(cccdImage, "cccd");
+            user.setCccdUrl(cccdPath);
+        }
+
+        User updatedUser = userRepository.save(user);
+
+        return buildProfileResponse(updatedUser);
+    }
+
+    private UserProfileResponse buildProfileResponse(User user) {
         Set<String> roleNames = user.getRoles().stream()
                 .map(Role::getName)
                 .collect(Collectors.toSet());

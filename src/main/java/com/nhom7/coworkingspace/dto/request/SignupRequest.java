@@ -37,6 +37,7 @@ public class SignupRequest {
   private String password;
 
   @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+  @NotBlank(message = "{validation.phone.required}")
   @ValidPhone
   private String phone;
 

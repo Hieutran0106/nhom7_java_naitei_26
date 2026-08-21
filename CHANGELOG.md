@@ -7,7 +7,39 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
-### 2026-08-22 - User Profile API (GET /api/users/me) (#99270)
+### 2026-08-22 - Update Current User Profile (PUT /api/users/me) (#99271)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `PUT /api/users/me`: cho phép user đã đăng nhập cập nhật `name`, `phone`, `cccdImage` của chính mình, dạng `multipart/form-data`, tất cả field đều optional (partial update - field nào không gửi thì giữ nguyên giá trị cũ, không bị ghi đè bằng null/rỗng); không nhận `userId` từ client, lấy user qua `@AuthenticationPrincipal` (Spring Security context do `JwtAuthenticationFilter` xác thực sẵn)
+- DTO `UpdateUserRequest`: `name` (`@Size(max=150)`, trim + kiểm tra rỗng nếu có gửi), `phone` (tái sử dụng `@ValidPhone`), `cccdImage` (tái sử dụng `@ValidImage`, nay optional) - không cho sửa `id`/`email`/`password`/`role`/`status`/`refreshToken`/`createdAt`
+- `UserService.updateMyProfile(...)`/`UserServiceImpl`: kiểm tra `phone` trùng user khác qua `UserRepository.existsByPhoneAndIdNot(...)` (cho phép trùng chính mình); upload CCCD mới qua `FileStorageService.storeFile(...)` (tái sử dụng đúng logic Supabase từ signup) - chỉ cập nhật `cccdUrl` khi upload thành công; toàn bộ nằm trong 1 `@Transactional` nên nếu upload lỗi thì rollback, giữ nguyên `cccdUrl` cũ và cả các field khác chưa lưu, lỗi được `GlobalExceptionHandler` trả về kèm message rõ ràng
+- `UserRepository.existsByPhoneAndIdNot(...)`: kiểm tra trùng số điện thoại loại trừ chính user hiện tại
+- Message key `user.phone.exists` (en/vi)
+- `UserControllerTest`: unit test xác nhận upload file không đúng định dạng JPEG/PNG/WEBP bị chặn ở tầng validation, trả về `400` kèm message rõ ràng và **không** gọi tới service/Supabase; kèm test happy-path cập nhật thành công
+
+#### Changed
+
+- `ValidPhone`: bỏ `@NotBlank` khỏi annotation gộp (chỉ giữ `@Pattern`, vốn coi `null` là hợp lệ) để tái sử dụng được cho field optional - đổi lại `SignupRequest` khai báo tường minh `@NotBlank` trên field `phone` để giữ nguyên hành vi bắt buộc khi đăng ký
+- `ValidImage`/`ImageFileValidator`: thêm thuộc tính `required` (mặc định `true`, không đổi hành vi signup); dùng `required = false` cho `cccdImage` ở `PUT /me` - vẫn áp dụng đúng rule size/định dạng khi có file, chỉ bỏ qua khi không gửi file
+- `UserServiceImpl`: tách `buildProfileResponse(...)` dùng chung giữa `getMyProfile` và `updateMyProfile`, tránh lặp code build response
+
+#### Cách sử dụng `PUT /api/users/me`
+
+1. `POST /api/auth/login` lấy `accessToken`, bấm **Authorize** trên Swagger UI (giống `GET /me`).
+2. Mở `PUT /api/users/me` - 3 field: `name`, `phone` (text) và `cccdImage` (nút **Choose File**), tất cả optional. Điền field muốn đổi, để trống field muốn giữ nguyên rồi Execute.
+3. Giải thích nút/checkbox **"Send empty value"** mà Swagger UI tự hiện cạnh mỗi field optional (do field không đánh dấu `required`):
+   - **Không tick**, để trống field → Swagger **không đưa field đó vào request** → server nhận `null` → giữ nguyên giá trị cũ. Đây là cách test đúng "field không gửi thì giữ nguyên".
+   - **Có tick** rồi để trống → Swagger vẫn gửi field lên với giá trị rỗng (`""` với `name`/`phone`) → server hiểu là "cố tình cập nhật thành rỗng" → trả lỗi validation `400` (`validation.name.required` / `validation.phone.invalid`). Dùng để test case lỗi "không được rỗng nếu có gửi".
+   - Với `cccdImage` (kiểu file): tick hay không không tạo khác biệt nếu không chọn file - phần file rỗng luôn được coi là "không gửi", `cccdUrl` cũ được giữ nguyên.
+4. Response trả `UserProfileResponse` mới nhất (không có `password`/`refreshToken`), `cccdUrl` là signed URL truy cập được ngay.
+5. Test lỗi: `phone` trùng user khác → `409` (`user.phone.exists`); `phone` sai định dạng hoặc `name` rỗng khi có gửi → `400` kèm map lỗi theo field; ảnh sai định dạng/quá 5MB → `400`; không Authorize → `403`.
+
+---
+
+### 2026-08-22 - Create User Profile API (GET /api/users/me) (#99270)
 
 **Người thực hiện:** Huỳnh Trương Thảo Duyên
 
