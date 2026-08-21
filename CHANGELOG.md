@@ -7,6 +7,40 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-22 - Register/Upgrade to HOST (POST /api/users/me/roles/host) (#99269)
+
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
+
+#### Added
+
+- Endpoint `POST /api/users/me/roles/host`: cho phép user đã đăng nhập (role `USER`) upload `businessLicense` (`multipart/form-data`, tái sử dụng `@ValidImage(required = false)`) và tự động nâng cấp lên role `HOST` khi đủ **cả 3** điều kiện: `status == ACTIVE`, `isIdentityVerified == true`, `isBusinessVerified == true`. Không nhận `role`/`isBusinessVerified`/`isIdentityVerified`/`status`/`userId` từ client — toàn bộ lấy từ user hiện tại qua `@AuthenticationPrincipal` và dữ liệu đã lưu trong DB
+- DTO `BecomeHostRequest` (field `businessLicense` duy nhất) và `HostUpgradeResponse` (bọc `UserProfileResponse` + cờ `alreadyHost` để Controller chọn đúng message)
+- `UserService.becomeHost(...)`/`UserServiceImpl`: thứ tự kiểm tra rõ ràng — user tồn tại → đã là HOST chưa (idempotent, không tạo role trùng) → `status == ACTIVE` → có `business_license_url` → `isIdentityVerified` → `isBusinessVerified` → gán role `HOST`
+- Cột `business_license_hash` (SHA-256 hex nội dung file) trên `User` entity: dùng để phân biệt "upload lại đúng file cũ" và "upload file mới thật sự" (xem mục Fixed)
+- Message key mới (en/vi): `host.upgrade.success`, `host.already`, `host.status.not.active`, `host.license.required`, `host.business.pending`, `host.identity.required`, `role.not.found`
+- Test: `UserServiceImplTest.BecomeHostTests` (unit, mock repository, đủ các case theo đúng thứ tự kiểm tra ở trên) và `UserControllerTest.BecomeHostEndpointTests` (mock service, kiểm tra response HTTP/message)
+- **`BecomeHostIntegrationTest`** (mới): test end-to-end với DB thật + Spring transaction thật (chỉ mock `FileStorageService` để không gọi Supabase thật) — xác nhận license được lưu thật ngay cả khi bị từ chối, và luồng lên HOST hoạt động đúng qua HTTP thật
+
+#### Fixed
+
+- **[Nghiêm trọng]** `business_license_url` bị NULL vĩnh viễn sau khi upload dù file đã lên Supabase thành công: do toàn bộ `becomeHost()` nằm trong một `@Transactional` duy nhất, và method luôn `throw AppException` ngay sau khi `save()` license (vì vừa upload thì verification bị reset về `false`, chưa thể đủ điều kiện thành HOST ngay). Mặc định Spring **rollback toàn bộ transaction** khi có `RuntimeException` thoát ra khỏi method, cuốn theo cả câu `save()` license vừa chạy trước đó — khiến DB không bao giờ thực sự lưu được URL. Sửa bằng `@Transactional(noRollbackFor = AppException.class)`: transaction vẫn **commit** khi bị từ chối do business rule, chỉ rollback khi có lỗi hệ thống thật. Lỗi này không bị unit test cũ (mock `UserRepository`) phát hiện vì mock không mô phỏng rollback thật — phải viết `BecomeHostIntegrationTest` với DB thật mới tái hiện và xác nhận đã sửa
+- Việc set `is_business_verified = true` thủ công trong DB bị "mất tác dụng" (API vẫn trả 403 pending) — hệ quả trực tiếp của lỗi rollback ở trên, vì `business_license_url` chưa từng lưu thật nên điều kiện luôn thất bại ở bước "cần license"
+
+#### Lưu ý quan trọng — quy tắc reset xác minh khi upload
+
+- Mỗi khi upload một giấy phép **mới** (khác nội dung với file đang lưu), `is_business_verified` luôn bị đặt lại `false` để bắt buộc duyệt lại — đúng theo thiết kế ban đầu, **không đổi**.
+- Tuy nhiên nếu client **tải lại đúng cùng một ảnh** (so khớp bằng SHA-256 qua `business_license_hash`, ví dụ Swagger UI vẫn còn giữ sẵn file cũ khi bấm Execute lần nữa để kiểm tra lại điều kiện) thì hệ thống **không** reset `is_business_verified` — tránh vòng lặp "vừa được duyệt xong lại bị reset về pending" chỉ vì gọi lại API với cùng file.
+
+#### Cách sử dụng `POST /api/users/me/roles/host`
+
+1. `POST /api/auth/login` lấy `accessToken`, bấm **Authorize** trên Swagger UI.
+2. Gọi `POST /api/users/me/roles/host` kèm file `businessLicense` (JPEG/PNG/WEBP) — nếu user chưa `ACTIVE`/chưa verify thì nhận `403` kèm message tương ứng, nhưng `business_license_url` đã được lưu thật trong DB (kiểm tra bằng `SELECT business_license_url FROM users WHERE email = '...'`).
+3. Set thủ công trong DB: `status = 'ACTIVE'`, `is_identity_verified = true`, `is_business_verified = true` cho user đó (chưa có chức năng moderator duyệt qua UI).
+4. Gọi lại API (không cần đính kèm file nữa, hoặc đính kèm lại đúng file cũ đều được) → `200 "You have successfully become a Host."`, `data.roles` chứa `HOST`.
+5. Gọi lại lần nữa → `200 "You are already a Host."` (không tạo role `HOST` trùng).
+
+---
+
 ### 2026-08-22 - Update Current User Profile (PUT /api/users/me) (#99271)
 
 **Người thực hiện:** Huỳnh Trương Thảo Duyên

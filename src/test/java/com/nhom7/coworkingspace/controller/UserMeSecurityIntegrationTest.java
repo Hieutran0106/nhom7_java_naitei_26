@@ -27,6 +27,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -208,5 +209,24 @@ class UserMeSecurityIntegrationTest {
                 .as("logout must not expose its own visible Authorization parameter - "
                         + "Authorize should be the single source")
                 .isFalse();
+    }
+
+    // POST /api/users/me/roles/host sits behind the same JWT filter chain as every other
+    // /api/users/me/** endpoint, so a missing or garbage token must be rejected the same way:
+    // via JwtAuthErrorHandler, with a clear ApiResponse body - not Spring Boot's default error page.
+    @Test
+    void becomeHostEndpointShouldRejectMissingAndInvalidTokens() throws Exception {
+        // No token at all
+        mockMvc.perform(multipart("/api/users/me/roles/host"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").isNotEmpty());
+
+        // Garbage/invalid token
+        mockMvc.perform(multipart("/api/users/me/roles/host")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer not-a-real-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").isNotEmpty());
     }
 }

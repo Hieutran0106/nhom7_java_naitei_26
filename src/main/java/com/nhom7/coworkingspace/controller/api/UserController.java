@@ -1,7 +1,9 @@
 package com.nhom7.coworkingspace.controller.api;
 
+import com.nhom7.coworkingspace.dto.request.BecomeHostRequest;
 import com.nhom7.coworkingspace.dto.request.UpdateUserRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
+import com.nhom7.coworkingspace.dto.response.HostUpgradeResponse;
 import com.nhom7.coworkingspace.dto.response.UserProfileResponse;
 import com.nhom7.coworkingspace.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,5 +59,25 @@ public class UserController {
         Locale locale = LocaleContextHolder.getLocale();
         String message = messageSource.getMessage("user.updated", null, locale);
         return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+
+    @Operation(
+            summary = "Register/upgrade to HOST",
+            description = "Allows the currently authenticated USER to upload a business license and, once both "
+                    + "identity and business verification have been approved (currently set manually by a moderator), "
+                    + "upgrade their account to the HOST role. The businessLicense file is optional - omit it if one "
+                    + "was already uploaded in a previous call. The user is always resolved from the access token "
+                    + "(SecurityContext), never from client input. Click the Authorize button and enter the accessToken "
+                    + "received after a successful login before calling this endpoint."
+    )
+    @PostMapping(value = "/me/roles/host", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<UserProfileResponse>> becomeHost(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @ModelAttribute @Valid BecomeHostRequest request) {
+        HostUpgradeResponse result = userService.becomeHost(userDetails.getUsername(), request.getBusinessLicense());
+        String messageKey = result.isAlreadyHost() ? "host.already" : "host.upgrade.success";
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage(messageKey, null, locale);
+        return ResponseEntity.ok(ApiResponse.success(result.getProfile(), message));
     }
 }
