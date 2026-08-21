@@ -10,6 +10,8 @@ import com.nhom7.coworkingspace.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.nhom7.coworkingspace.dto.response.PaymentResponse;
+import com.nhom7.coworkingspace.entity.Payment;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -111,4 +113,30 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .monthlyRevenue(monthlyRevenue)
                 .build();
     }
+
+    @Override
+@Transactional(readOnly = true)
+public List<PaymentResponse> getAllPayments() {
+
+    List<Payment> payments =
+            paymentRepository.findAllByOrderByPaidAtDesc();
+
+    return payments.stream()
+            .map(payment ->
+                    PaymentResponse.builder()
+                            .id(payment.getId())
+                            .bookingId(
+                                    payment.getBooking() != null
+                                            ? payment.getBooking().getId()
+                                            : null
+                            )
+                            .amount(payment.getAmount())
+                            .paymentMethod(payment.getPaymentMethod())
+                            .status(payment.getStatus())
+                            .paidAt(payment.getPaidAt())
+                            .transactionId(payment.getTransactionId())
+                            .build()
+            )
+            .toList();
+}
 }

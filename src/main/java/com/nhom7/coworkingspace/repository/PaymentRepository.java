@@ -35,4 +35,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal findTotalRevenueByYear(
             @Param("year") int year
     );
+
+    List<Payment> findAllByOrderByPaidAtDesc();
 }
