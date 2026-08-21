@@ -16,4 +16,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Override
     @EntityGraph(attributePaths = {"user", "space"})
     Optional<Booking> findById(Long id);
+    long countByStatusIgnoreCase(String status);
 }
