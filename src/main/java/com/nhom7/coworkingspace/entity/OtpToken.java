@@ -22,9 +22,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(
-        name = "otp_token",
-        indexes = @Index(name = "idx_otp_token_user_purpose", columnList = "user_id,purpose"))
+@Table(name = "otp_token", indexes = @Index(name = "idx_otp_token_user_purpose", columnList = "user_id,purpose"))
 @Getter
 @Setter
 @NoArgsConstructor
