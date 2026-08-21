@@ -203,10 +203,16 @@ class AuthControllerTest {
 
                 @Test
                 void sendConfirmationShouldReturnAccepted() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.confirmation.sent"), any(), any(Locale.class)))
+                                        .willReturn("Confirmation email sent");
+
                         mockMvc.perform(post("/api/auth/send-confirm")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content("{\"email\":\"user@coworking.test\"}"))
-                                        .andExpect(status().isAccepted());
+                                        .andExpect(status().isAccepted())
+                                        .andExpect(jsonPath("$.code").value(202))
+                                        .andExpect(jsonPath("$.message").value("Confirmation email sent"));
 
                         verify(otpService).sendConfirmationOtp("user@coworking.test");
                 }
@@ -223,10 +229,16 @@ class AuthControllerTest {
 
                 @Test
                 void forgotPasswordShouldReturnAccepted() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.password.reset.sent"), any(), any(Locale.class)))
+                                        .willReturn("Password reset email sent");
+
                         mockMvc.perform(post("/api/auth/forgot-password")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content("{\"email\":\"active@coworking.test\"}"))
-                                        .andExpect(status().isAccepted());
+                                        .andExpect(status().isAccepted())
+                                        .andExpect(jsonPath("$.code").value(202))
+                                        .andExpect(jsonPath("$.message").value("Password reset email sent"));
 
                         verify(otpService).sendPasswordResetOtp("active@coworking.test");
                 }

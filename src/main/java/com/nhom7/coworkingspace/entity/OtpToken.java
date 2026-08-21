@@ -1,6 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
-import com.nhom7.coworkingspace.constant.OtpPurpose;
+import com.nhom7.coworkingspace.enums.OtpPurpose;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

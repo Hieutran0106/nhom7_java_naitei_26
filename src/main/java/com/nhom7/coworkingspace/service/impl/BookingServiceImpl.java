@@ -1,15 +1,18 @@
 package com.nhom7.coworkingspace.service.impl;
 
-import com.nhom7.coworkingspace.dto.email.BookingStatusEmailData;
 import com.nhom7.coworkingspace.entity.Booking;
+import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.BookingNotFoundException;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.service.BookingService;
 import com.nhom7.coworkingspace.service.EmailService;
 import com.nhom7.coworkingspace.service.EmailTemplateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Locale;
 
@@ -20,6 +23,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final EmailService emailService;
     private final EmailTemplateService emailTemplateService;
+    private final MessageSource messageSource;
 
     @Override
     @Transactional
@@ -36,27 +40,31 @@ public class BookingServiceImpl implements BookingService {
         booking.setStatus(normalizedStatus);
         Booking savedBooking = bookingRepository.saveAndFlush(booking);
 
-        BookingStatusEmailData emailData = new BookingStatusEmailData(
-                savedBooking.getId(),
-                savedBooking.getUser().getName(),
-                savedBooking.getSpace().getName(),
-                savedBooking.getStartTime(),
-                savedBooking.getEndTime(),
-                savedBooking.getTotalPrice(),
-                previousStatus,
-                normalizedStatus);
-        String html = emailTemplateService.renderBookingStatusChanged(emailData);
+        Locale locale = toLocale(savedBooking.getUser().getLanguage());
+        String html = emailTemplateService.renderBookingStatusChanged(
+                savedBooking, previousStatus, locale);
+        String subject = messageSource.getMessage(
+                "email.booking.status.subject",
+                new Object[]{savedBooking.getId()},
+                locale);
         emailService.sendHtmlEmail(
                 savedBooking.getUser().getEmail(),
-                "Booking #" + savedBooking.getId() + " status updated",
+                subject,
                 html);
         return savedBooking;
     }
 
     private String normalizeStatus(String status) {
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("Booking status must not be blank");
+            throw new AppException("booking.status.required", HttpStatus.BAD_REQUEST);
         }
         return status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private Locale toLocale(String language) {
+        if (!StringUtils.hasText(language)) {
+            return Locale.ENGLISH;
+        }
+        return Locale.forLanguageTag(language.replace('_', '-'));
     }
 }

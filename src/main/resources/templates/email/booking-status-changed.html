@@ -1,23 +1,20 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
-    <title>Booking status updated</title>
+    <title th:text="#{email.booking.status.title}"></title>
 </head>
 <body>
-<h1>Booking status updated</h1>
-<p>Hello <span th:text="${booking.userName}">Customer</span>,</p>
-<p>
-    Booking <strong th:text="${'#' + booking.bookingId}">#0</strong>
-    for <strong th:text="${booking.spaceName}">Workspace</strong> has changed status.
-</p>
+<h1 th:text="#{email.booking.status.title}"></h1>
+<p th:text="#{email.booking.greeting(${booking.user.name})}"></p>
+<p th:text="#{email.booking.changed(${booking.id}, ${booking.space.name})}"></p>
 <ul>
-    <li>Previous status: <span th:text="${booking.previousStatus}">PENDING</span></li>
-    <li>New status: <strong th:text="${booking.newStatus}">APPROVED</strong></li>
-    <li>Start time: <span th:text="${booking.startTime}">2026-08-22T09:00</span></li>
-    <li>End time: <span th:text="${booking.endTime}">2026-08-22T11:00</span></li>
-    <li>Total price: <span th:text="${booking.totalPrice}">0.00</span></li>
+    <li th:text="#{email.booking.previous.status(${previousStatus})}"></li>
+    <li th:text="#{email.booking.new.status(${booking.status})}"></li>
+    <li th:text="#{email.booking.start.time(${booking.startTime})}"></li>
+    <li th:text="#{email.booking.end.time(${booking.endTime})}"></li>
+    <li th:text="#{email.booking.total.price(${booking.totalPrice})}"></li>
 </ul>
-<p>Please contact support if you did not expect this change.</p>
+<p th:text="#{email.booking.contact}"></p>
 </body>
 </html>

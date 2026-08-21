@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
-    <title>Confirm your account</title>
+    <title th:text="#{email.confirmation.title}"></title>
 </head>
 <body>
-<h1>Confirm your account</h1>
-<p>Your confirmation code is <strong th:text="${code}">000000</strong>.</p>
-<p>This code expires in <span th:text="${expirationMinutes}">5</span> minutes.</p>
+<h1 th:text="#{email.confirmation.title}"></h1>
+<p th:text="#{email.confirmation.code(${code})}"></p>
+<p th:text="#{email.otp.expires(${expirationMinutes})}"></p>
 </body>
 </html>

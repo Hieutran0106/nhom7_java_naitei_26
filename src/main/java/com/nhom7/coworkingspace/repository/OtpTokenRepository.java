@@ -1,6 +1,6 @@
 package com.nhom7.coworkingspace.repository;
 
-import com.nhom7.coworkingspace.constant.OtpPurpose;
+import com.nhom7.coworkingspace.enums.OtpPurpose;
 import com.nhom7.coworkingspace.entity.OtpToken;
 import com.nhom7.coworkingspace.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;

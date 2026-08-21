@@ -1,12 +1,14 @@
 package com.nhom7.coworkingspace.service.impl;
 
 import com.nhom7.coworkingspace.config.AppOtpProperties;
-import com.nhom7.coworkingspace.dto.email.BookingStatusEmailData;
+import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.service.EmailTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -20,24 +22,26 @@ public class ThymeleafEmailTemplateService implements EmailTemplateService {
     private final AppOtpProperties otpProperties;
 
     @Override
-    public String renderAccountConfirmation(String code) {
-        return render(ACCOUNT_CONFIRMATION_TEMPLATE, code);
+    public String renderAccountConfirmation(String code, Locale locale) {
+        return render(ACCOUNT_CONFIRMATION_TEMPLATE, code, locale);
     }
 
     @Override
-    public String renderPasswordReset(String code) {
-        return render(PASSWORD_RESET_TEMPLATE, code);
+    public String renderPasswordReset(String code, Locale locale) {
+        return render(PASSWORD_RESET_TEMPLATE, code, locale);
     }
 
     @Override
-    public String renderBookingStatusChanged(BookingStatusEmailData data) {
-        Context context = new Context();
-        context.setVariable("booking", data);
+    public String renderBookingStatusChanged(
+            Booking booking, String previousStatus, Locale locale) {
+        Context context = new Context(locale);
+        context.setVariable("booking", booking);
+        context.setVariable("previousStatus", previousStatus);
         return templateEngine.process(BOOKING_STATUS_CHANGED_TEMPLATE, context);
     }
 
-    private String render(String template, String code) {
-        Context context = new Context();
+    private String render(String template, String code, Locale locale) {
+        Context context = new Context(locale);
         context.setVariable("code", code);
         context.setVariable("expirationMinutes", otpProperties.getExpirationMinutes());
         return templateEngine.process(template, context);

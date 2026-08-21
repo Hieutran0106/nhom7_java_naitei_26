@@ -1,6 +1,5 @@
 package com.nhom7.coworkingspace.service;
 
-import com.nhom7.coworkingspace.dto.email.BookingStatusEmailData;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
@@ -9,13 +8,14 @@ import com.nhom7.coworkingspace.service.impl.BookingServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -34,11 +34,15 @@ class BookingServiceImplTest {
     @Mock
     private EmailTemplateService emailTemplateService;
 
+    @Mock
+    private MessageSource messageSource;
+
     private BookingService bookingService;
 
     @BeforeEach
     void setUp() {
-        bookingService = new BookingServiceImpl(bookingRepository, emailService, emailTemplateService);
+        bookingService = new BookingServiceImpl(
+                bookingRepository, emailService, emailTemplateService, messageSource);
     }
 
     @Test
@@ -46,6 +50,7 @@ class BookingServiceImplTest {
         User user = User.builder()
                 .name("Nguyen Van A")
                 .email("customer@coworking.test")
+                .language("vi")
                 .build();
         Space space = Space.builder().name("Meeting Room A").build();
         Booking booking = Booking.builder()
@@ -59,23 +64,21 @@ class BookingServiceImplTest {
                 .build();
         given(bookingRepository.findById(42L)).willReturn(Optional.of(booking));
         given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
-        given(emailTemplateService.renderBookingStatusChanged(org.mockito.ArgumentMatchers.any()))
+        Locale locale = Locale.forLanguageTag("vi");
+        given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
                 .willReturn("<p>Booking updated</p>");
+        given(messageSource.getMessage(
+                "email.booking.status.subject", new Object[]{42L}, locale))
+                .willReturn("Trạng thái đặt chỗ #42 đã được cập nhật");
 
         Booking updated = bookingService.changeStatus(42L, " approved ");
 
         assertThat(updated.getStatus()).isEqualTo("APPROVED");
         verify(bookingRepository).saveAndFlush(booking);
-        ArgumentCaptor<BookingStatusEmailData> dataCaptor =
-                ArgumentCaptor.forClass(BookingStatusEmailData.class);
-        verify(emailTemplateService).renderBookingStatusChanged(dataCaptor.capture());
-        assertThat(dataCaptor.getValue().bookingId()).isEqualTo(42L);
-        assertThat(dataCaptor.getValue().previousStatus()).isEqualTo("PENDING");
-        assertThat(dataCaptor.getValue().newStatus()).isEqualTo("APPROVED");
-        assertThat(dataCaptor.getValue().userName()).isEqualTo("Nguyen Van A");
+        verify(emailTemplateService).renderBookingStatusChanged(booking, "PENDING", locale);
         verify(emailService).sendHtmlEmail(
                 "customer@coworking.test",
-                "Booking #42 status updated",
+                "Trạng thái đặt chỗ #42 đã được cập nhật",
                 "<p>Booking updated</p>");
     }
 

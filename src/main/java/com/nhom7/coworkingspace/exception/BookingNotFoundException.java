@@ -1,8 +1,10 @@
 package com.nhom7.coworkingspace.exception;
 
-public class BookingNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class BookingNotFoundException extends AppException {
 
     public BookingNotFoundException(Long bookingId) {
-        super("Booking not found: " + bookingId);
+        super("booking.not.found", HttpStatus.NOT_FOUND);
     }
 }

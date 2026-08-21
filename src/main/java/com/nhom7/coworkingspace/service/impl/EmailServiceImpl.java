@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.service.impl;
 
 import com.nhom7.coworkingspace.config.AppMailProperties;
+import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.EmailSendingException;
 import com.nhom7.coworkingspace.service.EmailService;
 import jakarta.mail.MessagingException;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -63,16 +65,16 @@ public class EmailServiceImpl implements EmailService {
 
     private void validateEmail(String recipient, String subject, String content) {
         if (!StringUtils.hasText(mailProperties.getFrom())) {
-            throw new IllegalStateException("Email sender address is not configured");
+            throw new AppException("email.sender.not.configured", HttpStatus.INTERNAL_SERVER_ERROR);
         }
         if (!StringUtils.hasText(recipient)) {
-            throw new IllegalArgumentException("Email recipient must not be blank");
+            throw new AppException("email.recipient.required");
         }
         if (!StringUtils.hasText(subject)) {
-            throw new IllegalArgumentException("Email subject must not be blank");
+            throw new AppException("email.subject.required");
         }
         if (!StringUtils.hasText(content)) {
-            throw new IllegalArgumentException("Email content must not be blank");
+            throw new AppException("email.content.required");
         }
     }
 }

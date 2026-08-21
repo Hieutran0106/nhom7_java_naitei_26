@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.service;
 
 import com.nhom7.coworkingspace.config.AppMailProperties;
+import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.EmailSendingException;
 import com.nhom7.coworkingspace.service.impl.EmailServiceImpl;
 import jakarta.mail.Session;
@@ -77,22 +78,26 @@ class EmailServiceImplTest {
 
     @Test
     @DisplayName("Should reject a blank recipient before creating a message")
-    void givenBlankRecipient_whenSend_thenThrowIllegalArgumentException() {
+    void givenBlankRecipient_whenSend_thenThrowAppException() {
         assertThatThrownBy(() -> emailService.sendPlainTextEmail(" ", "Subject", "Content"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email recipient must not be blank");
+                .isInstanceOfSatisfying(AppException.class, exception -> {
+                    assertThat(exception.getMessageKey()).isEqualTo("email.recipient.required");
+                    assertThat(exception.getStatus().value()).isEqualTo(400);
+                });
 
         verify(mailSender, never()).createMimeMessage();
     }
 
     @Test
     @DisplayName("Should reject sending when sender address is not configured")
-    void givenMissingSender_whenSend_thenThrowIllegalStateException() {
+    void givenMissingSender_whenSend_thenThrowAppException() {
         mailProperties.setFrom(" ");
 
         assertThatThrownBy(() -> emailService.sendPlainTextEmail(RECIPIENT, "Subject", "Content"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Email sender address is not configured");
+                .isInstanceOfSatisfying(AppException.class, exception -> {
+                    assertThat(exception.getMessageKey()).isEqualTo("email.sender.not.configured");
+                    assertThat(exception.getStatus().value()).isEqualTo(500);
+                });
 
         verify(mailSender, never()).createMimeMessage();
     }

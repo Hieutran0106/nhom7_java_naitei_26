@@ -1,9 +1,9 @@
 package com.nhom7.coworkingspace.service;
 
 import com.nhom7.coworkingspace.config.AppOtpProperties;
-import com.nhom7.coworkingspace.constant.OtpPurpose;
 import com.nhom7.coworkingspace.entity.OtpToken;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.OtpPurpose;
 import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.repository.OtpTokenRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
@@ -15,12 +15,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -51,6 +53,9 @@ class OtpServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private MessageSource messageSource;
+
     private OtpService otpService;
 
     @BeforeEach
@@ -66,7 +71,8 @@ class OtpServiceImplTest {
                 otpCodeGenerator,
                 passwordEncoder,
                 properties,
-                clock);
+                clock,
+                messageSource);
     }
 
     @Test
@@ -75,12 +81,15 @@ class OtpServiceImplTest {
                 .id(1L)
                 .name("Test User")
                 .email("user@coworking.test")
+                .language("vi")
                 .status(UserStatus.INACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("123456");
         given(passwordEncoder.encode("123456")).willReturn("hashed-code");
-        given(emailTemplateService.renderAccountConfirmation("123456"))
+        given(messageSource.getMessage("email.confirmation.subject", null, Locale.forLanguageTag("vi")))
+                .willReturn("Xác nhận tài khoản của bạn");
+        given(emailTemplateService.renderAccountConfirmation("123456", Locale.forLanguageTag("vi")))
                 .willReturn("<p>Confirmation template: 123456</p>");
 
         otpService.sendConfirmationOtp(user.getEmail());
@@ -96,7 +105,7 @@ class OtpServiceImplTest {
         assertThat(savedToken.getExpiresAt()).isEqualTo(NOW.plusSeconds(300));
         verify(emailService).sendHtmlEmail(
                 user.getEmail(),
-                "Confirm your account",
+                "Xác nhận tài khoản của bạn",
                 "<p>Confirmation template: 123456</p>");
     }
 
@@ -122,6 +131,7 @@ class OtpServiceImplTest {
         User user = User.builder()
                 .id(1L)
                 .email("active@coworking.test")
+                .language("en")
                 .status(UserStatus.ACTIVE)
                 .build();
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
@@ -142,7 +152,9 @@ class OtpServiceImplTest {
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("654321");
         given(passwordEncoder.encode("654321")).willReturn("hashed-reset-code");
-        given(emailTemplateService.renderPasswordReset("654321"))
+        given(messageSource.getMessage("email.password.reset.subject", null, Locale.ENGLISH))
+                .willReturn("Reset your password");
+        given(emailTemplateService.renderPasswordReset("654321", Locale.ENGLISH))
                 .willReturn("<p>Reset template: 654321</p>");
 
         otpService.sendPasswordResetOtp(user.getEmail());
@@ -168,7 +180,10 @@ class OtpServiceImplTest {
         given(userRepository.findByEmail(user.getEmail())).willReturn(Optional.of(user));
         given(otpCodeGenerator.generateCode()).willReturn("111222");
         given(passwordEncoder.encode("111222")).willReturn("hashed-code");
-        given(emailTemplateService.renderPasswordReset("111222")).willReturn("reset-body");
+        given(messageSource.getMessage("email.password.reset.subject", null, Locale.ENGLISH))
+                .willReturn("Reset your password");
+        given(emailTemplateService.renderPasswordReset("111222", Locale.ENGLISH))
+                .willReturn("reset-body");
 
         otpService.sendPasswordResetOtp(" Active@Coworking.Test ");
 
