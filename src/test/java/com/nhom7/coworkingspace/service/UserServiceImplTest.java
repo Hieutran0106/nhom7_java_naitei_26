@@ -1,6 +1,6 @@
 package com.nhom7.coworkingspace.service;
 
-import com.nhom7.coworkingspace.dto.response.UserRoleResponse;
+import com.nhom7.coworkingspace.dto.response.UpdateUserRoleResponse;
 import com.nhom7.coworkingspace.entity.Role;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.repository.RoleRepository;
@@ -75,7 +75,7 @@ class UserServiceImplTest {
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        UserRoleResponse response =
+        UpdateUserRoleResponse response =
                 userService.addRole(3L, "MODERATOR");
 
         assertNotNull(response);

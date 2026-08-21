@@ -1,6 +1,6 @@
 package com.nhom7.coworkingspace.service.impl;
 
-import com.nhom7.coworkingspace.dto.response.UserRoleResponse;
+import com.nhom7.coworkingspace.dto.response.UpdateUserRoleResponse;
 import com.nhom7.coworkingspace.entity.Role;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.repository.RoleRepository;
@@ -24,7 +24,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserRoleResponse addRole(Long userId, String roleName) {
+    public UpdateUserRoleResponse addRole(Long userId, String roleName) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
@@ -54,7 +54,7 @@ public class UserServiceImpl implements UserService {
                 .map(Role::getName)
                 .collect(Collectors.toSet());
 
-        return UserRoleResponse.builder()
+        return UpdateUserRoleResponse.builder()
                 .id(updatedUser.getId())
                 .name(updatedUser.getName())
                 .email(updatedUser.getEmail())

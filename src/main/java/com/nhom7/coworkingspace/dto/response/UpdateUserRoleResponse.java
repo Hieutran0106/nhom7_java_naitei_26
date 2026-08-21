@@ -10,7 +10,7 @@ import java.util.Set;
  */
 @Getter
 @Builder
-public class UserRoleResponse {
+public class UpdateUserRoleResponse {
 
     private Long id;
 
