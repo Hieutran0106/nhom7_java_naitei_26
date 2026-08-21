@@ -54,6 +54,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/api/auth/**",
+                                "/error",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 // OpenAPI specification

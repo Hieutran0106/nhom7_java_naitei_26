@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{email.booking.status.title}"></title>
+</head>
+<body>
+<h1 th:text="#{email.booking.status.title}"></h1>
+<p th:text="#{email.booking.greeting(${booking.user.name})}"></p>
+<p th:text="#{email.booking.changed(${booking.id}, ${booking.space.name})}"></p>
+<ul>
+    <li th:text="#{email.booking.previous.status(${previousStatus})}"></li>
+    <li th:text="#{email.booking.new.status(${booking.status})}"></li>
+    <li th:text="#{email.booking.start.time(${booking.startTime})}"></li>
+    <li th:text="#{email.booking.end.time(${booking.endTime})}"></li>
+    <li th:text="#{email.booking.total.price(${booking.totalPrice})}"></li>
+</ul>
+<p th:text="#{email.booking.contact}"></p>
+</body>
+</html>

@@ -13,6 +13,7 @@ import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
 import com.nhom7.coworkingspace.service.AuthService;
 import com.nhom7.coworkingspace.service.FileStorageService;
+import com.nhom7.coworkingspace.service.OtpService;
 import com.nhom7.coworkingspace.service.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -41,11 +43,13 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
+    private final OtpService otpService;
 
     @Override
     @Transactional
     public SignupResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new AppException("user.email.exists", HttpStatus.CONFLICT);
         }
 
@@ -58,7 +62,7 @@ public class AuthServiceImpl implements AuthService {
 
         User user = User.builder()
                 .name(normalizedName)
-                .email(request.getEmail().trim().toLowerCase())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone().trim())
                 .status(UserStatus.INACTIVE)
@@ -70,6 +74,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        otpService.sendConfirmationOtp(normalizedEmail);
         log.info("User registered successfully with id: {}", savedUser.getId());
 
         Set<String> roleNames = savedUser.getRoles().stream()
@@ -155,5 +160,9 @@ public class AuthServiceImpl implements AuthService {
             }
         }
         return normalized.toString();
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

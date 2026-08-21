@@ -95,7 +95,9 @@ class SpaceServiceTest {
 
         Page<Space> page = new PageImpl<>(List.of(mockSpace));
 
-        given(spaceRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(page);
+        given(spaceRepository.findAll(
+                org.mockito.ArgumentMatchers.<Specification<Space>>any(),
+                any(Pageable.class))).willReturn(page);
         given(spaceMapper.toSpaceResponse(mockSpace)).willReturn(mockResponse);
 
         PageResponse<SpaceResponse> response = spaceService.searchSpaces(request);
@@ -105,7 +107,9 @@ class SpaceServiceTest {
         assertThat(response.getContent().get(0).getName()).isEqualTo("Private Office A");
         assertThat(response.getTotalElements()).isEqualTo(1);
 
-        verify(spaceRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(spaceRepository).findAll(
+                org.mockito.ArgumentMatchers.<Specification<Space>>any(),
+                any(Pageable.class));
     }
 
     @Test
@@ -122,7 +126,9 @@ class SpaceServiceTest {
 
         Page<Space> page = new PageImpl<>(List.of(mockSpace));
 
-        given(spaceRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(page);
+        given(spaceRepository.findAll(
+                org.mockito.ArgumentMatchers.<Specification<Space>>any(),
+                any(Pageable.class))).willReturn(page);
         given(spaceMapper.toSpaceResponse(mockSpace)).willReturn(mockResponse);
 
         PageResponse<SpaceResponse> response = spaceService.searchSpaces(request);
@@ -132,6 +138,8 @@ class SpaceServiceTest {
         assertThat(response.getContent().get(0).getOpenTime()).isEqualTo(LocalTime.of(8, 0));
         assertThat(response.getContent().get(0).getCloseTime()).isEqualTo(LocalTime.of(22, 0));
 
-        verify(spaceRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(spaceRepository).findAll(
+                org.mockito.ArgumentMatchers.<Specification<Space>>any(),
+                any(Pageable.class));
     }
 }

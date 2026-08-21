@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
 
 @Documented
 @Constraint(validatedBy = {})
-@Target({ ElementType.FIELD, ElementType.PARAMETER })
+@Target({ ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT })
 @Retention(RetentionPolicy.RUNTIME)
 
 @NotBlank(message = "{validation.email.required}")

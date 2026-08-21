@@ -65,6 +65,9 @@ class AuthServiceImplTest {
         @Mock
         private TokenBlacklistService tokenBlacklistService;
 
+        @Mock
+        private OtpService otpService;
+
         @InjectMocks
         private AuthServiceImpl authService;
 
@@ -110,7 +113,7 @@ class AuthServiceImplTest {
                                         .roles(new HashSet<>(Set.of(userRole)))
                                         .build();
 
-                        given(userRepository.existsByEmail("TEST@EXAMPLE.COM")).willReturn(false);
+                        given(userRepository.existsByEmail("test@example.com")).willReturn(false);
                         given(fileStorageService.storeFile(mockCccdFile, "cccd")).willReturn("cccd/uuid.jpg");
                         given(roleRepository.findByName("USER")).willReturn(Optional.of(userRole));
                         given(passwordEncoder.encode("Password123@")).willReturn("hashed_password");
@@ -130,6 +133,7 @@ class AuthServiceImplTest {
                                         user.getEmail().equals("test@example.com") &&
                                         user.getStatus() == UserStatus.INACTIVE &&
                                         user.getPassword().equals("hashed_password")));
+                        verify(otpService).sendConfirmationOtp("test@example.com");
                 }
 
                 @Test
@@ -151,6 +155,7 @@ class AuthServiceImplTest {
 
                         verify(fileStorageService, never()).storeFile(any(), anyString());
                         verify(userRepository, never()).save(any());
+                        verifyNoInteractions(otpService);
                 }
 
                 @Test

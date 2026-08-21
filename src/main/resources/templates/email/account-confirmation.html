@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{email.confirmation.title}"></title>
+</head>
+<body>
+<h1 th:text="#{email.confirmation.title}"></h1>
+<p th:text="#{email.confirmation.code(${code})}"></p>
+<p th:text="#{email.otp.expires(${expirationMinutes})}"></p>
+</body>
+</html>

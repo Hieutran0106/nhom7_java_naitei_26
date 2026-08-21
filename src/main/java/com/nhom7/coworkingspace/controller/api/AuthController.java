@@ -1,13 +1,18 @@
 package com.nhom7.coworkingspace.controller.api;
 
 import com.nhom7.coworkingspace.dto.request.LoginRequest;
+import com.nhom7.coworkingspace.dto.request.SendConfirmationRequest;
 import com.nhom7.coworkingspace.dto.request.SignupRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
 import com.nhom7.coworkingspace.dto.response.LoginResponse;
 import com.nhom7.coworkingspace.dto.response.SignupResponse;
 import com.nhom7.coworkingspace.service.AuthService;
+import com.nhom7.coworkingspace.service.OtpService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +33,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final MessageSource messageSource;
+    private final OtpService otpService;
 
     @Operation(summary = "User Signup", description = "Register a new user account with personal info and CCCD image")
     @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,5 +66,39 @@ public class AuthController {
         Locale locale = LocaleContextHolder.getLocale();
         String message = messageSource.getMessage("auth.logout.success", null, locale);
         return ResponseEntity.ok(ApiResponse.success(null, message));
+    }
+
+    @Operation(summary = "Send account confirmation OTP")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "Confirmation request accepted",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/send-confirm")
+    public ResponseEntity<ApiResponse<Void>> sendConfirmation(
+            @Valid @RequestBody SendConfirmationRequest request) {
+        otpService.sendConfirmationOtp(request.email());
+        String message = messageSource.getMessage(
+                "auth.confirmation.sent", null, LocaleContextHolder.getLocale());
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(HttpStatus.ACCEPTED.value(), message, null));
+    }
+
+    @Operation(summary = "Send password reset OTP")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "Password reset request accepted",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody SendConfirmationRequest request) {
+        otpService.sendPasswordResetOtp(request.email());
+        String message = messageSource.getMessage(
+                "auth.password.reset.sent", null, LocaleContextHolder.getLocale());
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(HttpStatus.ACCEPTED.value(), message, null));
     }
 }

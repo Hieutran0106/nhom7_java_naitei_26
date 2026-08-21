@@ -8,6 +8,7 @@ import com.nhom7.coworkingspace.dto.response.SignupResponse;
 import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.exception.GlobalExceptionHandler;
 import com.nhom7.coworkingspace.service.AuthService;
+import com.nhom7.coworkingspace.service.OtpService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -44,6 +46,9 @@ class AuthControllerTest {
 
         @Mock
         private MessageSource messageSource;
+
+        @Mock
+        private OtpService otpService;
 
         @InjectMocks
         private AuthController authController;
@@ -189,6 +194,53 @@ class AuthControllerTest {
                                         .andExpect(jsonPath("$.message").value("Logout successful"));
 
                         verify(authService).logout("Bearer valid.jwt.token");
+                }
+        }
+
+        @Nested
+        @DisplayName("OTP email endpoints")
+        class OtpEmailEndpointTests {
+
+                @Test
+                void sendConfirmationShouldReturnAccepted() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.confirmation.sent"), any(), any(Locale.class)))
+                                        .willReturn("Confirmation email sent");
+
+                        mockMvc.perform(post("/api/auth/send-confirm")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"user@coworking.test\"}"))
+                                        .andExpect(status().isAccepted())
+                                        .andExpect(jsonPath("$.code").value(202))
+                                        .andExpect(jsonPath("$.message").value("Confirmation email sent"));
+
+                        verify(otpService).sendConfirmationOtp("user@coworking.test");
+                }
+
+                @Test
+                void sendConfirmationShouldRejectInvalidEmail() throws Exception {
+                        mockMvc.perform(post("/api/auth/send-confirm")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"not-an-email\"}"))
+                                        .andExpect(status().isBadRequest());
+
+                        verifyNoInteractions(otpService);
+                }
+
+                @Test
+                void forgotPasswordShouldReturnAccepted() throws Exception {
+                        given(messageSource.getMessage(
+                                        eq("auth.password.reset.sent"), any(), any(Locale.class)))
+                                        .willReturn("Password reset email sent");
+
+                        mockMvc.perform(post("/api/auth/forgot-password")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"email\":\"active@coworking.test\"}"))
+                                        .andExpect(status().isAccepted())
+                                        .andExpect(jsonPath("$.code").value(202))
+                                        .andExpect(jsonPath("$.message").value("Password reset email sent"));
+
+                        verify(otpService).sendPasswordResetOtp("active@coworking.test");
                 }
         }
 }
