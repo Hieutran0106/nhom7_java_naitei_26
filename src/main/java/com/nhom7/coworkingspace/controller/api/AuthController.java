@@ -1,6 +1,8 @@
 package com.nhom7.coworkingspace.controller.api;
 
+import com.nhom7.coworkingspace.dto.request.ConfirmAccountRequest;
 import com.nhom7.coworkingspace.dto.request.LoginRequest;
+import com.nhom7.coworkingspace.dto.request.ResetPasswordRequest;
 import com.nhom7.coworkingspace.dto.request.SendConfirmationRequest;
 import com.nhom7.coworkingspace.dto.request.SignupRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
@@ -100,5 +102,51 @@ public class AuthController {
                 "auth.password.reset.sent", null, LocaleContextHolder.getLocale());
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success(HttpStatus.ACCEPTED.value(), message, null));
+    }
+
+    @Operation(
+            summary = "Confirm account registration",
+            description = "Verify 6-digit OTP code sent via email to activate user account from INACTIVE to ACTIVE"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Account confirmed and activated successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid or expired OTP code, or validation error",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmAccount(
+            @Valid @RequestBody ConfirmAccountRequest request) {
+        otpService.confirmAccount(request.email(), request.otp());
+        String message = messageSource.getMessage(
+                "auth.confirmation.success", null, LocaleContextHolder.getLocale());
+        return ResponseEntity.ok(ApiResponse.success(null, message));
+    }
+
+    @Operation(
+            summary = "Reset password with OTP",
+            description = "Verify 6-digit OTP code and set new password for active user account"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Password reset successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid or expired OTP code, or validation error",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        otpService.resetPassword(request.email(), request.otp(), request.newPassword());
+        String message = messageSource.getMessage(
+                "auth.password.reset.success", null, LocaleContextHolder.getLocale());
+        return ResponseEntity.ok(ApiResponse.success(null, message));
     }
 }

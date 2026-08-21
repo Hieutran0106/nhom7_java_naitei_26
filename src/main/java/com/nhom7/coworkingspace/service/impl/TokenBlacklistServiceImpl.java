@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TokenBlacklistServiceImpl implements TokenBlacklistService {
 
     private final Map<String, Date> blacklist = new ConcurrentHashMap<>();
+    private final Map<String, Date> userRevocationMap = new ConcurrentHashMap<>();
 
     @Override
     public void blacklistToken(String token, Date expiryDate) {
@@ -37,6 +38,26 @@ public class TokenBlacklistServiceImpl implements TokenBlacklistService {
             return false;
         }
         return true;
+    }
+
+    @Override
+    public void blacklistUserTokens(String email, Date issuedBefore) {
+        if (email != null && issuedBefore != null) {
+            userRevocationMap.put(email.toLowerCase(), issuedBefore);
+            log.info("[Blacklist] Tokens for user {} issued before {} blacklisted", email, issuedBefore);
+        }
+    }
+
+    @Override
+    public boolean isUserTokenRevoked(String email, Date issuedAt) {
+        if (email == null || issuedAt == null) {
+            return false;
+        }
+        Date revokedBefore = userRevocationMap.get(email.toLowerCase());
+        if (revokedBefore == null) {
+            return false;
+        }
+        return issuedAt.before(revokedBefore);
     }
 
     // Periodically remove expired tokens from blacklist every hour
