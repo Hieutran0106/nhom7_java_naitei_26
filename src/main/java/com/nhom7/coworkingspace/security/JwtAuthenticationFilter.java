@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && jwtTokenProvider.validateToken(token) && !tokenBlacklistService.isBlacklisted(token)) {
             String username = jwtTokenProvider.extractUsername(token);
+            Date issuedAt = jwtTokenProvider.extractIssuedAt(token);
+            if (tokenBlacklistService.isUserTokenRevoked(username, issuedAt)) {
+                log.warn("[JWT Filter] Token was revoked for user: {}", username);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             UsernamePasswordAuthenticationToken authentication =

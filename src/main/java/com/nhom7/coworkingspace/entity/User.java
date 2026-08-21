@@ -4,6 +4,7 @@ import com.nhom7.coworkingspace.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -51,6 +52,9 @@ public class User {
 
     @Column(name = "business_license_url", length = 500)
     private String businessLicenseUrl;
+
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))

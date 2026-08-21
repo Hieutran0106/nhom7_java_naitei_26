@@ -295,4 +295,47 @@ class JwtAuthenticationFilterTest {
                     .containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
         }
     }
+
+    // ============================================================
+    // Group 6: Blacklisted and Revoked Tokens
+    // ============================================================
+
+    @Nested
+    @DisplayName("Request with blacklisted or revoked token")
+    class BlacklistedAndRevokedTokens {
+
+        @Test
+        @DisplayName("Token in blacklist -> SecurityContext stays empty")
+        void givenBlacklistedToken_whenFilter_thenSecurityContextIsEmpty()
+                throws ServletException, IOException {
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(tokenBlacklistService.isBlacklisted(VALID_TOKEN)).willReturn(true);
+
+            filter.doFilter(request, response, filterChain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+            verify(filterChain).doFilter(request, response);
+            verify(userDetailsService, never()).loadUserByUsername(anyString());
+        }
+
+        @Test
+        @DisplayName("Token revoked due to password reset -> SecurityContext stays empty")
+        void givenRevokedUserToken_whenFilter_thenSecurityContextIsEmpty()
+                throws ServletException, IOException {
+            java.util.Date issuedAt = new java.util.Date(1000L);
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(tokenBlacklistService.isBlacklisted(VALID_TOKEN)).willReturn(false);
+            given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
+            given(jwtTokenProvider.extractIssuedAt(VALID_TOKEN)).willReturn(issuedAt);
+            given(tokenBlacklistService.isUserTokenRevoked(USER_EMAIL, issuedAt)).willReturn(true);
+
+            filter.doFilter(request, response, filterChain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+            verify(filterChain).doFilter(request, response);
+            verify(userDetailsService, never()).loadUserByUsername(anyString());
+        }
+    }
 }

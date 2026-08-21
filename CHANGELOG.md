@@ -101,6 +101,7 @@ File ghi lại những thay đổi của dự án.
 - `EmailService` hỗ trợ gửi email plain text và HTML qua `JavaMailSender`
 - Xử lý lỗi gửi mail tập trung bằng `EmailSendingException`
 - Unit test cho nội dung email, validation và lỗi SMTP
+
 ### 2026-08-20 - Search & Filter Co-working spaces API
 
 **Người thực hiện:** Nguyễn Minh An
