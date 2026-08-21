@@ -15,3 +15,6 @@ app:
     # Run this command in PowerShell
     # [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
     secret: YOUR_JWT_SECRET_AT_LEAST_32_CHARACTERS_LONG
+  supabase:
+    # Supabase anon or service_role key from Supabase Dashboard -> Project Settings -> API
+    key: YOUR_SUPABASE_KEY
