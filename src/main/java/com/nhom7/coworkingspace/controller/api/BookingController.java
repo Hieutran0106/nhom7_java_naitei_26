@@ -1,0 +1,58 @@
+package com.nhom7.coworkingspace.controller.api;
+
+import com.nhom7.coworkingspace.dto.request.BookingRequest;
+import com.nhom7.coworkingspace.dto.response.ApiResponse;
+import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.service.BookingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Locale;
+
+@RestController
+@RequestMapping("/api/bookings")
+@RequiredArgsConstructor
+@Tag(name = "Booking API", description = "Endpoints for Co-working Space booking management")
+@SecurityRequirement(name = "BearerAuth")
+public class BookingController {
+
+
+    private final BookingService bookingService;
+    private final MessageSource messageSource;
+
+    /**
+     * Request a co-working space booking.
+     *
+     * <p>Requires authenticated user.</p>
+     *
+     * @param request booking request parameters
+     * @param authentication security context authentication
+     * @return created booking details wrapped in ApiResponse
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('USER', 'HOST', 'MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Request Co-working Space Booking",
+            description = "Allows authenticated users to request space bookings with status PENDING, validating against active overlapping bookings."
+    )
+    public ResponseEntity<ApiResponse<BookingResponse>> createBooking(
+            @Valid @RequestBody BookingRequest request,
+            Authentication authentication
+    ) {
+        BookingResponse response = bookingService.createBooking(request, authentication.getName());
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage("booking.created", null, locale);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), message, response));
+    }
+}

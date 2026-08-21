@@ -17,8 +17,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/spaces")
 @RequiredArgsConstructor
 @Tag(name = "Space API", description = "Endpoints for Co-working Space search and management")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "BearerAuth")
 public class SpaceController {
+
 
     private final SpaceService spaceService;
 

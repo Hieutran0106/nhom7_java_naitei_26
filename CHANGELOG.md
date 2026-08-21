@@ -7,7 +7,24 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-21 - Co-working Space Booking API
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- Endpoint `POST /api/bookings` hỗ trợ đặt chỗ Co-working space với trạng thái khởi tạo `PENDING`
+- Request DTO `BookingRequest` và Response DTO `BookingResponse` kèm MapStruct `BookingMapper`
+- Enum `BookingStatus` (`PENDING`, `APPROVED`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`) và `PriceUnit` (`HOUR`, `DAY`, `MONTH`)
+- Cơ chế khóa chống ghi đè race condition (TOCTOU) bằng `@Lock(LockModeType.PESSIMISTIC_WRITE)` (`findByIdForUpdate`) trên `SpaceRepository`
+- Logic kiểm tra trùng lịch `existsActiveOverlap` loại trừ các booking đã bị `CANCELLED` hoặc `REJECTED` (chặn trùng lịch cả `PENDING` và `APPROVED`)
+- Kiểm tra điều kiện thời gian hợp lệ (`startTime < endTime`, `startTime >= now`) và khung giờ hoạt động (`openTime`, `closeTime`) của Space
+- Logic tính toán tổng tiền chính xác theo số phút thực tế cho các loại đơn vị giá `HOUR`, `DAY` và `MONTH` (làm tròn lên)
+- Tiêm Spring `Clock` bean vào `BookingServiceImpl` hỗ trợ testability và chuẩn hóa timezone
+- Unit test suite toàn diện cho `BookingServiceImplTest` và `BookingControllerTest`
+
 ### 2026-08-21 - Account Confirmation and Password Reset via OTP
+
 
 **Người thực hiện:** [Trịnh Yến Nhi]
 
