@@ -48,6 +48,10 @@ public class Venue {
     @Column(name = "status", length = 30)
     private String status;
 
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private Boolean deleted = false;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "venue_amenities",
