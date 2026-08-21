@@ -7,6 +7,63 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-22 - User Profile API (GET /api/users/me) (#99270)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `GET /api/users/me`: lấy thông tin profile đầy đủ của user hiện tại dựa trên access token (không trả `password`/`refreshToken`)
+- `UserController`, `UserProfileResponse` DTO, `UserService.getMyProfile(...)`/`UserServiceImpl`: lấy user thông qua `@AuthenticationPrincipal` (Spring Security context đã được `JwtAuthenticationFilter` xác thực sẵn), không tự parse lại JWT ở tầng controller/service
+- Trả về URL đã ký (signed URL qua `FileStorageService.createSignedUrl`, hết hạn sau 3600 giây) cho ảnh CCCD (`cccdUrl`) và giấy phép kinh doanh (`businessLicenseUrl`) lưu trên Supabase Storage Private Bucket
+- Claim `tokenType` (`access` / `refresh`) trong `JwtTokenProvider.generateAccessToken`/`generateRefreshToken` — phân biệt được access token và refresh token ngay trong payload JWT
+- `JwtAuthenticationFilter`: bổ sung kiểm tra `jwtTokenProvider.isAccessToken(token)` — chặn refresh token bị dùng như access token trên **mọi** endpoint được bảo vệ, không chỉ riêng `/me`
+- `UserMeSecurityIntegrationTest`: test tích hợp end-to-end (DB thật, filter chain thật, không mock) xác nhận: không có token → `403`; dùng refresh token → `403`; access token hợp lệ → `200` đúng user; sau khi logout dùng lại access token cũ → `403`; và HTTP session không được dùng để khôi phục danh tính khi request không có token hợp lệ
+- Message key `user.profile.fetched` (en/vi)
+
+#### Changed
+
+- `AuthController`: thêm `@SecurityRequirements` rỗng cho `logout` — trước đó endpoint này vừa có tham số `Authorization` tường minh vừa được bảo vệ bởi security scheme `BearerAuth` toàn cục, khiến Swagger UI có thể tự động ghi đè token người dùng gõ vào ô tham số bằng token đang lưu ở nút Authorize
+- `application.yml`: thêm `springdoc.swagger-ui.persist-authorization: false` — không lưu token Authorize qua các lần reload trang Swagger
+- `JwtAuthenticationFilterTest`: cập nhật các test hiện có để khớp với check `isAccessToken` mới, bổ sung test case cho trường hợp refresh token bị từ chối
+
+#### Fixed
+
+- **[Bảo mật]** `SecurityConfig`: thêm `.securityContext(securityContext -> securityContext.securityContextRepository(new NullSecurityContextRepository()))`. Trước đây `SessionCreationPolicy.IF_REQUIRED` khiến Spring Security dùng `HttpSessionSecurityContextRepository` mặc định, tự lưu `SecurityContext` đã xác thực vào HTTP session — khiến các request sau có thể được xác thực lại từ cookie `JSESSIONID` cũ dù **không** gửi token, dù token đã bị blacklist sau logout, hoặc dù đã đổi sang token của user khác (bug được tái hiện và xác nhận bằng test trước khi sửa, và test pass sau khi sửa)
+
+#### Cách sử dụng `GET /api/users/me`
+
+1. `POST /api/auth/login` với email/mật khẩu hợp lệ → lấy `accessToken` trong response.
+2. Trên Swagger UI: bấm nút **Authorize** (góc trên phải) → dán `accessToken` (không cần tiền tố `Bearer`, Swagger tự thêm) → Authorize → Close → Execute `/me` như bình thường.
+3. Response mẫu:
+
+   ```json
+   {
+     "code": 200,
+     "message": "Lấy thông tin người dùng thành công",
+     "data": {
+       "id": 3,
+       "name": "Nguyen Van A",
+       "email": "user@example.com",
+       "phone": "0912345678",
+       "status": "ACTIVE",
+       "isIdentityVerified": true,
+       "isBusinessVerified": false,
+       "language": "vi",
+       "cccdUrl": "https://.../storage/v1/object/sign/coworking-space/cccd/uuid.jpg?token=...",
+       "businessLicenseUrl": null,
+       "roles": ["USER"]
+     },
+     "timestamp": "2026-08-22T10:00:00"
+   }
+   ```
+
+5. Lưu ý:
+   - Không gửi token, gửi refresh token, hoặc gửi access token đã logout → `403 Forbidden`.
+   - `cccdUrl`/`businessLicenseUrl` là signed URL hết hạn sau 1 giờ — không nên cache lâu dài ở client, gọi lại `/me` để lấy URL mới khi cần.
+
+---
+
 ### 2026-08-21 - Co-working Space Booking API
 
 **Người thực hiện:** Nguyễn Minh An
