@@ -15,6 +15,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -75,45 +78,104 @@ class UserServiceImplTest {
         UserRoleResponse response =
                 userService.addRole(3L, "MODERATOR");
 
-        assertTrue(response.getRoles().contains("USER"));
-        assertTrue(response.getRoles().contains("MODERATOR"));
-        assertEquals(2, response.getRoles().size());
+        assertNotNull(response);
 
-        verify(userRepository, times(1)).save(user);
+        assertEquals(3L, response.getId());
+
+        assertEquals(
+                "user@test.com",
+                response.getEmail()
+        );
+
+        assertTrue(
+                response.getRoles().contains("USER")
+        );
+
+        assertTrue(
+                response.getRoles().contains("MODERATOR")
+        );
+
+        assertEquals(
+                2,
+                response.getRoles().size()
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("MODERATOR");
+
+        verify(userRepository, times(1))
+                .save(user);
     }
 
     @Test
-    void addRole_shouldThrowException_whenUserNotFound() {
+    void addRole_shouldThrowNotFound_whenUserNotFound() {
         when(userRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        RuntimeException exception =
+        ResponseStatusException exception =
                 assertThrows(
-                        RuntimeException.class,
-                        () -> userService.addRole(999L, "MODERATOR")
+                        ResponseStatusException.class,
+                        () -> userService.addRole(
+                                999L,
+                                "MODERATOR"
+                        )
                 );
 
-        assertTrue(exception.getMessage().contains("User not found"));
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("User not found")
+        );
+
+        verify(userRepository, times(1))
+                .findById(999L);
+
+        verify(roleRepository, never())
+                .findByName(anyString());
 
         verify(userRepository, never())
                 .save(any(User.class));
     }
 
     @Test
-    void addRole_shouldThrowException_whenRoleNotFound() {
+    void addRole_shouldThrowNotFound_whenRoleNotFound() {
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
         when(roleRepository.findByName("ABC"))
                 .thenReturn(Optional.empty());
 
-        RuntimeException exception =
+        ResponseStatusException exception =
                 assertThrows(
-                        RuntimeException.class,
-                        () -> userService.addRole(3L, "ABC")
+                        ResponseStatusException.class,
+                        () -> userService.addRole(
+                                3L,
+                                "ABC"
+                        )
                 );
 
-        assertTrue(exception.getMessage().contains("Role not found"));
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("Role not found")
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("ABC");
 
         verify(userRepository, never())
                 .save(any(User.class));
@@ -130,9 +192,15 @@ class UserServiceImplTest {
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        userService.addRole(3L, "moderator");
+        userService.addRole(
+                3L,
+                "moderator"
+        );
 
-        verify(roleRepository)
+        verify(roleRepository, times(1))
                 .findByName("MODERATOR");
+
+        verify(userRepository, times(1))
+                .save(user);
     }
 }

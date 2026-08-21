@@ -60,8 +60,6 @@ public class SecurityConfig {
                                 "/api-docs/**")
                         .permitAll()
 
-                        .requestMatchers("/api/admin/users/**").permitAll()
-
                         // REST API dành cho Admin
                          .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

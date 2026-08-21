@@ -14,30 +14,20 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminUserController {
 
-    
     private final UserService userService;
 
-   
     @PutMapping("/{userId}/role")
-
-  
-   // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserRoleResponse> addUserRole(
-
-           
             @PathVariable Long userId,
-
-           
             @Valid @RequestBody UpdateUserRoleRequest request) {
 
-        
         UserRoleResponse response =
                 userService.addRole(
                         userId,
                         request.getRole()
                 );
 
-       
         return ResponseEntity.ok(response);
     }
 }
