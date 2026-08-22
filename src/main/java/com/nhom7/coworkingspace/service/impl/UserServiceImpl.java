@@ -1,32 +1,47 @@
 package com.nhom7.coworkingspace.service.impl;
 
 import com.nhom7.coworkingspace.dto.request.UpdateUserRequest;
+import com.nhom7.coworkingspace.dto.request.UserSearchRequest;
 import com.nhom7.coworkingspace.dto.response.HostUpgradeResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.UpdateUserRoleResponse;
+import com.nhom7.coworkingspace.dto.response.UpdateUserStatusResponse;
+import com.nhom7.coworkingspace.dto.response.UpdateUserVerificationResponse;
 import com.nhom7.coworkingspace.dto.response.UserProfileResponse;
+import com.nhom7.coworkingspace.dto.response.UserSearchResponse;
 import com.nhom7.coworkingspace.entity.Role;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.enums.UserStatus;
 import com.nhom7.coworkingspace.exception.AppException;
+import com.nhom7.coworkingspace.mapper.UserMapper;
 import com.nhom7.coworkingspace.repository.RoleRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.service.FileStorageService;
+import com.nhom7.coworkingspace.service.TokenBlacklistService;
 import com.nhom7.coworkingspace.service.UserService;
+import com.nhom7.coworkingspace.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Date;
 import java.util.HexFormat;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -35,32 +50,51 @@ public class UserServiceImpl implements UserService {
     private static final String HOST_ROLE_NAME = "HOST";
     private static final String BUSINESS_LICENSE_SUBDIRECTORY = "business-license";
 
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id", "name", "email", "phone", "status", "createdAt");
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final FileStorageService fileStorageService;
+    private final UserMapper userMapper;
+    private final TokenBlacklistService tokenBlacklistService;
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request) {
+        log.debug("[UserService] Searching users with params: keyword={}, status={}, role={}",
+                request.getKeyword(), request.getStatus(), request.getRole());
+
+        Sort.Direction direction = "ASC".equalsIgnoreCase(request.getSortDir())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "id";
+        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "id";
+
+        int page = Math.max(0, request.getPage());
+        int size = Math.min(Math.max(1, request.getSize()), 100);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Specification<User> spec = UserSpecification.buildSearchSpecification(request);
+        Page<User> userPage = userRepository.findAll(spec, pageable);
+
+        Page<UserSearchResponse> dtoPage = userPage.map(userMapper::toUserSearchResponse);
+        return PageResponse.fromPage(dtoPage);
+    }
 
     @Override
     @Transactional
     public UpdateUserRoleResponse addRole(Long userId, String roleName) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "User not found with id: " + userId
-                        )
-                );
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
 
-        String normalizedRoleName =
-                roleName.trim().toUpperCase();
+        String normalizedRoleName = roleName.trim().toUpperCase();
 
         Role role = roleRepository.findByName(normalizedRoleName)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Role not found: " + normalizedRoleName
-                        )
-                );
+                .orElseThrow(() -> new AppException("role.not.found", HttpStatus.NOT_FOUND));
 
         user.getRoles().add(role);
 
@@ -184,6 +218,149 @@ public class UserServiceImpl implements UserService {
                 .profile(buildProfileResponse(updatedUser))
                 .alreadyHost(false)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public UpdateUserStatusResponse updateUserStatus(Long targetUserId, UserStatus newStatus,
+                    String currentAdminEmail) {
+            log.info("[UserService] Updating user status: targetUserId={}, newStatus={}, performedBy={}",
+                            targetUserId, newStatus, currentAdminEmail);
+
+            User targetUser = userRepository.findById(targetUserId)
+                            .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+            User currentUser = userRepository.findByEmail(currentAdminEmail)
+                            .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
+
+            // Cannot deactivate or block your own account
+            if (targetUser.getId().equals(currentUser.getId()) && newStatus != UserStatus.ACTIVE) {
+                    log.warn("[UserService] User {} attempted to deactivate/block their own account (id={})",
+                                    currentAdminEmail, targetUserId);
+                    throw new AppException("user.cannot.block.self", HttpStatus.BAD_REQUEST);
+            }
+
+            // Moderator cannot change the status of an Admin
+            boolean isTargetAdmin = targetUser.getRoles().stream()
+                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+            boolean isCurrentAdmin = currentUser.getRoles().stream()
+                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+
+            if (isTargetAdmin && !isCurrentAdmin) {
+                    log.warn("[UserService] Moderator {} attempted to modify status of Admin (id={})",
+                                    currentAdminEmail, targetUserId);
+                    throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
+            }
+
+            if (targetUser.getStatus() == newStatus) {
+                    log.info("[UserService] User status already {}, no update required: targetUserId={}", newStatus, targetUserId);
+                    return userMapper.toUpdateUserStatusResponse(targetUser);
+            }
+
+            targetUser.setStatus(newStatus);
+            User savedUser = userRepository.save(targetUser);
+
+            // Revoke active tokens when user is blocked or deactivated
+            if (newStatus == UserStatus.BLOCKED || newStatus == UserStatus.INACTIVE) {
+                    log.info("[UserService] Revoking active tokens for user: {}", savedUser.getEmail());
+                    tokenBlacklistService.blacklistUserTokens(savedUser.getEmail(), new Date());
+            }
+
+            return userMapper.toUpdateUserStatusResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UpdateUserVerificationResponse updateIdentityVerification(Long targetUserId, boolean verified,
+            String currentAdminEmail) {
+        log.info("[UserService] Updating identity verification (CCCD): targetUserId={}, verified={}, performedBy={}",
+                targetUserId, verified, currentAdminEmail);
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        User currentUser = userRepository.findByEmail(currentAdminEmail)
+                .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
+
+        // Cannot self-verify own KYC documents
+        if (targetUser.getId().equals(currentUser.getId())) {
+            log.warn("[UserService] User {} attempted to self-verify their own KYC documents (id={})",
+                    currentAdminEmail, targetUserId);
+            throw new AppException("user.cannot.verify.self", HttpStatus.BAD_REQUEST);
+        }
+
+        boolean isTargetAdmin = targetUser.getRoles().stream()
+                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+        boolean isCurrentAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+
+        if (isTargetAdmin && !isCurrentAdmin) {
+            log.warn("[UserService] Moderator {} attempted to modify verification of Admin (id={})",
+                    currentAdminEmail, targetUserId);
+            throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
+        }
+
+        if (Boolean.valueOf(verified).equals(targetUser.getIsIdentityVerified())) {
+            log.info("[UserService] Identity verification already {}, no update required: targetUserId={}", verified, targetUserId);
+            return userMapper.toUpdateUserVerificationResponse(targetUser);
+        }
+
+        // Cannot mark as verified if document is missing
+        if (verified && (targetUser.getCccdUrl() == null || targetUser.getCccdUrl().isBlank())) {
+            log.warn("[UserService] Cannot verify identity for user {} because CCCD document is missing", targetUserId);
+            throw new AppException("user.identity.document.missing", HttpStatus.BAD_REQUEST);
+        }
+
+        targetUser.setIsIdentityVerified(verified);
+        User savedUser = userRepository.save(targetUser);
+        return userMapper.toUpdateUserVerificationResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UpdateUserVerificationResponse updateBusinessVerification(Long targetUserId, boolean verified,
+            String currentAdminEmail) {
+        log.info("[UserService] Updating business verification (License): targetUserId={}, verified={}, performedBy={}",
+                targetUserId, verified, currentAdminEmail);
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        User currentUser = userRepository.findByEmail(currentAdminEmail)
+                .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
+
+        // Cannot self-verify own KYC documents
+        if (targetUser.getId().equals(currentUser.getId())) {
+            log.warn("[UserService] User {} attempted to self-verify their own KYC documents (id={})",
+                    currentAdminEmail, targetUserId);
+            throw new AppException("user.cannot.verify.self", HttpStatus.BAD_REQUEST);
+        }
+
+        boolean isTargetAdmin = targetUser.getRoles().stream()
+                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+        boolean isCurrentAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+
+        if (isTargetAdmin && !isCurrentAdmin) {
+            log.warn("[UserService] Moderator {} attempted to modify verification of Admin (id={})",
+                    currentAdminEmail, targetUserId);
+            throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
+        }
+
+        if (Boolean.valueOf(verified).equals(targetUser.getIsBusinessVerified())) {
+            log.info("[UserService] Business verification already {}, no update required: targetUserId={}", verified, targetUserId);
+            return userMapper.toUpdateUserVerificationResponse(targetUser);
+        }
+
+        // Cannot mark as verified if document is missing
+        if (verified && (targetUser.getBusinessLicenseUrl() == null || targetUser.getBusinessLicenseUrl().isBlank())) {
+            log.warn("[UserService] Cannot verify business for user {} because business license document is missing", targetUserId);
+            throw new AppException("user.business.document.missing", HttpStatus.BAD_REQUEST);
+        }
+
+        targetUser.setIsBusinessVerified(verified);
+        User savedUser = userRepository.save(targetUser);
+        return userMapper.toUpdateUserVerificationResponse(savedUser);
     }
 
     private UserProfileResponse buildProfileResponse(User user) {
