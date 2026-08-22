@@ -58,11 +58,17 @@ public class AuthController {
 
     @Operation(
             summary = "User Logout",
-            description = "Invalidate JWT token on server by adding it to blacklist. Header Authorization cần nhập accessToken nhận được sau khi đăng nhập thành công theo format: Bearer <accessToken>"
+            description = "Invalidate JWT token on server by adding it to blacklist"
     )
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @Parameter(description = "Access token nhận được sau khi đăng nhập thành công. Định dạng: Bearer <accessToken>", example = "Bearer eyJhbGciOi...")
+            // Hidden from the Swagger operation's own parameter list so there is exactly ONE
+            // place to supply the token: the global Authorize button (same as every other
+            // endpoint). Previously this was also a separate, visible @RequestHeader field with
+            // the global security requirement disabled for this operation - if the caller relied
+            // on Authorize (as they do everywhere else) without separately filling that field,
+            // the header arrived empty, logout blacklisted nothing, yet still returned 200.
+            @Parameter(hidden = true)
             @RequestHeader(value = org.springframework.http.HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
         authService.logout(authHeader);
         Locale locale = LocaleContextHolder.getLocale();

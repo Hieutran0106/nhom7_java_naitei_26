@@ -83,7 +83,9 @@ public class FileStorageServiceImpl implements FileStorageService {
                     .body(SignResponse.class);
 
             if (response != null && response.signedURL() != null) {
-                return supabaseUrl + response.signedURL();
+                // Supabase returns signedURL relative to /storage/v1 (e.g. "/object/sign/<bucket>/<path>?token=..."),
+                // not relative to the project root - must prepend /storage/v1 or the URL 404s.
+                return supabaseUrl + "/storage/v1" + response.signedURL();
             }
             return null;
         } catch (Exception ex) {

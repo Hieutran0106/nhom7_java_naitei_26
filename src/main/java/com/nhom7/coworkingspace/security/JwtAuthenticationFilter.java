@@ -23,6 +23,12 @@ import java.util.Date;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    // Read by JwtAccessDeniedHandler to turn a bare 403 into a message that tells the caller
+    // WHY (e.g. "you logged out" vs "please sign in") instead of a generic "Access Denied".
+    public static final String REJECTION_REASON_ATTRIBUTE = "jwtRejectionReason";
+    public static final String REASON_REVOKED = "revoked";
+    public static final String REASON_INVALID = "invalid";
+
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
@@ -35,28 +41,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractTokenFromRequest(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token) && !tokenBlacklistService.isBlacklisted(token)) {
-            String username = jwtTokenProvider.extractUsername(token);
-            Date issuedAt = jwtTokenProvider.extractIssuedAt(token);
-            if (tokenBlacklistService.isUserTokenRevoked(username, issuedAt)) {
-                log.warn("[JWT Filter] Token was revoked for user: {}", username);
-                filterChain.doFilter(request, response);
-                return;
+        if (token != null) {
+            if (!jwtTokenProvider.validateToken(token) || !jwtTokenProvider.isAccessToken(token)) {
+                request.setAttribute(REJECTION_REASON_ATTRIBUTE, REASON_INVALID);
+            } else if (tokenBlacklistService.isBlacklisted(token)) {
+                request.setAttribute(REJECTION_REASON_ATTRIBUTE, REASON_REVOKED);
+            } else {
+                String username = jwtTokenProvider.extractUsername(token);
+                Date issuedAt = jwtTokenProvider.extractIssuedAt(token);
+                if (tokenBlacklistService.isUserTokenRevoked(username, issuedAt)) {
+                    log.warn("[JWT Filter] Token was revoked for user: {}", username);
+                    request.setAttribute(REJECTION_REASON_ATTRIBUTE, REASON_REVOKED);
+                } else {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null, // credentials are not needed after JWT verification
+                                    userDetails.getAuthorities());
+
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    log.debug("[JWT Filter] Authenticated - user: {}, uri: {}",
+                            username, request.getRequestURI());
+                }
             }
-
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null, // credentials are not needed after JWT verification
-                            userDetails.getAuthorities());
-
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            log.debug("[JWT Filter] Authenticated - user: {}, uri: {}",
-                    username, request.getRequestURI());
         }
 
         // Must always be called to pass the request down the filter chain

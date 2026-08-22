@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ImageFileValidator implements ConstraintValidator<ValidImage, MultipartFile> {
 
   private long maxSize;
+  private boolean required;
   private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
       "image/jpeg",
       "image/png",
@@ -16,12 +17,16 @@ public class ImageFileValidator implements ConstraintValidator<ValidImage, Multi
   @Override
   public void initialize(ValidImage constraintAnnotation) {
     this.maxSize = constraintAnnotation.maxSizeInBytes();
+    this.required = constraintAnnotation.required();
   }
 
   @Override
   public boolean isValid(MultipartFile file, ConstraintValidatorContext context) {
     // Check if file is empty
     if (file == null || file.isEmpty()) {
+      if (!required) {
+        return true;
+      }
       buildConstraintViolation(context, "{validation.image.required}");
       return false;
     }

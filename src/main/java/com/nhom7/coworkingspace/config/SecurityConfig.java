@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.config;
 
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
+import com.nhom7.coworkingspace.security.JwtAuthErrorHandler;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final JwtAuthErrorHandler jwtAuthErrorHandler;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> corsAllowedOrigins;
@@ -49,6 +52,16 @@ public class SecurityConfig {
                 // IF_REQUIRED: create session only when needed (Thymeleaf needs it for CSRF
                 // token)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+
+                // Never load/save the authenticated principal from/to the HTTP session.
+                // Without this, Spring Security's default HttpSessionSecurityContextRepository
+                // persists whoever JwtAuthenticationFilter authenticates into the session and
+                // silently restores them on later requests via the JSESSIONID cookie alone -
+                // bypassing the JWT check entirely (a logged-out/blacklisted/missing token would
+                // still "work" as long as the old session cookie is sent). Every request must
+                // prove identity via its own Authorization header.
+                .securityContext(securityContext ->
+                        securityContext.securityContextRepository(new NullSecurityContextRepository()))
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -70,6 +83,17 @@ public class SecurityConfig {
                         .requestMatchers("/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
 
                         .anyRequest().authenticated())
+
+                // Without this, a missing/blacklisted/refresh token on a protected endpoint is
+                // rejected before DispatcherServlet ever runs, so GlobalExceptionHandler never
+                // sees it - the caller gets Spring Boot's generic default error page instead of
+                // a clear, localized ApiResponse message. Both callbacks are wired to the same
+                // handler: a request with no credentials at all goes through
+                // authenticationEntryPoint, one with credentials Spring Security still rejects
+                // (e.g. role checks) goes through accessDeniedHandler.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(jwtAuthErrorHandler)
+                        .accessDeniedHandler(jwtAuthErrorHandler))
 
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
