@@ -53,6 +53,12 @@ public class User {
     @Column(name = "business_license_url", length = 500)
     private String businessLicenseUrl;
 
+    // SHA-256 hex digest of the currently stored business license file's bytes. Lets a resubmission
+    // of the exact same file (e.g. a client retrying the become-host call with the same attachment
+    // still selected) be recognized as a no-op instead of wiping out an already-approved verification.
+    @Column(name = "business_license_hash", length = 64)
+    private String businessLicenseHash;
+
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
 

@@ -7,7 +7,7 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
-### 2026-08-21 - View Statistics and Payment History
+### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]
 
@@ -29,6 +29,128 @@ File ghi lại những thay đổi của dự án.
 
 - Giới hạn các API thống kê và lịch sử thanh toán chỉ cho tài khoản có vai trò `ADMIN`
 - Doanh thu theo năm được trả về kèm đầy đủ 12 tháng, các tháng không có giao dịch có giá trị doanh thu bằng `0`
+### 2026-08-22 - Register/Upgrade to HOST (POST /api/users/me/roles/host) (#99269)
+
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
+
+#### Added
+
+- Endpoint `POST /api/users/me/roles/host`: cho phép user đã đăng nhập (role `USER`) upload `businessLicense` (`multipart/form-data`, tái sử dụng `@ValidImage(required = false)`) và tự động nâng cấp lên role `HOST` khi đủ **cả 3** điều kiện: `status == ACTIVE`, `isIdentityVerified == true`, `isBusinessVerified == true`. Không nhận `role`/`isBusinessVerified`/`isIdentityVerified`/`status`/`userId` từ client — toàn bộ lấy từ user hiện tại qua `@AuthenticationPrincipal` và dữ liệu đã lưu trong DB
+- DTO `BecomeHostRequest` (field `businessLicense` duy nhất) và `HostUpgradeResponse` (bọc `UserProfileResponse` + cờ `alreadyHost` để Controller chọn đúng message)
+- `UserService.becomeHost(...)`/`UserServiceImpl`: thứ tự kiểm tra rõ ràng — user tồn tại → đã là HOST chưa (idempotent, không tạo role trùng) → `status == ACTIVE` → có `business_license_url` → `isIdentityVerified` → `isBusinessVerified` → gán role `HOST`
+- Cột `business_license_hash` (SHA-256 hex nội dung file) trên `User` entity: dùng để phân biệt "upload lại đúng file cũ" và "upload file mới thật sự" (xem mục Fixed)
+- Message key mới (en/vi): `host.upgrade.success`, `host.already`, `host.status.not.active`, `host.license.required`, `host.business.pending`, `host.identity.required`, `role.not.found`
+- Test: `UserServiceImplTest.BecomeHostTests` (unit, mock repository, đủ các case theo đúng thứ tự kiểm tra ở trên) và `UserControllerTest.BecomeHostEndpointTests` (mock service, kiểm tra response HTTP/message)
+- **`BecomeHostIntegrationTest`** (mới): test end-to-end với DB thật + Spring transaction thật (chỉ mock `FileStorageService` để không gọi Supabase thật) — xác nhận license được lưu thật ngay cả khi bị từ chối, và luồng lên HOST hoạt động đúng qua HTTP thật
+
+#### Fixed
+
+- **[Nghiêm trọng]** `business_license_url` bị NULL vĩnh viễn sau khi upload dù file đã lên Supabase thành công: do toàn bộ `becomeHost()` nằm trong một `@Transactional` duy nhất, và method luôn `throw AppException` ngay sau khi `save()` license (vì vừa upload thì verification bị reset về `false`, chưa thể đủ điều kiện thành HOST ngay). Mặc định Spring **rollback toàn bộ transaction** khi có `RuntimeException` thoát ra khỏi method, cuốn theo cả câu `save()` license vừa chạy trước đó — khiến DB không bao giờ thực sự lưu được URL. Sửa bằng `@Transactional(noRollbackFor = AppException.class)`: transaction vẫn **commit** khi bị từ chối do business rule, chỉ rollback khi có lỗi hệ thống thật. Lỗi này không bị unit test cũ (mock `UserRepository`) phát hiện vì mock không mô phỏng rollback thật — phải viết `BecomeHostIntegrationTest` với DB thật mới tái hiện và xác nhận đã sửa
+- Việc set `is_business_verified = true` thủ công trong DB bị "mất tác dụng" (API vẫn trả 403 pending) — hệ quả trực tiếp của lỗi rollback ở trên, vì `business_license_url` chưa từng lưu thật nên điều kiện luôn thất bại ở bước "cần license"
+
+#### Lưu ý quan trọng — quy tắc reset xác minh khi upload
+
+- Mỗi khi upload một giấy phép **mới** (khác nội dung với file đang lưu), `is_business_verified` luôn bị đặt lại `false` để bắt buộc duyệt lại — đúng theo thiết kế ban đầu, **không đổi**.
+- Tuy nhiên nếu client **tải lại đúng cùng một ảnh** (so khớp bằng SHA-256 qua `business_license_hash`, ví dụ Swagger UI vẫn còn giữ sẵn file cũ khi bấm Execute lần nữa để kiểm tra lại điều kiện) thì hệ thống **không** reset `is_business_verified` — tránh vòng lặp "vừa được duyệt xong lại bị reset về pending" chỉ vì gọi lại API với cùng file.
+
+#### Cách sử dụng `POST /api/users/me/roles/host`
+
+1. `POST /api/auth/login` lấy `accessToken`, bấm **Authorize** trên Swagger UI.
+2. Gọi `POST /api/users/me/roles/host` kèm file `businessLicense` (JPEG/PNG/WEBP) — nếu user chưa `ACTIVE`/chưa verify thì nhận `403` kèm message tương ứng, nhưng `business_license_url` đã được lưu thật trong DB (kiểm tra bằng `SELECT business_license_url FROM users WHERE email = '...'`).
+3. Set thủ công trong DB: `status = 'ACTIVE'`, `is_identity_verified = true`, `is_business_verified = true` cho user đó (chưa có chức năng moderator duyệt qua UI).
+4. Gọi lại API (không cần đính kèm file nữa, hoặc đính kèm lại đúng file cũ đều được) → `200 "You have successfully become a Host."`, `data.roles` chứa `HOST`.
+5. Gọi lại lần nữa → `200 "You are already a Host."` (không tạo role `HOST` trùng).
+
+---
+
+### 2026-08-22 - Update Current User Profile (PUT /api/users/me) (#99271)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `PUT /api/users/me`: cho phép user đã đăng nhập cập nhật `name`, `phone`, `cccdImage` của chính mình, dạng `multipart/form-data`, tất cả field đều optional (partial update - field nào không gửi thì giữ nguyên giá trị cũ, không bị ghi đè bằng null/rỗng); không nhận `userId` từ client, lấy user qua `@AuthenticationPrincipal` (Spring Security context do `JwtAuthenticationFilter` xác thực sẵn)
+- DTO `UpdateUserRequest`: `name` (`@Size(max=150)`, trim + kiểm tra rỗng nếu có gửi), `phone` (tái sử dụng `@ValidPhone`), `cccdImage` (tái sử dụng `@ValidImage`, nay optional) - không cho sửa `id`/`email`/`password`/`role`/`status`/`refreshToken`/`createdAt`
+- `UserService.updateMyProfile(...)`/`UserServiceImpl`: kiểm tra `phone` trùng user khác qua `UserRepository.existsByPhoneAndIdNot(...)` (cho phép trùng chính mình); upload CCCD mới qua `FileStorageService.storeFile(...)` (tái sử dụng đúng logic Supabase từ signup) - chỉ cập nhật `cccdUrl` khi upload thành công; toàn bộ nằm trong 1 `@Transactional` nên nếu upload lỗi thì rollback, giữ nguyên `cccdUrl` cũ và cả các field khác chưa lưu, lỗi được `GlobalExceptionHandler` trả về kèm message rõ ràng
+- `UserRepository.existsByPhoneAndIdNot(...)`: kiểm tra trùng số điện thoại loại trừ chính user hiện tại
+- Message key `user.phone.exists` (en/vi)
+- `UserControllerTest`: unit test xác nhận upload file không đúng định dạng JPEG/PNG/WEBP bị chặn ở tầng validation, trả về `400` kèm message rõ ràng và **không** gọi tới service/Supabase; kèm test happy-path cập nhật thành công
+
+#### Changed
+
+- `ValidPhone`: bỏ `@NotBlank` khỏi annotation gộp (chỉ giữ `@Pattern`, vốn coi `null` là hợp lệ) để tái sử dụng được cho field optional - đổi lại `SignupRequest` khai báo tường minh `@NotBlank` trên field `phone` để giữ nguyên hành vi bắt buộc khi đăng ký
+- `ValidImage`/`ImageFileValidator`: thêm thuộc tính `required` (mặc định `true`, không đổi hành vi signup); dùng `required = false` cho `cccdImage` ở `PUT /me` - vẫn áp dụng đúng rule size/định dạng khi có file, chỉ bỏ qua khi không gửi file
+- `UserServiceImpl`: tách `buildProfileResponse(...)` dùng chung giữa `getMyProfile` và `updateMyProfile`, tránh lặp code build response
+
+#### Cách sử dụng `PUT /api/users/me`
+
+1. `POST /api/auth/login` lấy `accessToken`, bấm **Authorize** trên Swagger UI (giống `GET /me`).
+2. Mở `PUT /api/users/me` - 3 field: `name`, `phone` (text) và `cccdImage` (nút **Choose File**), tất cả optional. Điền field muốn đổi, để trống field muốn giữ nguyên rồi Execute.
+3. Giải thích nút/checkbox **"Send empty value"** mà Swagger UI tự hiện cạnh mỗi field optional (do field không đánh dấu `required`):
+   - **Không tick**, để trống field → Swagger **không đưa field đó vào request** → server nhận `null` → giữ nguyên giá trị cũ. Đây là cách test đúng "field không gửi thì giữ nguyên".
+   - **Có tick** rồi để trống → Swagger vẫn gửi field lên với giá trị rỗng (`""` với `name`/`phone`) → server hiểu là "cố tình cập nhật thành rỗng" → trả lỗi validation `400` (`validation.name.required` / `validation.phone.invalid`). Dùng để test case lỗi "không được rỗng nếu có gửi".
+   - Với `cccdImage` (kiểu file): tick hay không không tạo khác biệt nếu không chọn file - phần file rỗng luôn được coi là "không gửi", `cccdUrl` cũ được giữ nguyên.
+4. Response trả `UserProfileResponse` mới nhất (không có `password`/`refreshToken`), `cccdUrl` là signed URL truy cập được ngay.
+5. Test lỗi: `phone` trùng user khác → `409` (`user.phone.exists`); `phone` sai định dạng hoặc `name` rỗng khi có gửi → `400` kèm map lỗi theo field; ảnh sai định dạng/quá 5MB → `400`; không Authorize → `403`.
+
+---
+
+### 2026-08-22 - Create User Profile API (GET /api/users/me) (#99270)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `GET /api/users/me`: lấy thông tin profile đầy đủ của user hiện tại dựa trên access token (không trả `password`/`refreshToken`)
+- `UserController`, `UserProfileResponse` DTO, `UserService.getMyProfile(...)`/`UserServiceImpl`: lấy user thông qua `@AuthenticationPrincipal` (Spring Security context đã được `JwtAuthenticationFilter` xác thực sẵn), không tự parse lại JWT ở tầng controller/service
+- Trả về URL đã ký (signed URL qua `FileStorageService.createSignedUrl`, hết hạn sau 3600 giây) cho ảnh CCCD (`cccdUrl`) và giấy phép kinh doanh (`businessLicenseUrl`) lưu trên Supabase Storage Private Bucket
+- Claim `tokenType` (`access` / `refresh`) trong `JwtTokenProvider.generateAccessToken`/`generateRefreshToken` — phân biệt được access token và refresh token ngay trong payload JWT
+- `JwtAuthenticationFilter`: bổ sung kiểm tra `jwtTokenProvider.isAccessToken(token)` — chặn refresh token bị dùng như access token trên **mọi** endpoint được bảo vệ, không chỉ riêng `/me`
+- `UserMeSecurityIntegrationTest`: test tích hợp end-to-end (DB thật, filter chain thật, không mock) xác nhận: không có token → `403`; dùng refresh token → `403`; access token hợp lệ → `200` đúng user; sau khi logout dùng lại access token cũ → `403`; và HTTP session không được dùng để khôi phục danh tính khi request không có token hợp lệ
+- Message key `user.profile.fetched` (en/vi)
+
+#### Changed
+
+- `AuthController`: thêm `@SecurityRequirements` rỗng cho `logout` — trước đó endpoint này vừa có tham số `Authorization` tường minh vừa được bảo vệ bởi security scheme `BearerAuth` toàn cục, khiến Swagger UI có thể tự động ghi đè token người dùng gõ vào ô tham số bằng token đang lưu ở nút Authorize
+- `application.yml`: thêm `springdoc.swagger-ui.persist-authorization: false` — không lưu token Authorize qua các lần reload trang Swagger
+- `JwtAuthenticationFilterTest`: cập nhật các test hiện có để khớp với check `isAccessToken` mới, bổ sung test case cho trường hợp refresh token bị từ chối
+
+#### Fixed
+
+- **[Bảo mật]** `SecurityConfig`: thêm `.securityContext(securityContext -> securityContext.securityContextRepository(new NullSecurityContextRepository()))`. Trước đây `SessionCreationPolicy.IF_REQUIRED` khiến Spring Security dùng `HttpSessionSecurityContextRepository` mặc định, tự lưu `SecurityContext` đã xác thực vào HTTP session — khiến các request sau có thể được xác thực lại từ cookie `JSESSIONID` cũ dù **không** gửi token, dù token đã bị blacklist sau logout, hoặc dù đã đổi sang token của user khác (bug được tái hiện và xác nhận bằng test trước khi sửa, và test pass sau khi sửa)
+
+#### Cách sử dụng `GET /api/users/me`
+
+1. `POST /api/auth/login` với email/mật khẩu hợp lệ → lấy `accessToken` trong response.
+2. Trên Swagger UI: bấm nút **Authorize** (góc trên phải) → dán `accessToken` (không cần tiền tố `Bearer`, Swagger tự thêm) → Authorize → Close → Execute `/me` như bình thường.
+3. Response mẫu:
+
+   ```json
+   {
+     "code": 200,
+     "message": "Lấy thông tin người dùng thành công",
+     "data": {
+       "id": 3,
+       "name": "Nguyen Van A",
+       "email": "user@example.com",
+       "phone": "0912345678",
+       "status": "ACTIVE",
+       "isIdentityVerified": true,
+       "isBusinessVerified": false,
+       "language": "vi",
+       "cccdUrl": "https://.../storage/v1/object/sign/coworking-space/cccd/uuid.jpg?token=...",
+       "businessLicenseUrl": null,
+       "roles": ["USER"]
+     },
+     "timestamp": "2026-08-22T10:00:00"
+   }
+   ```
+
+5. Lưu ý:
+   - Không gửi token, gửi refresh token, hoặc gửi access token đã logout → `403 Forbidden`.
+   - `cccdUrl`/`businessLicenseUrl` là signed URL hết hạn sau 1 giờ — không nên cache lâu dài ở client, gọi lại `/me` để lấy URL mới khi cần.
+
+---
 
 ### 2026-08-21 - Co-working Space Booking API
 
