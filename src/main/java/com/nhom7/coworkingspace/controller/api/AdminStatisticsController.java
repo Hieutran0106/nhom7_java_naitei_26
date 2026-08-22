@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.nhom7.coworkingspace.dto.response.PaymentResponse;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/statistics")
@@ -52,19 +50,4 @@ public class AdminStatisticsController {
                 )
         );
     }
-
-    @GetMapping("/payments")
-@PreAuthorize("hasRole('ADMIN')")
-public ResponseEntity<ApiResponse<List<PaymentResponse>>> getAllPayments() {
-
-    List<PaymentResponse> result =
-            statisticsService.getAllPayments();
-
-    return ResponseEntity.ok(
-            ApiResponse.success(
-                    result,
-                    "Fetched payment history successfully"
-            )
-    );
-}
 }
