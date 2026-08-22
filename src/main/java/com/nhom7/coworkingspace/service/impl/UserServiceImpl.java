@@ -224,49 +224,36 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UpdateUserStatusResponse updateUserStatus(Long targetUserId, UserStatus newStatus,
                     String currentAdminEmail) {
-            log.info("[UserService] Updating user status: targetUserId={}, newStatus={}, performedBy={}",
-                            targetUserId, newStatus, currentAdminEmail);
+        log.info("[UserService] Updating user status: targetUserId={}, newStatus={}, performedBy={}",
+                targetUserId, newStatus, currentAdminEmail);
 
-            User targetUser = userRepository.findById(targetUserId)
-                            .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+        User targetUser = findUserById(targetUserId);
+        User currentUser = findUserByEmail(currentAdminEmail);
 
-            User currentUser = userRepository.findByEmail(currentAdminEmail)
-                            .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
+        // Cannot deactivate or block your own account
+        if (targetUser.getId().equals(currentUser.getId()) && newStatus != UserStatus.ACTIVE) {
+            log.warn("[UserService] User {} attempted to deactivate/block their own account (id={})",
+                    currentAdminEmail, targetUserId);
+            throw new AppException("user.cannot.block.self", HttpStatus.BAD_REQUEST);
+        }
 
-            // Cannot deactivate or block your own account
-            if (targetUser.getId().equals(currentUser.getId()) && newStatus != UserStatus.ACTIVE) {
-                    log.warn("[UserService] User {} attempted to deactivate/block their own account (id={})",
-                                    currentAdminEmail, targetUserId);
-                    throw new AppException("user.cannot.block.self", HttpStatus.BAD_REQUEST);
-            }
+        validateModeratorCannotModifyAdmin(currentUser, targetUser, currentAdminEmail);
 
-            // Moderator cannot change the status of an Admin
-            boolean isTargetAdmin = targetUser.getRoles().stream()
-                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
-            boolean isCurrentAdmin = currentUser.getRoles().stream()
-                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
+        if (targetUser.getStatus() == newStatus) {
+            log.info("[UserService] User status already {}, no update required: targetUserId={}", newStatus, targetUserId);
+            return userMapper.toUpdateUserStatusResponse(targetUser);
+        }
 
-            if (isTargetAdmin && !isCurrentAdmin) {
-                    log.warn("[UserService] Moderator {} attempted to modify status of Admin (id={})",
-                                    currentAdminEmail, targetUserId);
-                    throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
-            }
+        targetUser.setStatus(newStatus);
+        User savedUser = userRepository.save(targetUser);
 
-            if (targetUser.getStatus() == newStatus) {
-                    log.info("[UserService] User status already {}, no update required: targetUserId={}", newStatus, targetUserId);
-                    return userMapper.toUpdateUserStatusResponse(targetUser);
-            }
+        // Revoke active tokens when user is blocked or deactivated
+        if (newStatus == UserStatus.BLOCKED || newStatus == UserStatus.INACTIVE) {
+            log.info("[UserService] Revoking active tokens for user: {}", savedUser.getEmail());
+            tokenBlacklistService.blacklistUserTokens(savedUser.getEmail(), new Date());
+        }
 
-            targetUser.setStatus(newStatus);
-            User savedUser = userRepository.save(targetUser);
-
-            // Revoke active tokens when user is blocked or deactivated
-            if (newStatus == UserStatus.BLOCKED || newStatus == UserStatus.INACTIVE) {
-                    log.info("[UserService] Revoking active tokens for user: {}", savedUser.getEmail());
-                    tokenBlacklistService.blacklistUserTokens(savedUser.getEmail(), new Date());
-            }
-
-            return userMapper.toUpdateUserStatusResponse(savedUser);
+        return userMapper.toUpdateUserStatusResponse(savedUser);
     }
 
     @Override
@@ -276,29 +263,11 @@ public class UserServiceImpl implements UserService {
         log.info("[UserService] Updating identity verification (CCCD): targetUserId={}, verified={}, performedBy={}",
                 targetUserId, verified, currentAdminEmail);
 
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+        User targetUser = findUserById(targetUserId);
+        User currentUser = findUserByEmail(currentAdminEmail);
 
-        User currentUser = userRepository.findByEmail(currentAdminEmail)
-                .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
-
-        // Cannot self-verify own KYC documents
-        if (targetUser.getId().equals(currentUser.getId())) {
-            log.warn("[UserService] User {} attempted to self-verify their own KYC documents (id={})",
-                    currentAdminEmail, targetUserId);
-            throw new AppException("user.cannot.verify.self", HttpStatus.BAD_REQUEST);
-        }
-
-        boolean isTargetAdmin = targetUser.getRoles().stream()
-                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
-        boolean isCurrentAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
-
-        if (isTargetAdmin && !isCurrentAdmin) {
-            log.warn("[UserService] Moderator {} attempted to modify verification of Admin (id={})",
-                    currentAdminEmail, targetUserId);
-            throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
-        }
+        validateNotSelfVerification(currentUser, targetUser, currentAdminEmail);
+        validateModeratorCannotModifyAdmin(currentUser, targetUser, currentAdminEmail);
 
         if (Boolean.valueOf(verified).equals(targetUser.getIsIdentityVerified())) {
             log.info("[UserService] Identity verification already {}, no update required: targetUserId={}", verified, targetUserId);
@@ -323,29 +292,11 @@ public class UserServiceImpl implements UserService {
         log.info("[UserService] Updating business verification (License): targetUserId={}, verified={}, performedBy={}",
                 targetUserId, verified, currentAdminEmail);
 
-        User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+        User targetUser = findUserById(targetUserId);
+        User currentUser = findUserByEmail(currentAdminEmail);
 
-        User currentUser = userRepository.findByEmail(currentAdminEmail)
-                .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
-
-        // Cannot self-verify own KYC documents
-        if (targetUser.getId().equals(currentUser.getId())) {
-            log.warn("[UserService] User {} attempted to self-verify their own KYC documents (id={})",
-                    currentAdminEmail, targetUserId);
-            throw new AppException("user.cannot.verify.self", HttpStatus.BAD_REQUEST);
-        }
-
-        boolean isTargetAdmin = targetUser.getRoles().stream()
-                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
-        boolean isCurrentAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getName()));
-
-        if (isTargetAdmin && !isCurrentAdmin) {
-            log.warn("[UserService] Moderator {} attempted to modify verification of Admin (id={})",
-                    currentAdminEmail, targetUserId);
-            throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
-        }
+        validateNotSelfVerification(currentUser, targetUser, currentAdminEmail);
+        validateModeratorCannotModifyAdmin(currentUser, targetUser, currentAdminEmail);
 
         if (Boolean.valueOf(verified).equals(targetUser.getIsBusinessVerified())) {
             log.info("[UserService] Business verification already {}, no update required: targetUserId={}", verified, targetUserId);
@@ -388,6 +339,40 @@ public class UserServiceImpl implements UserService {
             return null;
         }
         return fileStorageService.createSignedUrl(filePath, IMAGE_SIGNED_URL_EXPIRES_IN_SECONDS);
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+    }
+
+    private User findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException("auth.invalid.credentials", HttpStatus.UNAUTHORIZED));
+    }
+
+    private void validateModeratorCannotModifyAdmin(User currentUser, User targetUser, String currentEmail) {
+        boolean isTargetAdmin = hasRole(targetUser, "ADMIN");
+        boolean isCurrentAdmin = hasRole(currentUser, "ADMIN");
+
+        if (isTargetAdmin && !isCurrentAdmin) {
+            log.warn("[UserService] Moderator {} attempted to modify Admin (id={})",
+                    currentEmail, targetUser.getId());
+            throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
+        }
+    }
+
+    private void validateNotSelfVerification(User currentUser, User targetUser, String currentEmail) {
+        if (targetUser.getId().equals(currentUser.getId())) {
+            log.warn("[UserService] User {} attempted to self-verify their own KYC documents (id={})",
+                    currentEmail, targetUser.getId());
+            throw new AppException("user.cannot.verify.self", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private boolean hasRole(User user, String roleName) {
+        return user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(role -> roleName.equalsIgnoreCase(role.getName()));
     }
 
     private String sha256Hex(MultipartFile file) {
