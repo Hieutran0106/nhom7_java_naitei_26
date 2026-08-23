@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
+import com.nhom7.coworkingspace.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,9 +37,12 @@ public class Booking {
     @Column(name = "total_price", precision = 15, scale = 2)
     private BigDecimal totalPrice;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
-    private String status;
+    @Builder.Default
+    private BookingStatus status = BookingStatus.PENDING;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }
+

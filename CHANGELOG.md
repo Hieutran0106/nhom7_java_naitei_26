@@ -29,6 +29,38 @@ File ghi lại những thay đổi của dự án.
 
 - Giới hạn các API thống kê và lịch sử thanh toán chỉ cho tài khoản có vai trò `ADMIN`
 - Doanh thu theo năm được trả về kèm đầy đủ 12 tháng, các tháng không có giao dịch có giá trị doanh thu bằng `0`
+
+---
+
+### 2026-08-23 - Chuẩn hóa BookingStatus, Chống N+1 Query & Moderator Booking APIs (GET /api/moderator/bookings, GET /api/moderator/bookings/{bookingId})
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- **API REST `GET /api/moderator/bookings`**: Cho phép Moderator và Admin tìm kiếm, lọc động và phân trang toàn bộ danh sách đặt chỗ theo `keyword` (tên user, email, tên space), `status` (Enum `BookingStatus`), `userId`, `spaceId`, `fromDate`, `toDate`, `sortBy`, `sortDir`, `page`, `size`. Phân quyền `@PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")`.
+- **API REST `GET /api/moderator/bookings/{bookingId}`**: Cho phép Moderator và Admin xem chi tiết 1 booking (kèm thông tin user và space). Ném `BookingNotFoundException(404)` nếu không tìm thấy.
+- **Web Controller `GET /moderator/bookings`**: Controller điều hướng cho giao diện quản lý booking của Moderator/Admin.
+- **DTO `BookingSearchRequest`**: Chứa các tham số tìm kiếm, lọc, phân trang, có đầy đủ annotations Swagger `@Schema` và `@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)`.
+
+- **`BookingSpecification`**: Xây dựng điều kiện truy vấn động an toàn qua JPA CriteriaBuilder (`S017`).
+- **Đa ngôn ngữ i18n**: Bổ sung các message keys đồng bộ trong `messages.properties` và `messages_vi.properties`:
+  - `booking.list.fetched`, `booking.detail.fetched`, `booking.status.invalid`, `space.list.fetched`.
+- **Tests**:
+  - `ModeratorBookingControllerTest`: MockMvc tests kiểm tra phân quyền và kết quả API REST (200 OK cho Moderator/Admin, 404 khi không tìm thấy, 403 cho User thường, 401 khi chưa đăng nhập).
+  - `ModeratorBookingWebControllerTest`: MockMvc tests kiểm tra bảo mật phân quyền Web Controller.
+  - `BookingServiceImplTest`: Bổ sung `@Nested SearchBookingsTests` và `@Nested GetBookingByIdTests`.
+
+#### Changed
+
+- **Chuẩn hóa Enum `BookingStatus`**: Chuyển đổi toàn bộ trường `status` trên Entity `Booking` và DTO `BookingResponse` từ `String` sang `@Enumerated(EnumType.STRING) BookingStatus` (`PENDING`, `APPROVED`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`).
+- **Ngăn chặn N+1 Queries**: Khai báo `@EntityGraph(attributePaths = {"user", "space"})` trên `BookingRepository.findAll(Specification, Pageable)` và `BookingRepository.findById(Long id)`. Spring Data JPA tự động sinh 1 truy vấn `LEFT OUTER JOIN` duy nhất nạp sẵn `User` và `Space`, triệt tiêu hoàn toàn các truy vấn lười phụ khi map sang DTO.
+- **Bảo vệ Sort Injection & Giới hạn phân trang**: Thêm whitelist `ALLOWED_SORT_FIELDS` và ép giới hạn `1 <= size <= 100` trong `BookingServiceImpl` và `SpaceServiceImpl`.
+- **Đồng bộ hóa logic va chạm lịch đặt**: Cập nhật `SpaceSpecification` và `BookingRepository.existsActiveOverlap` để loại trừ cả hai trạng thái `CANCELLED` và `REJECTED` khi kiểm tra lịch trống.
+- **Đa ngôn ngữ cho Space API**: Cập nhật `SpaceController` sử dụng `MessageSource` i18n.
+
+---
+
 ### 2026-08-22 - Register/Upgrade to HOST (POST /api/users/me/roles/host) (#99269)
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]
@@ -146,7 +178,7 @@ File ghi lại những thay đổi của dự án.
    }
    ```
 
-5. Lưu ý:
+4. Lưu ý:
    - Không gửi token, gửi refresh token, hoặc gửi access token đã logout → `403 Forbidden`.
    - `cccdUrl`/`businessLicenseUrl` là signed URL hết hạn sau 1 giờ — không nên cache lâu dài ở client, gọi lại `/me` để lấy URL mới khi cần.
 
@@ -335,7 +367,6 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
-
 ### 2026-08-20 - Unit test for JwtAuthenticationFilter
 
 **Người thực hiện:** [Trịnh Yến Nhi]
@@ -409,15 +440,15 @@ File ghi lại những thay đổi của dự án.
 
 ## Entity Design Decisions
 
-| # | Chỗ thay đổi | ERD gốc | Code thực tế | Lý do |
-| --- | --- | --- | --- | --- |
-| 1 | Bảng User | `user` | `users` | `user` là reserved keyword trong PostgreSQL |
-| 2 | latitude / longitude | `decimal(10,8)` | `BigDecimal` | Tránh sai số float |
-| 3 | description | `text` | `columnDefinition = "TEXT"` | JPA mặc định dùng VARCHAR(255) |
-| 4 | capacity | `int` | `Integer` | Wrapper class hỗ trợ giá trị null |
-| 5 | open_time / close_time | `time` | `LocalTime` | Java type mapping cho PostgreSQL time |
-| 6 | Các timestamp | `timestamp` | `LocalDateTime` | Java type mapping cho PostgreSQL timestamp |
-| 7 | payment.booking_id | FK | `@OneToOne` + `unique = true` | Đảm bảo ràng buộc 1-1 ở tầng DB |
+| #   | Chỗ thay đổi           | ERD gốc         | Code thực tế                  | Lý do                                       |
+| --- | ---------------------- | --------------- | ----------------------------- | ------------------------------------------- |
+| 1   | Bảng User              | `user`          | `users`                       | `user` là reserved keyword trong PostgreSQL |
+| 2   | latitude / longitude   | `decimal(10,8)` | `BigDecimal`                  | Tránh sai số float                          |
+| 3   | description            | `text`          | `columnDefinition = "TEXT"`   | JPA mặc định dùng VARCHAR(255)              |
+| 4   | capacity               | `int`           | `Integer`                     | Wrapper class hỗ trợ giá trị null           |
+| 5   | open_time / close_time | `time`          | `LocalTime`                   | Java type mapping cho PostgreSQL time       |
+| 6   | Các timestamp          | `timestamp`     | `LocalDateTime`               | Java type mapping cho PostgreSQL timestamp  |
+| 7   | payment.booking_id     | FK              | `@OneToOne` + `unique = true` | Đảm bảo ràng buộc 1-1 ở tầng DB             |
 
 ---
 
@@ -445,3 +476,4 @@ _Template cho các lần cập nhật tiếp theo:_
 #### Removed
 
 - ...
+```

@@ -75,9 +75,10 @@ class BookingControllerTest {
                 .startTime(start)
                 .endTime(end)
                 .totalPrice(new BigDecimal("200000.00"))
-                .status("PENDING")
+                .status(com.nhom7.coworkingspace.enums.BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
+
 
         given(bookingService.createBooking(any(BookingRequest.class), eq("user@test.com")))
                 .willReturn(response);

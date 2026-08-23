@@ -74,11 +74,12 @@ class ThymeleafEmailTemplateServiceTest {
                 .startTime(LocalDateTime.of(2026, 8, 22, 9, 0))
                 .endTime(LocalDateTime.of(2026, 8, 22, 11, 0))
                 .totalPrice(new BigDecimal("250000.00"))
-                .status("APPROVED")
+                .status(com.nhom7.coworkingspace.enums.BookingStatus.APPROVED)
                 .build();
 
         String html = emailTemplateService.renderBookingStatusChanged(
                 booking, "PENDING", Locale.ENGLISH);
+
 
         assertThat(html)
                 .contains("Booking status updated")
