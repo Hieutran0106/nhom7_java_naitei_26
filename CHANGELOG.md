@@ -7,6 +7,32 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-22 - Host Venue Management (CRUD)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `POST /api/venues`: cho phép user có role `HOST` tạo venue mới (kèm danh sách `amenityIds`) thuộc sở hữu của chính mình - owner luôn được lấy từ `SecurityContext` (`authentication.getName()`), không nhận `ownerId` từ client
+- Endpoint `GET /api/venues/my-venues`: lấy danh sách venue (chưa bị xóa) của HOST hiện tại, có phân trang (`page`, `size`), sắp xếp theo `id` giảm dần
+- Endpoint `PUT /api/venues/{id}`: cập nhật venue - trả `404` nếu venue không tồn tại (hoặc đã bị soft delete), trả `403` nếu venue thuộc HOST khác
+- Endpoint `DELETE /api/venues/{id}`: soft delete venue (set cờ `deleted = true`, không xóa dữ liệu thật) - áp dụng cùng rule kiểm tra tồn tại/quyền sở hữu như update
+- `VenueRequest` DTO: `name` (bắt buộc, tối đa 200 ký tự), `description`, `address`, `city`, `street`, `latitude`/`longitude`, `status`, `amenityIds` (`Set<Long>`, mặc định rỗng)
+- `VenueResponse`/`AmenityResponse` DTO và `VenueMapper` (MapStruct): map `Venue` entity sang response kèm thông tin owner (`ownerId`, `ownerName`) và danh sách amenity
+- `VenueService`/`VenueServiceImpl`: xử lý nghiệp vụ tạo/sửa/xóa/liệt kê venue, kiểm tra role `HOST` (`resolveHostUser`), kiểm tra quyền sở hữu (`assertOwnership`) và validate `amenityIds` tồn tại thật trong DB (`resolveAmenities`, trả `400 amenity.not.found` nếu có id không hợp lệ)
+- `VenueRepository`: bổ sung `findByOwnerIdAndDeletedFalse(...)` (phân trang) và `findByIdAndDeletedFalse(...)`
+- `AmenityRepository`: repository mới cho entity `Amenity`
+- `VenueNotFoundException`: exception riêng cho venue không tồn tại (`404`, message `venue.not.found`)
+- Cột `deleted` (`Boolean`, mặc định `false`) trên `Venue` entity phục vụ soft delete
+- Message key mới (en/vi): `venue.updated`, `venue.deleted`, `venue.list.success`, `venue.host.required`, `venue.access.denied`, `amenity.not.found`, cùng các message validation `validation.venue.*` (name/address/city/street/status)
+- `VenueControllerTest`, `VenueServiceImplTest`: unit test cho các luồng tạo/sửa/xóa/liệt kê venue, bao gồm case không phải HOST, không phải chủ sở hữu, venue/amenity không tồn tại
+
+#### Changed
+
+- `VenueController`: đánh dấu `@SecurityRequirement(name = "BearerAuth")` cho toàn bộ endpoint `/api/venues/**` trên Swagger UI; việc bắt buộc role `HOST` được kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` (chưa dùng `@PreAuthorize`)
+
+---
+
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]
