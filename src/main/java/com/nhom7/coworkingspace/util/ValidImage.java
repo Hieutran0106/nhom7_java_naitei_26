@@ -21,4 +21,5 @@ public @interface ValidImage {
     Class<? extends Payload>[] payload() default {};
 
     long maxSizeInBytes() default 5 * 1024 * 1024; // 5MB
+    boolean required() default true;
 }

@@ -68,6 +68,10 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
+    # Explicitly disabled: the Authorize token must not survive a page reload/browser
+    # restart in localStorage, otherwise a stale token from a previous user can silently
+    # get reused on /me after switching accounts.
+    persist-authorization: false
   packages-to-scan: com.nhom7.coworkingspace.controller.api
 
 # JWT

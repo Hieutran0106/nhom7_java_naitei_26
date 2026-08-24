@@ -190,6 +190,7 @@ class JwtAuthenticationFilterTest {
                 throws ServletException, IOException {
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(buildUserDetails());
 
@@ -207,6 +208,7 @@ class JwtAuthenticationFilterTest {
             UserDetails userDetails = buildUserDetails();
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(userDetails);
 
@@ -222,6 +224,7 @@ class JwtAuthenticationFilterTest {
                 throws ServletException, IOException {
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(buildUserDetails());
 
@@ -239,6 +242,7 @@ class JwtAuthenticationFilterTest {
                 throws ServletException, IOException {
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(buildUserDetails());
 
@@ -254,12 +258,37 @@ class JwtAuthenticationFilterTest {
                 throws ServletException, IOException {
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(buildUserDetails());
 
             filter.doFilter(request, response, filterChain);
 
             verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    // ============================================================
+    // Group 4b: Refresh token used as Bearer credential
+    // ============================================================
+
+    @Nested
+    @DisplayName("Request with a refresh token instead of an access token")
+    class RefreshTokenUsedAsBearer {
+
+        @Test
+        @DisplayName("Structurally valid but non-access token -> SecurityContext stays empty")
+        void givenRefreshToken_whenFilter_thenSecurityContextIsEmpty()
+                throws ServletException, IOException {
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(false);
+
+            filter.doFilter(request, response, filterChain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+            verify(filterChain).doFilter(request, response);
+            verify(userDetailsService, never()).loadUserByUsername(anyString());
         }
     }
 
@@ -284,6 +313,7 @@ class JwtAuthenticationFilterTest {
 
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(userDetailsService.loadUserByUsername(USER_EMAIL)).willReturn(adminUser);
 
@@ -310,6 +340,7 @@ class JwtAuthenticationFilterTest {
                 throws ServletException, IOException {
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(tokenBlacklistService.isBlacklisted(VALID_TOKEN)).willReturn(true);
 
             filter.doFilter(request, response, filterChain);
@@ -326,6 +357,7 @@ class JwtAuthenticationFilterTest {
             java.util.Date issuedAt = new java.util.Date(1000L);
             request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             given(jwtTokenProvider.validateToken(VALID_TOKEN)).willReturn(true);
+            given(jwtTokenProvider.isAccessToken(VALID_TOKEN)).willReturn(true);
             given(tokenBlacklistService.isBlacklisted(VALID_TOKEN)).willReturn(false);
             given(jwtTokenProvider.extractUsername(VALID_TOKEN)).willReturn(USER_EMAIL);
             given(jwtTokenProvider.extractIssuedAt(VALID_TOKEN)).willReturn(issuedAt);

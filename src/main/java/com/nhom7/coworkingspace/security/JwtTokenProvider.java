@@ -21,6 +21,10 @@ import java.util.Date;
 @Slf4j
 public class JwtTokenProvider {
 
+    private static final String CLAIM_TOKEN_TYPE = "tokenType";
+    public static final String TOKEN_TYPE_ACCESS = "access";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
+
     private final JwtProperties jwtProperties;
 
     private SecretKey buildSigningKey() {
@@ -34,6 +38,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(authentication.getName())
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(buildSigningKey())
@@ -46,6 +51,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(authentication.getName())
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(buildSigningKey())
@@ -54,6 +60,13 @@ public class JwtTokenProvider {
 
     public String extractUsername(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    // Distinguishes login access tokens from refresh tokens so refresh tokens
+    // (which have no dedicated /refresh endpoint yet) cannot be used as Bearer
+    // credentials on protected API endpoints.
+    public boolean isAccessToken(String token) {
+        return TOKEN_TYPE_ACCESS.equals(parseClaims(token).get(CLAIM_TOKEN_TYPE, String.class));
     }
 
     public Date extractExpiration(String token) {
