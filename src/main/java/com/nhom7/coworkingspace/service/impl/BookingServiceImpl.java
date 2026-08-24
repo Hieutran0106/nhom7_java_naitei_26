@@ -61,6 +61,15 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<BookingResponse> searchBookings(BookingSearchRequest request) {
+        if (request == null) {
+            request = BookingSearchRequest.builder().build();
+        }
+
+        if (request.getFromDate() != null && request.getToDate() != null
+                && request.getFromDate().isAfter(request.getToDate())) {
+            throw new AppException("booking.time.invalid", HttpStatus.BAD_REQUEST);
+        }
+
         log.debug("[BookingService] Searching bookings with params: keyword={}, status={}, userId={}, spaceId={}",
                 request.getKeyword(), request.getStatus(), request.getUserId(), request.getSpaceId());
 
@@ -82,6 +91,7 @@ public class BookingServiceImpl implements BookingService {
         Page<BookingResponse> dtoPage = bookingPage.map(bookingMapper::toBookingResponse);
         return PageResponse.fromPage(dtoPage);
     }
+
 
     @Override
     @Transactional(readOnly = true)

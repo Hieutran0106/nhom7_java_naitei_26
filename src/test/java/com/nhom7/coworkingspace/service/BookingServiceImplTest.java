@@ -286,7 +286,48 @@ class BookingServiceImplTest {
                         assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
                         assertThat(result.getContent().get(0).getStatus()).isEqualTo(BookingStatus.PENDING);
                 }
+
+                @Test
+                @DisplayName("searchBookings with null request should use default values and succeed")
+                void searchBookings_NullRequest_Success() {
+                        Booking booking = Booking.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        BookingResponse bookingResponse = BookingResponse.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        Page<Booking> bookingPage = new PageImpl<>(List.of(booking));
+
+                        given(bookingRepository.findAll(ArgumentMatchers.<Specification<Booking>>any(), any(Pageable.class)))
+                                        .willReturn(bookingPage);
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(bookingResponse);
+
+                        PageResponse<BookingResponse> result = bookingService.searchBookings(null);
+
+                        assertThat(result).isNotNull();
+                        assertThat(result.getContent()).hasSize(1);
+                }
+
+                @Test
+                @DisplayName("searchBookings with fromDate after toDate should throw AppException")
+                void searchBookings_InvalidDateRange_ThrowsAppException() {
+                        BookingSearchRequest request = BookingSearchRequest.builder()
+                                        .fromDate(LocalDateTime.of(2026, 8, 30, 0, 0))
+                                        .toDate(LocalDateTime.of(2026, 8, 1, 0, 0))
+                                        .build();
+
+                        org.assertj.core.api.Assertions.assertThatThrownBy(() -> bookingService.searchBookings(request))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.time.invalid");
+                }
         }
+
 
         @Nested
         @DisplayName("Get Booking By ID Tests")
