@@ -55,4 +55,29 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), message, response));
     }
+
+    /**
+     * Cancel a co-working space booking.
+     *
+     * <p>Requires authenticated user who owns the booking in PENDING or APPROVED status.</p>
+     *
+     * @param id booking ID to cancel
+     * @param authentication security context authentication
+     * @return cancelled booking details wrapped in ApiResponse
+     */
+    @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('USER', 'HOST', 'MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Cancel Co-working Space Booking",
+            description = "Allows the booking owner to cancel a booking in PENDING or APPROVED status."
+    )
+    public ResponseEntity<ApiResponse<BookingResponse>> cancelBooking(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        BookingResponse response = bookingService.cancelBooking(id, authentication.getName());
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage("booking.cancelled", null, locale);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), message, response));
+    }
 }

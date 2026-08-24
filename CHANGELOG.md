@@ -7,6 +7,19 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-24 - Booking Cancellation API (PUT /api/bookings/{id}/cancel) (#99295)
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- Endpoint `PUT /api/bookings/{id}/cancel`: cho phép người dùng đã đăng nhập hủy lịch đặt chỗ của chính mình ở trạng thái `PENDING` hoặc `APPROVED` (chưa thanh toán)
+- Method `BookingService.cancelBooking(Long bookingId, String userEmail)` và cài đặt trong `BookingServiceImpl`:
+  - Kiểm tra xác thực người dùng sở hữu lịch đặt chỗ (`403 Forbidden` nếu không phải chủ sở hữu)
+  - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu booking ở trạng thái `CONFIRMED` (đã thanh toán), `COMPLETED`, `REJECTED` hoặc đã `CANCELLED`)
+  - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
+- Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
+
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]

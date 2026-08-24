@@ -336,4 +336,152 @@ class BookingServiceImplTest {
                 verifyNoInteractions(emailService, emailTemplateService);
                 verify(bookingRepository, org.mockito.Mockito.never()).saveAndFlush(booking);
         }
+
+        @Nested
+        @DisplayName("cancelBooking Tests")
+        class CancelBookingTests {
+
+                @Test
+                @DisplayName("Should cancel PENDING booking successfully when requested by owner")
+                void cancelBooking_Success_PendingStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status("PENDING")
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status("CANCELLED")
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status("CANCELLED")
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(100L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo("CANCELLED");
+                        verify(bookingRepository).save(booking);
+                        verifyNoInteractions(emailService, emailTemplateService);
+                }
+
+                @Test
+                @DisplayName("Should cancel APPROVED booking successfully when requested by owner")
+                void cancelBooking_Success_ApprovedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status("APPROVED")
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status("CANCELLED")
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(101L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status("CANCELLED")
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(101L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(101L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo("CANCELLED");
+                        verify(bookingRepository).save(booking);
+                }
+
+                @Test
+                @DisplayName("Should throw 403 Forbidden when user is not the owner of the booking")
+                void cancelBooking_Forbidden_NotOwner() {
+                        String currentUserEmail = "userB@test.com";
+                        User owner = User.builder().id(1L).email("owner@test.com").build();
+                        User currentUser = User.builder().id(2L).email(currentUserEmail).build();
+                        Booking booking = Booking.builder()
+                                        .id(102L)
+                                        .user(owner)
+                                        .status("PENDING")
+                                        .build();
+
+                        given(userRepository.findByEmail(currentUserEmail)).willReturn(Optional.of(currentUser));
+                        given(bookingRepository.findById(102L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(102L, currentUserEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.not.owner")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.FORBIDDEN);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is CONFIRMED (PAID)")
+                void cancelBooking_BadRequest_ConfirmedPaid() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(103L)
+                                        .user(user)
+                                        .status("CONFIRMED")
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(103L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(103L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is already CANCELLED")
+                void cancelBooking_BadRequest_AlreadyCancelled() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(104L)
+                                        .user(user)
+                                        .status("CANCELLED")
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(104L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(104L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+        }
 }

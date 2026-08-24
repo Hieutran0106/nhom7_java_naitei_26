@@ -9,5 +9,7 @@ public interface BookingService {
     Booking changeStatus(Long bookingId, String newStatus);
 
     BookingResponse createBooking(BookingRequest request, String userEmail);
+
+    BookingResponse cancelBooking(Long bookingId, String userEmail);
 }
 
