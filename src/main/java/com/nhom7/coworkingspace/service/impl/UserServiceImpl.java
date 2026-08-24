@@ -122,15 +122,94 @@ public class UserServiceImpl implements UserService {
 
         User updatedUser = userRepository.save(user);
 
-        Set<String> roleNames = updatedUser.getRoles()
+        return buildUpdateUserRoleResponse(updatedUser);
+    }
+
+    @Override
+    @Transactional
+    public UpdateUserRoleResponse removeRole(Long userId, String roleName) {
+
+        // 1. Tìm user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "User not found with id: " + userId
+                        )
+                );
+
+        // 2. Chuẩn hóa role name
+        String normalizedRoleName =
+                roleName.trim().toUpperCase();
+
+        // 3. Tìm role
+        Role role = roleRepository.findByName(normalizedRoleName)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Role not found: " + normalizedRoleName
+                        )
+                );
+
+        // 4. USER là role nền -> không được xóa
+        if ("USER".equals(normalizedRoleName)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "USER is the base role and cannot be removed"
+            );
+        }
+
+        // 5. Kiểm tra user có role này hay không
+        boolean hasRole = user.getRoles()
+                .stream()
+                .anyMatch(userRole ->
+                        userRole.getName()
+                                .equalsIgnoreCase(normalizedRoleName)
+                );
+
+        if (!hasRole) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "User does not have role: " + normalizedRoleName
+            );
+        }
+
+        // 6. Nếu xóa ADMIN -> hệ thống phải còn ít nhất 1 ADMIN
+        if ("ADMIN".equals(normalizedRoleName)) {
+
+            long adminCount = userRepository.countAdminUsers();
+
+            if (adminCount <= 1) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Cannot remove the last ADMIN role"
+                );
+            }
+        }
+
+        // 7. Xóa role
+        user.getRoles().removeIf(userRole ->
+                userRole.getName()
+                        .equalsIgnoreCase(normalizedRoleName)
+        );
+
+        // 8. Lưu lại
+        User updatedUser = userRepository.save(user);
+
+        return buildUpdateUserRoleResponse(updatedUser);
+    }
+
+    private UpdateUserRoleResponse buildUpdateUserRoleResponse(User user) {
+
+        Set<String> roleNames = user.getRoles()
                 .stream()
                 .map(Role::getName)
                 .collect(Collectors.toSet());
 
         return UpdateUserRoleResponse.builder()
-                .id(updatedUser.getId())
-                .name(updatedUser.getName())
-                .email(updatedUser.getEmail())
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
                 .roles(roleNames)
                 .build();
     }

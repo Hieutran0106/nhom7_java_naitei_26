@@ -32,6 +32,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.List;
@@ -71,19 +72,33 @@ class UserServiceImplTest {
     private static final String HOST_EMAIL = "user@test.com";
 
     private User user;
+
     private Role userRole;
+    private Role hostRole;
     private Role moderatorRole;
+    private Role adminRole;
 
     @BeforeEach
     void setUp() {
+
         userRole = Role.builder()
                 .id(1L)
                 .name("USER")
                 .build();
 
+        hostRole = Role.builder()
+                .id(2L)
+                .name("HOST")
+                .build();
+
         moderatorRole = Role.builder()
                 .id(3L)
                 .name("MODERATOR")
+                .build();
+
+        adminRole = Role.builder()
+                .id(4L)
+                .name("ADMIN")
                 .build();
 
         Set<Role> roles = new HashSet<>();
@@ -100,8 +115,13 @@ class UserServiceImplTest {
                 .build();
     }
 
+    // =========================================================
+    // ADD ROLE TESTS
+    // =========================================================
+
     @Test
     void addRole_shouldAddModeratorAndKeepExistingUserRole() {
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
@@ -156,6 +176,7 @@ class UserServiceImplTest {
 
     @Test
     void addRole_shouldThrowNotFound_whenRoleNotFound() {
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
@@ -182,6 +203,7 @@ class UserServiceImplTest {
 
     @Test
     void addRole_shouldNormalizeRoleNameToUpperCase() {
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
@@ -1093,4 +1115,330 @@ class UserServiceImplTest {
             }
         }
     }
+
+
+    // =========================================================
+    // REMOVE ROLE TESTS
+    // =========================================================
+
+    @Test
+    void removeRole_shouldRemoveHostAndKeepUserRole() {
+
+        user.getRoles()
+                .add(hostRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateUserRoleResponse response =
+                userService.removeRole(
+                        3L,
+                        "HOST"
+                );
+
+        assertNotNull(response);
+
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertFalse(
+                response.getRoles()
+                        .contains("HOST")
+        );
+
+        assertEquals(
+                1,
+                response.getRoles()
+                        .size()
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("HOST");
+
+        verify(userRepository, times(1))
+                .save(user);
+    }
+
+    @Test
+    void removeRole_shouldRejectRemovingUserRole() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("USER"))
+                .thenReturn(Optional.of(userRole));
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> userService.removeRole(
+                                3L,
+                                "USER"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("base role")
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("USER");
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void removeRole_shouldThrowNotFound_whenUserNotFound() {
+
+        when(userRepository.findById(999L))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> userService.removeRole(
+                                999L,
+                                "HOST"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("User not found")
+        );
+
+        verify(userRepository, times(1))
+                .findById(999L);
+
+        verify(roleRepository, never())
+                .findByName(anyString());
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void removeRole_shouldThrowNotFound_whenRoleNotFound() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ABC"))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> userService.removeRole(
+                                3L,
+                                "ABC"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("Role not found")
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("ABC");
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void removeRole_shouldRejectWhenUserDoesNotHaveRole() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> userService.removeRole(
+                                3L,
+                                "HOST"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("does not have role")
+        );
+
+        verify(userRepository, times(1))
+                .findById(3L);
+
+        verify(roleRepository, times(1))
+                .findByName("HOST");
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void removeRole_shouldRejectRemovingLastAdmin() {
+
+        user.getRoles()
+                .add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ADMIN"))
+                .thenReturn(Optional.of(adminRole));
+
+        when(userRepository.countAdminUsers())
+                .thenReturn(1L);
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> userService.removeRole(
+                                3L,
+                                "ADMIN"
+                        )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains("last ADMIN")
+        );
+
+        assertTrue(
+                user.getRoles()
+                        .contains(adminRole)
+        );
+
+        verify(userRepository, times(1))
+                .countAdminUsers();
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void removeRole_shouldRemoveAdminWhenAnotherAdminExists() {
+
+        user.getRoles()
+                .add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ADMIN"))
+                .thenReturn(Optional.of(adminRole));
+
+        when(userRepository.countAdminUsers())
+                .thenReturn(2L);
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateUserRoleResponse response =
+                userService.removeRole(
+                        3L,
+                        "ADMIN"
+                );
+
+        assertNotNull(response);
+
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertFalse(
+                response.getRoles()
+                        .contains("ADMIN")
+        );
+
+        assertEquals(
+                1,
+                response.getRoles()
+                        .size()
+        );
+
+        verify(userRepository, times(1))
+                .countAdminUsers();
+
+        verify(userRepository, times(1))
+                .save(user);
+    }
+
+    @Test
+    void removeRole_shouldNormalizeRoleNameToUpperCase() {
+
+        user.getRoles()
+                .add(hostRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.removeRole(
+                3L,
+                "host"
+        );
+
+        verify(roleRepository, times(1))
+                .findByName("HOST");
+
+        verify(userRepository, times(1))
+                .save(user);
+    }
+
 }

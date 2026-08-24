@@ -18,6 +18,8 @@ public interface UserService {
 
     UpdateUserRoleResponse addRole(Long userId, String roleName);
 
+    UpdateUserRoleResponse removeRole(Long userId, String roleName);
+
     UserProfileResponse getMyProfile(String email);
 
     UserProfileResponse updateMyProfile(String email, UpdateUserRequest request);
@@ -46,9 +48,21 @@ public interface UserService {
 
     List<String> getAvailableRoleNames();
 
-    UpdateUserStatusResponse updateUserStatus(Long targetUserId, UserStatus newStatus, String currentAdminEmail);
+    UpdateUserStatusResponse updateUserStatus(
+            Long targetUserId,
+            UserStatus newStatus,
+            String currentAdminEmail
+    );
 
-    UpdateUserVerificationResponse updateIdentityVerification(Long targetUserId, boolean verified, String currentAdminEmail);
+    UpdateUserVerificationResponse updateIdentityVerification(
+            Long targetUserId,
+            boolean verified,
+            String currentAdminEmail
+    );
 
-    UpdateUserVerificationResponse updateBusinessVerification(Long targetUserId, boolean verified, String currentAdminEmail);
+    UpdateUserVerificationResponse updateBusinessVerification(
+            Long targetUserId,
+            boolean verified,
+            String currentAdminEmail
+    );
 }
