@@ -23,9 +23,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -51,7 +55,6 @@ class ModeratorUserWebControllerTest {
     @MockBean
     private TokenBlacklistService tokenBlacklistService;
 
-    /*
     @Test
     @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
     @DisplayName("Authenticated MODERATOR -> GET /moderator/users renders template with model attributes")
@@ -80,9 +83,9 @@ class ModeratorUserWebControllerTest {
                 .andExpect(view().name("moderator/users"))
                 .andExpect(model().attributeExists("users"))
                 .andExpect(model().attributeExists("statuses"))
-                .andExpect(model().attributeExists("searchRequest"));
+                .andExpect(model().attributeExists("searchRequest"))
+                .andExpect(content().string(containsString("/moderator/users/1")));
     }
-    */
 
     @Test
     @WithMockUser(username = "user@test.com", roles = {"USER"})
@@ -97,6 +100,75 @@ class ModeratorUserWebControllerTest {
     void givenUnauthenticated_whenListUsers_thenReturn401() throws Exception {
         mockMvc.perform(get("/moderator/users"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "admin@test.com", roles = {"ADMIN"})
+    @DisplayName("ADMIN -> GET user detail renders role options")
+    void givenAdminRole_whenViewUserDetail_thenReturnViewWithRoleOptions() throws Exception {
+        UserSearchResponse userDto = UserSearchResponse.builder()
+                .id(5L)
+                .name("Nguyen Van A")
+                .email("user@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of("USER"))
+                .build();
+
+        given(userService.getUserById(5L)).willReturn(userDto);
+        given(userService.getAvailableRoleNames()).willReturn(List.of("ADMIN", "HOST", "MODERATOR", "USER"));
+
+        mockMvc.perform(get("/moderator/users/5"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("moderator/user-detail"))
+                .andExpect(model().attribute("user", userDto))
+                .andExpect(model().attribute("availableRoles", List.of("ADMIN", "HOST", "MODERATOR", "USER")))
+                .andExpect(content().string(containsString("Cập nhật vai trò")))
+                .andExpect(content().string(containsString("/moderator/users/5/role")));
+    }
+
+    @Test
+    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
+    @DisplayName("MODERATOR -> GET user detail hides role update form")
+    void givenModeratorRole_whenViewUserDetail_thenHideRoleUpdateForm() throws Exception {
+        UserSearchResponse userDto = UserSearchResponse.builder()
+                .id(5L)
+                .name("Nguyen Van A")
+                .email("user@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of("USER"))
+                .build();
+
+        given(userService.getUserById(5L)).willReturn(userDto);
+        given(userService.getAvailableRoleNames()).willReturn(List.of("ADMIN", "HOST", "MODERATOR", "USER"));
+
+        mockMvc.perform(get("/moderator/users/5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Cập nhật vai trò"))))
+                .andExpect(content().string(not(containsString("/moderator/users/5/role"))));
+    }
+
+    @Test
+    @WithMockUser(username = "admin@test.com", roles = {"ADMIN"})
+    @DisplayName("ADMIN -> POST user role adds role and redirects to detail")
+    void givenAdminRole_whenUpdateUserRole_thenRedirectToDetail() throws Exception {
+        mockMvc.perform(post("/moderator/users/5/role")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("role", "MODERATOR"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/moderator/users/5"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(userService).addRole(5L, "MODERATOR");
+    }
+
+    @Test
+    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
+    @DisplayName("MODERATOR -> POST user role returns 403 Forbidden")
+    void givenModeratorRole_whenUpdateUserRole_thenReturn403() throws Exception {
+        mockMvc.perform(post("/moderator/users/5/role")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("role", "ADMIN"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quản lý người dùng</title>
+    <style>
+        :root { color-scheme: light; font-family: Arial, sans-serif; color: #1f2937; background: #f3f4f6; }
+        body { margin: 0; }
+        main { width: min(1180px, calc(100% - 32px)); margin: 40px auto; }
+        .card { margin-top: 20px; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: white; box-shadow: 0 4px 16px rgba(0,0,0,.05); }
+        .filters { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: end; }
+        label span { display: block; margin-bottom: 6px; color: #6b7280; font-size: 13px; }
+        input, select, button { box-sizing: border-box; width: 100%; min-height: 42px; border-radius: 8px; font: inherit; }
+        input, select { padding: 0 12px; border: 1px solid #d1d5db; background: white; }
+        button { padding: 0 18px; border: 0; background: #2563eb; color: white; cursor: pointer; font-weight: 700; }
+        .table-wrap { margin-top: 24px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; white-space: nowrap; }
+        th { color: #6b7280; font-size: 13px; }
+        a { color: #2563eb; text-decoration: none; font-weight: 600; }
+        .roles { display: flex; gap: 6px; }
+        .badge { padding: 4px 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 12px; font-weight: 700; }
+        .empty { padding: 32px; color: #6b7280; text-align: center; }
+        .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        .pagination a { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: white; }
+        .alert { margin-top: 16px; padding: 12px 16px; border-radius: 8px; }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fee2e2; color: #991b1b; }
+        @media (max-width: 760px) { .filters { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Quản lý người dùng</h1>
+    <p>Tìm người dùng và mở trang chi tiết để quản lý tài khoản.</p>
+    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <section class="card">
+        <form class="filters" method="get" th:action="@{/moderator/users}" th:object="${searchRequest}">
+            <label>
+                <span>Từ khóa</span>
+                <input type="search" th:field="*{keyword}" placeholder="Tên, email hoặc số điện thoại">
+            </label>
+            <label>
+                <span>Trạng thái</span>
+                <select th:field="*{status}">
+                    <option value="">Tất cả</option>
+                    <option th:each="item : ${statuses}" th:value="${item}" th:text="${item}">ACTIVE</option>
+                </select>
+            </label>
+            <label>
+                <span>Vai trò</span>
+                <select th:field="*{role}">
+                    <option value="">Tất cả</option>
+                    <option value="USER">USER</option>
+                    <option value="HOST">HOST</option>
+                    <option value="MODERATOR">MODERATOR</option>
+                    <option value="ADMIN">ADMIN</option>
+                </select>
+            </label>
+            <button type="submit">Tìm kiếm</button>
+        </form>
+
+        <div class="table-wrap" th:if="${!users.content.isEmpty()}">
+            <table>
+                <thead><tr><th>ID</th><th>Người dùng</th><th>Email</th><th>Trạng thái</th><th>Vai trò</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="item : ${users.content}">
+                    <td th:text="${item.id}">1</td>
+                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}" th:text="${item.name}">Tên người dùng</a></td>
+                    <td th:text="${item.email}">email@example.com</td>
+                    <td th:text="${item.status}">ACTIVE</td>
+                    <td><div class="roles"><span class="badge" th:each="role : ${item.roles}" th:text="${role}">USER</span></div></td>
+                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}">Xem chi tiết</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="empty" th:if="${users.content.isEmpty()}">Không tìm thấy người dùng phù hợp.</div>
+
+        <nav class="pagination" th:if="${users.totalPages > 1}">
+            <a th:if="${users.pageNumber > 0}"
+               th:href="@{/moderator/users(page=${users.pageNumber - 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang trước</a>
+            <span th:text="'Trang ' + ${users.pageNumber + 1} + ' / ' + ${users.totalPages}">Trang 1 / 1</span>
+            <a th:if="${!users.last}"
+               th:href="@{/moderator/users(page=${users.pageNumber + 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang sau</a>
+        </nav>
+    </section>
+</main>
+</body>
+</html>

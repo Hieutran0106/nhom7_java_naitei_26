@@ -38,6 +38,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -82,6 +83,22 @@ public class UserServiceImpl implements UserService {
 
         Page<UserSearchResponse> dtoPage = userPage.map(userMapper::toUserSearchResponse);
         return PageResponse.fromPage(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserSearchResponse getUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+        return userMapper.toUserSearchResponse(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAvailableRoleNames() {
+        return roleRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
+                .map(Role::getName)
+                .toList();
     }
 
     @Override

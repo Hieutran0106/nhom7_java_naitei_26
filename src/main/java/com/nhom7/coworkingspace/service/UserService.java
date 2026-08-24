@@ -12,6 +12,8 @@ import com.nhom7.coworkingspace.dto.response.UserSearchResponse;
 import com.nhom7.coworkingspace.enums.UserStatus;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface UserService {
 
     UpdateUserRoleResponse addRole(Long userId, String roleName);
@@ -32,6 +34,10 @@ public interface UserService {
     HostUpgradeResponse becomeHost(String email, MultipartFile businessLicense);
 
     PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request);
+
+    UserSearchResponse getUserById(Long userId);
+
+    List<String> getAvailableRoleNames();
 
     UpdateUserStatusResponse updateUserStatus(Long targetUserId, UserStatus newStatus, String currentAdminEmail);
 
