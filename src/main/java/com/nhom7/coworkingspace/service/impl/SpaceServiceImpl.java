@@ -18,10 +18,15 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SpaceServiceImpl implements SpaceService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id", "name", "price", "createdAt", "type", "priceUnit");
 
     private final SpaceRepository spaceRepository;
     private final SpaceMapper spaceMapper;
@@ -36,15 +41,13 @@ public class SpaceServiceImpl implements SpaceService {
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
-        String sortBy = (request.getSortBy() != null && !request.getSortBy().trim().isEmpty())
-                ? request.getSortBy().trim()
-                : "id";
+        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "id";
+        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "id";
 
-        Pageable pageable = PageRequest.of(
-                Math.max(0, request.getPage()),
-                Math.max(1, request.getSize()),
-                Sort.by(direction, sortBy)
-        );
+        int page = Math.max(0, request.getPage());
+        int size = Math.min(Math.max(1, request.getSize()), 100);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
         Specification<Space> spec = SpaceSpecification.buildSearchSpecification(request);
         Page<Space> spacePage = spaceRepository.findAll(spec, pageable);
@@ -53,3 +56,4 @@ public class SpaceServiceImpl implements SpaceService {
         return PageResponse.fromPage(dtoPage);
     }
 }
+
