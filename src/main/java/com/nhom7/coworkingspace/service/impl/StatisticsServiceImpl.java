@@ -2,6 +2,7 @@ package com.nhom7.coworkingspace.service.impl;
 
 import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
@@ -24,7 +25,6 @@ import java.util.Map;
 public class StatisticsServiceImpl implements StatisticsService {
 
     private static final String SUCCESSFUL_BOOKING_STATUS = "COMPLETED";
-    private static final String ACTIVE_VENUE_STATUS = "ACTIVE";
 
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -44,8 +44,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 );
 
         long activeVenues =
-                venueRepository.countByStatusIgnoreCase(
-                        ACTIVE_VENUE_STATUS
+                venueRepository.countByStatus(
+                        VenueStatus.APPROVE
                 );
 
         return StatisticsOverviewResponse.builder()

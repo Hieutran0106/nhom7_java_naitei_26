@@ -7,6 +7,7 @@ import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.BookingNotFoundException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
@@ -64,9 +65,7 @@ public class BookingServiceImpl implements BookingService {
                 .or(() -> spaceRepository.findById(request.getSpaceId()))
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (StringUtils.hasText(space.getStatus())
-                && !"ACTIVE".equalsIgnoreCase(space.getStatus())
-                && !"AVAILABLE".equalsIgnoreCase(space.getStatus())) {
+        if (space.getStatus() != null && space.getStatus() != SpaceStatus.ACTIVE) {
             throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
         }
 

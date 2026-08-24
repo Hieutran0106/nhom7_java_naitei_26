@@ -7,6 +7,33 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-25 - Venue Moderation Workflow & Security Hardening (Code Review Follow-up)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Enum `VenueStatus` (`PENDING`, `APPROVE`, `BLOCKED`) thay cho `status: String` tự do trên `Venue`/`VenueResponse` - venue mới tạo luôn ở `PENDING` (`VenueServiceImpl.createVenue`), không nhận `status` từ client dưới bất kỳ hình thức nào
+- Endpoint `PUT /api/moderator/venues/{id}/status` (`ModeratorVenueController`, role `MODERATOR`/`ADMIN`): duyệt (`APPROVE`) hoặc khóa (`BLOCKED`) venue. Chặn moderator tự duyệt/khóa venue của chính mình (`venue.cannot.moderate.self`, `403`); no-op (không `save`) nếu set lại đúng status hiện tại
+- DTO `UpdateVenueStatusRequest` (`status: VenueStatus`, `@NotNull`) và method `VenueService.updateVenueStatus(...)`
+- Khi venue chuyển sang `BLOCKED`, cascade toàn bộ `Space` thuộc venue sang `INACTIVE` (dùng chung `deactivateSpaces(...)` với `deleteVenue`) - `APPROVE` không tự động bật lại Space vì có thể chúng đã bị tắt vì lý do khác trước đó
+- Enum `SpaceStatus` (`ACTIVE`, `INACTIVE`) thay cho `status: String` tự do trên `Space`/`SpaceResponse`
+- `@DecimalMin`/`@DecimalMax` cho `latitude` (-90..90) và `longitude` (-180..180) trong `VenueRequest`
+- `SpaceRepository.findByVenueId(...)`; `VenueRepository.countByStatus(VenueStatus)` thay cho `countByStatusIgnoreCase(String)`
+- Message key mới (en/vi): `venue.status.updated`, `venue.cannot.moderate.self`, `validation.venue.latitude.range`, `validation.venue.longitude.range`
+- Test mới: `ModeratorVenueControllerTest`; các case `updateVenueStatus` (thành công, idempotent, tự duyệt bị chặn, không tìm thấy, cascade Space khi `BLOCKED`) trong `VenueServiceImplTest`; case Space `INACTIVE` bị từ chối booking (`space.not.available`) trong `BookingServiceImplTest`
+
+#### Changed
+
+- `VenueController`: thêm `@PreAuthorize("hasRole('HOST')")` cho cả 4 endpoint (`POST`, `GET /my-venues`, `PUT`, `DELETE`) thay vì chỉ kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` như trước
+- `VenueRequest`: bỏ hẳn field `status` - HOST không còn cách nào set status của venue qua `create`/`update`, chỉ moderator/admin mới đổi được qua endpoint riêng ở trên
+- `VenueServiceImpl.deleteVenue`: cascade `Space` thuộc venue sang `INACTIVE` khi soft-delete venue (giữ nguyên Space, không xóa, để không mất lịch sử booking)
+- `BookingServiceImpl`: gộp điều kiện chấp nhận 2 giá trị chuỗi không nhất quán `"ACTIVE"`/`"AVAILABLE"` thành một so sánh enum duy nhất `SpaceStatus.ACTIVE`
+- `StatisticsServiceImpl`: `venueRepository.countByStatusIgnoreCase("ACTIVE")` → `countByStatus(VenueStatus.APPROVE)`
+- `VenueControllerTest`: thêm `@EnableMethodSecurity` và test `verifyNoInteractions(venueService)` để xác nhận `@PreAuthorize` thực sự chặn ở tầng Security chứ không chỉ vì service ném exception (lỗ hổng kiểm thử phát hiện trong lúc review)
+
+---
+
 ### 2026-08-22 - Host Venue Management (CRUD)
 
 **Người thực hiện:** Huỳnh Trương Thảo Duyên

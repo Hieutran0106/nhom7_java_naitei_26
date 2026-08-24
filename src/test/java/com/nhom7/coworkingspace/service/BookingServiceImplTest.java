@@ -5,6 +5,7 @@ import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
 import com.nhom7.coworkingspace.repository.BookingRepository;
@@ -91,7 +92,7 @@ class BookingServiceImplTest {
                         Space space = Space.builder()
                                         .id(10L)
                                         .name("Desk 1")
-                                        .status("ACTIVE")
+                                        .status(SpaceStatus.ACTIVE)
                                         .price(new BigDecimal("100000.00"))
                                         .priceUnit("HOUR")
                                         .build();
@@ -142,7 +143,7 @@ class BookingServiceImplTest {
                         LocalDateTime end = start.plusHours(2);
 
                         User user = User.builder().id(1L).email(email).build();
-                        Space space = Space.builder().id(10L).status("ACTIVE").build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.ACTIVE).build();
 
                         BookingRequest request = BookingRequest.builder()
                                         .spaceId(10L)
@@ -157,6 +158,32 @@ class BookingServiceImplTest {
                         assertThatThrownBy(() -> bookingService.createBooking(request, email))
                                         .isInstanceOf(AppException.class)
                                         .hasMessage("booking.overlap.error")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when the Space is INACTIVE (e.g. its venue was blocked/deleted)")
+                void createBooking_InactiveSpace_NotAvailable() {
+                        String email = "customer@coworking.test";
+                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime end = start.plusHours(2);
+
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.INACTIVE).build();
+
+                        BookingRequest request = BookingRequest.builder()
+                                        .spaceId(10L)
+                                        .startTime(start)
+                                        .endTime(end)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+
+                        assertThatThrownBy(() -> bookingService.createBooking(request, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("space.not.available")
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.BAD_REQUEST);
                 }
@@ -211,7 +238,7 @@ class BookingServiceImplTest {
                         User user = User.builder().id(1L).email(email).build();
                         Space space = Space.builder()
                                         .id(10L)
-                                        .status("ACTIVE")
+                                        .status(SpaceStatus.ACTIVE)
                                         .openTime(LocalTime.of(8, 0)) // Opens at 08:00
                                         .closeTime(LocalTime.of(20, 0))
                                         .build();

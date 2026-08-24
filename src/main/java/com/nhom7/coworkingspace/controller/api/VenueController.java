@@ -14,6 +14,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +37,7 @@ public class VenueController {
      * from the SecurityContext; it is never accepted from the client.</p>
      */
     @PostMapping
+    @PreAuthorize("hasRole('HOST')")
     @Operation(
             summary = "Create Venue",
             description = "Allows an authenticated HOST to create a new venue (with amenities) owned by them."
@@ -54,6 +56,7 @@ public class VenueController {
      * List all non-deleted venues owned by the currently authenticated HOST.
      */
     @GetMapping("/my-venues")
+    @PreAuthorize("hasRole('HOST')")
     @Operation(
             summary = "List My Venues",
             description = "Allows an authenticated HOST to retrieve the paginated list of their own (non-deleted) venues."
@@ -72,6 +75,7 @@ public class VenueController {
      * Update a venue owned by the currently authenticated HOST.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('HOST')")
     @Operation(
             summary = "Update Venue",
             description = "Allows an authenticated HOST to update their own venue (with amenities). Fails with 404 if the venue does not exist, or 403 if it belongs to another HOST."
@@ -90,6 +94,7 @@ public class VenueController {
      * Soft delete a venue owned by the currently authenticated HOST.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('HOST')")
     @Operation(
             summary = "Delete Venue",
             description = "Allows an authenticated HOST to soft delete their own venue. Fails with 404 if the venue does not exist, or 403 if it belongs to another HOST."

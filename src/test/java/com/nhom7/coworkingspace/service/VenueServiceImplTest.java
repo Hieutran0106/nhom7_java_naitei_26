@@ -5,12 +5,16 @@ import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
 import com.nhom7.coworkingspace.entity.Amenity;
 import com.nhom7.coworkingspace.entity.Role;
+import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.entity.Venue;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.VenueNotFoundException;
 import com.nhom7.coworkingspace.mapper.VenueMapper;
 import com.nhom7.coworkingspace.repository.AmenityRepository;
+import com.nhom7.coworkingspace.repository.SpaceRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.repository.VenueRepository;
 import com.nhom7.coworkingspace.service.impl.VenueServiceImpl;
@@ -52,6 +56,9 @@ class VenueServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
+    private SpaceRepository spaceRepository;
+
+    @Mock
     private VenueMapper venueMapper;
 
     private VenueServiceImpl venueService;
@@ -60,7 +67,7 @@ class VenueServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        venueService = new VenueServiceImpl(venueRepository, amenityRepository, userRepository, venueMapper);
+        venueService = new VenueServiceImpl(venueRepository, amenityRepository, userRepository, spaceRepository, venueMapper);
     }
 
     private User hostUser(Long id) {
@@ -113,6 +120,7 @@ class VenueServiceImplTest {
             verify(venueRepository).save(captor.capture());
             assertThat(captor.getValue().getOwner()).isEqualTo(host);
             assertThat(captor.getValue().getDeleted()).isFalse();
+            assertThat(captor.getValue().getStatus()).isEqualTo(VenueStatus.PENDING);
         }
 
         @Test
@@ -253,6 +261,117 @@ class VenueServiceImplTest {
     }
 
     @Nested
+    @DisplayName("updateVenueStatus")
+    class UpdateVenueStatusTests {
+
+        private static final String MODERATOR_EMAIL = "moderator@coworking.test";
+
+        private User moderatorUser(Long id) {
+            return User.builder()
+                    .id(id)
+                    .email(MODERATOR_EMAIL)
+                    .name("Moderator User")
+                    .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                    .build();
+        }
+
+        @Test
+        @DisplayName("Moderator approves a venue owned by someone else -> status updated")
+        void updateVenueStatus_Success() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.PENDING).build();
+            VenueResponse response = VenueResponse.builder().id(100L).status(VenueStatus.APPROVE).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+            given(venueRepository.save(existingVenue)).willReturn(existingVenue);
+            given(venueMapper.toVenueResponse(existingVenue)).willReturn(response);
+
+            VenueResponse result = venueService.updateVenueStatus(100L, VenueStatus.APPROVE, MODERATOR_EMAIL);
+
+            assertThat(result.getStatus()).isEqualTo(VenueStatus.APPROVE);
+            assertThat(existingVenue.getStatus()).isEqualTo(VenueStatus.APPROVE);
+            verify(venueRepository).save(existingVenue);
+            verify(spaceRepository, never()).findByVenueId(any());
+        }
+
+        @Test
+        @DisplayName("Blocking a venue also marks its Spaces INACTIVE, same as deleteVenue")
+        void updateVenueStatus_ToBlocked_DeactivatesSpaces() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.APPROVE).build();
+            Space space = Space.builder().id(1L).venue(existingVenue).name("Room A").status(SpaceStatus.ACTIVE).build();
+            VenueResponse response = VenueResponse.builder().id(100L).status(VenueStatus.BLOCKED).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+            given(venueRepository.save(existingVenue)).willReturn(existingVenue);
+            given(spaceRepository.findByVenueId(100L)).willReturn(List.of(space));
+            given(venueMapper.toVenueResponse(existingVenue)).willReturn(response);
+
+            VenueResponse result = venueService.updateVenueStatus(100L, VenueStatus.BLOCKED, MODERATOR_EMAIL);
+
+            assertThat(result.getStatus()).isEqualTo(VenueStatus.BLOCKED);
+            assertThat(space.getStatus()).isEqualTo(SpaceStatus.INACTIVE);
+            verify(spaceRepository).saveAll(List.of(space));
+        }
+
+        @Test
+        @DisplayName("Setting the same status again is a no-op (idempotent, no save)")
+        void updateVenueStatus_SameStatus_NoOp() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.APPROVE).build();
+            VenueResponse response = VenueResponse.builder().id(100L).status(VenueStatus.APPROVE).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+            given(venueMapper.toVenueResponse(existingVenue)).willReturn(response);
+
+            VenueResponse result = venueService.updateVenueStatus(100L, VenueStatus.APPROVE, MODERATOR_EMAIL);
+
+            assertThat(result.getStatus()).isEqualTo(VenueStatus.APPROVE);
+            verify(venueRepository, never()).save(any(Venue.class));
+        }
+
+        @Test
+        @DisplayName("Moderator moderating their own venue -> 403 with venue.cannot.moderate.self message")
+        void updateVenueStatus_SelfModeration_Forbidden() {
+            User ownerAndModerator = moderatorUser(1L);
+            Venue existingVenue = Venue.builder().id(100L).owner(ownerAndModerator).name("Venue").deleted(false)
+                    .status(VenueStatus.PENDING).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(ownerAndModerator));
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(100L, VenueStatus.APPROVE, MODERATOR_EMAIL))
+                    .isInstanceOf(AppException.class)
+                    .hasMessage("venue.cannot.moderate.self")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.FORBIDDEN);
+
+            verify(venueRepository, never()).save(any(Venue.class));
+        }
+
+        @Test
+        @DisplayName("Updating status of a non-existent (or soft-deleted) venue -> 404 with venue.not.found message")
+        void updateVenueStatus_NotFound() {
+            given(venueRepository.findByIdAndDeletedFalse(999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(999L, VenueStatus.APPROVE, MODERATOR_EMAIL))
+                    .isInstanceOf(VenueNotFoundException.class)
+                    .hasMessage("venue.not.found")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @Nested
     @DisplayName("deleteVenue")
     class DeleteVenueTests {
 
@@ -271,6 +390,25 @@ class VenueServiceImplTest {
             verify(venueRepository).save(existingVenue);
             verify(venueRepository, never()).delete(any(Venue.class));
             verify(venueRepository, never()).deleteById(any(Long.class));
+        }
+
+        @Test
+        @DisplayName("Deleting a venue marks its Spaces INACTIVE instead of removing them")
+        void deleteVenue_Owner_DeactivatesSpaces() {
+            User host = hostUser(1L);
+            Venue existingVenue = Venue.builder().id(100L).owner(host).name("Venue").deleted(false).build();
+            Space space1 = Space.builder().id(1L).venue(existingVenue).name("Room A").status(SpaceStatus.ACTIVE).build();
+            Space space2 = Space.builder().id(2L).venue(existingVenue).name("Room B").status(SpaceStatus.ACTIVE).build();
+
+            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(host));
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(spaceRepository.findByVenueId(100L)).willReturn(List.of(space1, space2));
+
+            venueService.deleteVenue(100L, HOST_EMAIL);
+
+            assertThat(space1.getStatus()).isEqualTo(SpaceStatus.INACTIVE);
+            assertThat(space2.getStatus()).isEqualTo(SpaceStatus.INACTIVE);
+            verify(spaceRepository).saveAll(List.of(space1, space2));
         }
 
         @Test

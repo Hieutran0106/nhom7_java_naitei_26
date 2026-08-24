@@ -1,0 +1,47 @@
+package com.nhom7.coworkingspace.controller.api;
+
+import com.nhom7.coworkingspace.dto.request.UpdateVenueStatusRequest;
+import com.nhom7.coworkingspace.dto.response.ApiResponse;
+import com.nhom7.coworkingspace.dto.response.VenueResponse;
+import com.nhom7.coworkingspace.service.VenueService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Locale;
+
+@RestController
+@RequestMapping("/api/moderator/venues")
+@RequiredArgsConstructor
+@Tag(name = "Moderator Venue API", description = "Endpoints for Moderator and Admin to moderate venues")
+@SecurityRequirement(name = "BearerAuth")
+public class ModeratorVenueController {
+
+    private final VenueService venueService;
+    private final MessageSource messageSource;
+
+    // Approve or block a venue. A HOST can never reach this - status changes are moderator/admin only.
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Update Venue Status (Approve/Block)",
+            description = "Allows Moderator or Admin to change a venue's moderation status (PENDING, APPROVE, BLOCKED)."
+    )
+    public ResponseEntity<ApiResponse<VenueResponse>> updateVenueStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateVenueStatusRequest request,
+            Authentication authentication) {
+        VenueResponse response = venueService.updateVenueStatus(id, request.getStatus(), authentication.getName());
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage("venue.status.updated", null, locale);
+        return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+}

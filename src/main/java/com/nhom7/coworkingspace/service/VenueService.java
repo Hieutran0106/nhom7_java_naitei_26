@@ -3,6 +3,7 @@ package com.nhom7.coworkingspace.service;
 import com.nhom7.coworkingspace.dto.request.VenueRequest;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 
 public interface VenueService {
 
@@ -34,6 +35,17 @@ public interface VenueService {
      * @return updated venue details
      */
     VenueResponse updateVenue(Long venueId, VenueRequest request, String hostEmail);
+
+    /**
+     * Approve or block a venue (moderation). Only Moderator/Admin can call this; a HOST can
+     * never set their own venue's status via createVenue/updateVenue.
+     *
+     * @param venueId        id of the venue to moderate
+     * @param newStatus      new moderation status
+     * @param moderatorEmail email of the authenticated moderator/admin (from SecurityContext)
+     * @return updated venue details
+     */
+    VenueResponse updateVenueStatus(Long venueId, VenueStatus newStatus, String moderatorEmail);
 
     /**
      * Soft delete a venue owned by the currently authenticated HOST.

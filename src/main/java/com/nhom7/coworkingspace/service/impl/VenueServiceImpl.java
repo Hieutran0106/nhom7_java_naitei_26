@@ -4,12 +4,16 @@ import com.nhom7.coworkingspace.dto.request.VenueRequest;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
 import com.nhom7.coworkingspace.entity.Amenity;
+import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.entity.Venue;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.VenueNotFoundException;
 import com.nhom7.coworkingspace.mapper.VenueMapper;
 import com.nhom7.coworkingspace.repository.AmenityRepository;
+import com.nhom7.coworkingspace.repository.SpaceRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.repository.VenueRepository;
 import com.nhom7.coworkingspace.service.VenueService;
@@ -35,6 +39,7 @@ public class VenueServiceImpl implements VenueService {
     private final VenueRepository venueRepository;
     private final AmenityRepository amenityRepository;
     private final UserRepository userRepository;
+    private final SpaceRepository spaceRepository;
     private final VenueMapper venueMapper;
 
     @Override
@@ -43,6 +48,8 @@ public class VenueServiceImpl implements VenueService {
         User host = resolveHostUser(hostEmail);
         Set<Amenity> amenities = resolveAmenities(request.getAmenityIds());
 
+        // A newly created venue always starts PENDING moderator review - never taken from the
+        // client - so a HOST cannot self-approve (or self-block) their own venue on creation.
         Venue venue = Venue.builder()
                 .owner(host)
                 .name(request.getName())
@@ -52,7 +59,7 @@ public class VenueServiceImpl implements VenueService {
                 .street(request.getStreet())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
-                .status(request.getStatus())
+                .status(VenueStatus.PENDING)
                 .amenities(amenities)
                 .deleted(false)
                 .build();
@@ -88,10 +95,39 @@ public class VenueServiceImpl implements VenueService {
         venue.setStreet(request.getStreet());
         venue.setLatitude(request.getLatitude());
         venue.setLongitude(request.getLongitude());
-        venue.setStatus(request.getStatus());
         venue.setAmenities(amenities);
 
         Venue savedVenue = venueRepository.save(venue);
+        return venueMapper.toVenueResponse(savedVenue);
+    }
+
+    // Status is moderation-only: a HOST can never set it via createVenue/updateVenue, only
+    // Moderator/Admin can, through this method (see ModeratorVenueController).
+    @Override
+    @Transactional
+    public VenueResponse updateVenueStatus(Long venueId, VenueStatus newStatus, String moderatorEmail) {
+        Venue venue = getActiveVenueOrThrow(venueId);
+        User moderator = userRepository.findByEmail(moderatorEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        if (venue.getOwner().getId().equals(moderator.getId())) {
+            throw new AppException("venue.cannot.moderate.self", HttpStatus.FORBIDDEN);
+        }
+
+        if (venue.getStatus() == newStatus) {
+            return venueMapper.toVenueResponse(venue);
+        }
+
+        venue.setStatus(newStatus);
+        Venue savedVenue = venueRepository.save(venue);
+
+        // Blocking a venue also takes its Spaces off the booking market, same as a soft delete;
+        // unblocking (APPROVE) does NOT auto-reactivate them - a HOST/moderator may have had
+        // other reasons for a given Space being inactive before the block.
+        if (newStatus == VenueStatus.BLOCKED) {
+            deactivateSpaces(venueId);
+        }
+
         return venueMapper.toVenueResponse(savedVenue);
     }
 
@@ -104,6 +140,17 @@ public class VenueServiceImpl implements VenueService {
 
         venue.setDeleted(true);
         venueRepository.save(venue);
+
+        deactivateSpaces(venueId);
+    }
+
+    // Spaces are kept (not deleted) so existing bookings/history stay intact; they are just
+    // marked INACTIVE so the space's own booking-eligibility check (see BookingServiceImpl)
+    // rejects new bookings once the parent venue is gone.
+    private void deactivateSpaces(Long venueId) {
+        List<Space> spaces = spaceRepository.findByVenueId(venueId);
+        spaces.forEach(space -> space.setStatus(SpaceStatus.INACTIVE));
+        spaceRepository.saveAll(spaces);
     }
 
     private User resolveHostUser(String email) {

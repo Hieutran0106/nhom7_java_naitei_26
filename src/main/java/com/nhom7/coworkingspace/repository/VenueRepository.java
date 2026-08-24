@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.repository;
 
 import com.nhom7.coworkingspace.entity.Venue;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,5 +16,5 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
 
     Optional<Venue> findByIdAndDeletedFalse(Long id);
 
-    long countByStatusIgnoreCase(String status);
+    long countByStatus(VenueStatus status);
 }

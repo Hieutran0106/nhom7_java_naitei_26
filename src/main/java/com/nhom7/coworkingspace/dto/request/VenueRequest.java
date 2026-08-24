@@ -1,5 +1,7 @@
 package com.nhom7.coworkingspace.dto.request;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -30,12 +32,13 @@ public class VenueRequest {
     @Size(max = 150, message = "{validation.venue.street.size}")
     private String street;
 
+    @DecimalMin(value = "-90.0", message = "{validation.venue.latitude.range}")
+    @DecimalMax(value = "90.0", message = "{validation.venue.latitude.range}")
     private BigDecimal latitude;
 
+    @DecimalMin(value = "-180.0", message = "{validation.venue.longitude.range}")
+    @DecimalMax(value = "180.0", message = "{validation.venue.longitude.range}")
     private BigDecimal longitude;
-
-    @Size(max = 30, message = "{validation.venue.status.size}")
-    private String status;
 
     @Builder.Default
     private Set<Long> amenityIds = new HashSet<>();

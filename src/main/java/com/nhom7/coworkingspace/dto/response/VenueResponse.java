@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.dto.response;
 
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -25,7 +26,7 @@ public class VenueResponse {
     private String street;
     private BigDecimal latitude;
     private BigDecimal longitude;
-    private String status;
+    private VenueStatus status;
 
     private List<AmenityResponse> amenities;
 }
