@@ -78,6 +78,9 @@ public class SecurityConfig {
                         // REST API dành cho Admin
                          .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
+                        // Admin inherits every REST function available to Moderator
+                        .requestMatchers("/api/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
+
                         // Thymeleaf web UI authorization
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
