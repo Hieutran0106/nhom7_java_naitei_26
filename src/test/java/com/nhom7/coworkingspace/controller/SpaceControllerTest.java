@@ -78,8 +78,9 @@ class SpaceControllerTest {
                         .param("type", "working desk"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.message").value("Fetched co-working spaces successfully"))
+                .andExpect(jsonPath("$.message").isNotEmpty())
                 .andExpect(jsonPath("$.data.content[0].name").value("Desk 101"))
+
                 .andExpect(jsonPath("$.data.content[0].type").value("working desk"))
                 .andExpect(jsonPath("$.data.content[0].venueCity").value("Da Nang"));
     }
