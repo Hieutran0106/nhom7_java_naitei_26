@@ -3,8 +3,10 @@ package com.nhom7.coworkingspace.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhom7.coworkingspace.config.JwtProperties;
 import com.nhom7.coworkingspace.controller.api.BookingController;
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
@@ -22,11 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -106,6 +110,47 @@ class BookingControllerTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "user@test.com", roles = {"USER"})
+    @DisplayName("Authenticated USER -> GET /api/bookings/my-history returns 200 OK")
+    void givenUserRole_whenGetMyBookingHistory_thenReturn200() throws Exception {
+        BookingResponse response = BookingResponse.builder()
+                .id(1L)
+                .userEmail("user@test.com")
+                .spaceId(10L)
+                .spaceName("Desk 101")
+                .status("PENDING")
+                .totalPrice(new BigDecimal("200000.00"))
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        PageResponse<BookingResponse> pageResponse = PageResponse.<BookingResponse>builder()
+                .content(List.of(response))
+                .pageNumber(0)
+                .pageSize(10)
+                .totalElements(1)
+                .totalPages(1)
+                .last(true)
+                .build();
+
+        given(bookingService.getMyBookingHistory(eq("user@test.com"), any(BookingHistoryRequest.class)))
+                .willReturn(pageResponse);
+
+        mockMvc.perform(get("/api/bookings/my-history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.content[0].id").value(1))
+                .andExpect(jsonPath("$.data.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request -> GET /api/bookings/my-history returns 401 Unauthorized")
+    void givenUnauthenticated_whenGetMyBookingHistory_thenReturn401() throws Exception {
+        mockMvc.perform(get("/api/bookings/my-history"))
                 .andExpect(status().isUnauthorized());
     }
 }

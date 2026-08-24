@@ -1,7 +1,9 @@
 package com.nhom7.coworkingspace.service.impl;
 
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
@@ -18,6 +20,10 @@ import com.nhom7.coworkingspace.service.EmailService;
 import com.nhom7.coworkingspace.service.EmailTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +36,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id", "startTime", "endTime", "status", "totalPrice", "createdAt");
 
     private final BookingRepository bookingRepository;
     private final SpaceRepository spaceRepository;
@@ -130,6 +140,29 @@ public class BookingServiceImpl implements BookingService {
                 subject,
                 html);
         return savedBooking;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getMyBookingHistory(String userEmail, BookingHistoryRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Sort.Direction direction = "ASC".equalsIgnoreCase(request.getSortDir())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "createdAt";
+        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "createdAt";
+
+        int page = Math.max(0, request.getPage());
+        int size = Math.min(Math.max(1, request.getSize()), 100);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Booking> bookingPage = bookingRepository.findByUserId(user.getId(), pageable);
+        Page<BookingResponse> dtoPage = bookingPage.map(bookingMapper::toBookingResponse);
+        return PageResponse.fromPage(dtoPage);
     }
 
     public BigDecimal calculateTotalPrice(Space space, LocalDateTime startTime, LocalDateTime endTime) {

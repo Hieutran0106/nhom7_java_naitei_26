@@ -1,7 +1,9 @@
 package com.nhom7.coworkingspace.service;
 
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
@@ -19,17 +21,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -335,5 +343,89 @@ class BookingServiceImplTest {
                 assertThat(unchanged).isSameAs(booking);
                 verifyNoInteractions(emailService, emailTemplateService);
                 verify(bookingRepository, org.mockito.Mockito.never()).saveAndFlush(booking);
+        }
+
+        @Nested
+        @DisplayName("getMyBookingHistory Tests")
+        class GetMyBookingHistoryTests {
+
+                @Test
+                @DisplayName("Should return paginated booking history for current user")
+                void getMyBookingHistory_Success() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .status("PENDING")
+                                        .createdAt(LocalDateTime.now())
+                                        .build();
+
+                        BookingResponse response = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .status("PENDING")
+                                        .build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("createdAt")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(booking), expectedPageable, 1));
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(response);
+
+                        PageResponse<BookingResponse> result = bookingService.getMyBookingHistory(email, request);
+
+                        assertThat(result.getContent()).containsExactly(response);
+                        assertThat(result.getTotalElements()).isEqualTo(1);
+                }
+
+                @Test
+                @DisplayName("Should fall back to default sort field when an unknown sortBy is supplied")
+                void getMyBookingHistory_InvalidSortByFallsBackToDefault() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("unknownField")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(), expectedPageable, 0));
+
+                        bookingService.getMyBookingHistory(email, request);
+
+                        verify(bookingRepository).findByUserId(1L, expectedPageable);
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when current user is not found")
+                void getMyBookingHistory_UserNotFound() {
+                        String email = "missing@coworking.test";
+                        BookingHistoryRequest request = BookingHistoryRequest.builder().build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getMyBookingHistory(email, request))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+                        verifyNoInteractions(bookingRepository, bookingMapper);
+                }
         }
 }

@@ -1,6 +1,8 @@
 package com.nhom7.coworkingspace.repository;
 
 import com.nhom7.coworkingspace.entity.Booking;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +23,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findById(Long id);
 
     long countByStatusIgnoreCase(String status);
+
+    @EntityGraph(attributePaths = {"user", "space"})
+    Page<Booking> findByUserId(Long userId, Pageable pageable);
 
     @Query("""
             SELECT COUNT(b) > 0
