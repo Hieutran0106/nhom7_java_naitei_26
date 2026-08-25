@@ -998,3 +998,485 @@ select:focus-visible {
 
     outline-offset: 2px;
 }
+
+/* =========================================================
+   TASK #99297 - USER LIST
+   Scoped styles to avoid affecting previous Moderator pages
+========================================================= */
+
+/* =========================
+   FILTER
+========================= */
+
+.user-list-filter {
+    display: grid;
+    grid-template-columns:
+        minmax(280px, 2fr)
+        minmax(190px, 1fr)
+        auto;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 20px;
+}
+
+.user-list-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.user-list-filter-group label {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.user-list-filter-group input,
+.user-list-filter-group select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    outline: none;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.user-list-filter-group input::placeholder {
+    color: #94a3b8;
+}
+
+.user-list-filter-group input:hover,
+.user-list-filter-group select:hover {
+    border-color: #94a3b8;
+}
+
+.user-list-filter-group input:focus,
+.user-list-filter-group select:focus {
+    border-color: var(--primary);
+    box-shadow:
+        0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.user-list-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.user-list-button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 17px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background var(--transition),
+        color var(--transition),
+        border-color var(--transition),
+        box-shadow var(--transition),
+        transform var(--transition);
+}
+
+.user-list-button svg {
+    width: 17px;
+    height: 17px;
+}
+
+.user-list-button-primary {
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.user-list-button-primary:hover {
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
+    box-shadow:
+        0 5px 14px rgba(37, 99, 235, 0.18);
+}
+
+.user-list-button-secondary {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+}
+
+.user-list-button-secondary:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.user-list-button:active {
+    transform: translateY(1px);
+}
+
+/* =========================
+   RESULT SUMMARY
+========================= */
+
+.user-list-summary {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 14px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.user-list-summary strong {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.user-list-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.user-list-table {
+    width: 100%;
+    min-width: 940px;
+    border-collapse: collapse;
+    background: #ffffff;
+}
+
+.user-list-table thead {
+    background: #f8fafc;
+}
+
+.user-list-table th {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.user-list-table td {
+    padding: 15px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.user-list-table tbody tr {
+    transition: background 150ms ease;
+}
+
+.user-list-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.user-list-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.user-list-id {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.user-list-email {
+    overflow-wrap: anywhere;
+}
+
+/* =========================
+   USER
+========================= */
+
+.user-list-user {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.user-list-avatar {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background:
+        linear-gradient(
+            135deg,
+            #dbeafe,
+            #bfdbfe
+        );
+    color: #1d4ed8;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.user-list-user-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.user-list-user-info strong {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.user-list-user-info span {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+/* =========================
+   STATUS
+========================= */
+
+.user-list-status {
+    min-width: 76px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.user-list-status-active {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.user-list-status-inactive {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+}
+
+.user-list-status-blocked {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.user-list-status-unknown {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+/* =========================
+   ROLES
+========================= */
+
+.user-list-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.user-list-role {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: var(--primary-light);
+    color: var(--primary-hover);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.user-list-empty-value {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* =========================
+   EMPTY STATE
+========================= */
+
+.user-list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 54px 20px;
+    text-align: center;
+}
+
+.user-list-empty-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.user-list-empty-icon svg {
+    width: 27px;
+    height: 27px;
+}
+
+.user-list-empty h3 {
+    margin: 0 0 7px;
+    color: #334155;
+    font-size: 17px;
+}
+
+.user-list-empty p {
+    max-width: 440px;
+    margin: 0 0 18px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* =========================
+   PAGINATION
+========================= */
+
+.user-list-pagination {
+    display: grid;
+    grid-template-columns:
+        1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    margin-top: 22px;
+}
+
+.user-list-pagination-side {
+    display: flex;
+    min-width: 0;
+}
+
+.user-list-pagination-right {
+    justify-content: flex-end;
+}
+
+.user-list-pagination-center {
+    display: flex;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.user-list-page-button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #334155;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition:
+        border-color var(--transition),
+        background var(--transition),
+        color var(--transition);
+}
+
+.user-list-page-button:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 980px) {
+    .user-list-filter {
+        grid-template-columns:
+            1fr
+            1fr;
+    }
+
+    .user-list-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 620px) {
+    .user-list-filter {
+        grid-template-columns: 1fr;
+    }
+
+    .user-list-filter-actions {
+        grid-column: auto;
+        display: grid;
+        grid-template-columns:
+            1fr
+            1fr;
+    }
+
+    .user-list-button {
+        width: 100%;
+    }
+
+    .user-list-pagination {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .user-list-pagination-center {
+        order: -1;
+    }
+
+    .user-list-pagination-side {
+        width: 100%;
+    }
+
+    .user-list-page-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .user-list-filter-actions {
+        grid-template-columns: 1fr;
+    }
+}

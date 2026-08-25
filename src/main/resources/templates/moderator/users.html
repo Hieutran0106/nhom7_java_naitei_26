@@ -17,13 +17,13 @@
             </h2>
 
             <p class="page-description">
-                Tìm kiếm, xem chi tiết và quản lý tài khoản người dùng trong hệ thống.
+                Tìm kiếm, lọc, xem chi tiết và quản lý tài khoản người dùng trong hệ thống.
             </p>
         </div>
     </div>
 
 
-    <!-- FLASH MESSAGE -->
+    <!-- FLASH MESSAGES -->
     <div th:if="${successMessage}"
          class="alert alert-success"
          th:text="${successMessage}">
@@ -35,32 +35,41 @@
     </div>
 
 
+    <!-- MAIN CARD -->
     <div class="content-card">
 
-        <!-- FILTER -->
+        <!-- SEARCH + FILTER -->
         <form method="get"
               th:action="@{/moderator/users}"
               th:object="${searchRequest}"
-              class="filter-form">
+              class="user-list-filter">
 
-            <div class="filter-group">
+            <!-- KEYWORD -->
+            <div class="user-list-filter-group">
+
                 <label for="keyword">
-                    Từ khóa
+                    Tìm kiếm người dùng
                 </label>
 
                 <input id="keyword"
                        type="search"
                        th:field="*{keyword}"
-                       placeholder="Tên, email hoặc số điện thoại">
+                       placeholder="Tên, email hoặc số điện thoại"
+                       autocomplete="off">
+
             </div>
 
-            <div class="filter-group">
+
+            <!-- STATUS -->
+            <div class="user-list-filter-group">
+
                 <label for="status">
                     Trạng thái
                 </label>
 
                 <select id="status"
-                        th:field="*{status}">
+                        th:field="*{status}"
+                        onchange="this.form.submit()">
 
                     <option value="">
                         Tất cả trạng thái
@@ -69,110 +78,256 @@
                     <option th:each="statusItem : ${statuses}"
                             th:value="${statusItem}"
                             th:text="${statusItem}">
-                        ACTIVE
                     </option>
 
                 </select>
+
             </div>
 
-            <div class="filter-group">
+
+            <!-- ROLE -->
+            <div class="user-list-filter-group">
+
                 <label for="role">
                     Vai trò
                 </label>
 
                 <select id="role"
-                        th:field="*{role}">
+                        th:field="*{role}"
+                        onchange="this.form.submit()">
 
                     <option value="">
                         Tất cả vai trò
                     </option>
 
-                    <option value="USER">
-                        USER
-                    </option>
-
-                    <option value="HOST">
-                        HOST
-                    </option>
-
-                    <option value="MODERATOR">
-                        MODERATOR
-                    </option>
-
-                    <option value="ADMIN">
-                        ADMIN
-                    </option>
+                    <option value="USER">USER</option>
+                    <option value="HOST">HOST</option>
+                    <option value="MODERATOR">MODERATOR</option>
+                    <option value="ADMIN">ADMIN</option>
 
                 </select>
+
             </div>
 
-            <div class="filter-action">
+
+            <!-- ACTIONS -->
+            <div class="user-list-filter-actions">
+
                 <button type="submit"
-                        class="btn-primary">
-                    Tìm kiếm
+                        class="user-list-button user-list-button-primary">
+
+                    <svg viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         aria-hidden="true">
+
+                        <circle cx="11"
+                                cy="11"
+                                r="8"/>
+
+                        <path d="m21 21-4.35-4.35"/>
+
+                    </svg>
+
+                    <span>
+                        Tìm kiếm
+                    </span>
+
                 </button>
+
+
+                <a th:href="@{/moderator/users}"
+                   class="user-list-button user-list-button-secondary">
+
+                    Đặt lại
+
+                </a>
+
             </div>
 
         </form>
 
 
-        <!-- USER TABLE -->
-        <div class="table-wrapper"
+        <!-- RESULT SUMMARY -->
+        <div class="user-list-summary"
+             th:if="${users != null}">
+
+            <span>
+                Tổng cộng
+            </span>
+
+            <strong th:text="${users.totalElements}">
+                0
+            </strong>
+
+            <span>
+                người dùng
+            </span>
+
+        </div>
+
+
+        <!-- TABLE -->
+        <div class="user-list-table-wrapper"
              th:if="${users != null
                      and users.content != null
                      and !users.content.isEmpty()}">
 
-            <table class="data-table">
+            <table class="user-list-table">
 
                 <thead>
                 <tr>
                     <th>ID</th>
                     <th>Người dùng</th>
                     <th>Email</th>
+                    <th>Số điện thoại</th>
                     <th>Trạng thái</th>
                     <th>Vai trò</th>
                     <th>Thao tác</th>
                 </tr>
                 </thead>
 
+
                 <tbody>
 
                 <tr th:each="user : ${users.content}">
 
-                    <td th:text="${user.id}">
-                        1
-                    </td>
-
+                    <!-- ID -->
                     <td>
-                        <a th:href="@{/moderator/users/{id}(id=${user.id})}"
-                           th:text="${user.name}">
-                            Nguyễn Văn A
-                        </a>
-                    </td>
-
-                    <td th:text="${user.email}">
-                        user@example.com
-                    </td>
-
-                    <td>
-                        <span class="status-badge"
-                              th:text="${user.status}">
-                            ACTIVE
+                        <span class="user-list-id"
+                              th:text="'#' + ${user.id}">
+                            #1
                         </span>
                     </td>
 
+
+                    <!-- USER -->
                     <td>
-                        <div class="role-list">
-                            <span th:each="role : ${user.roles}"
-                                  class="role-item"
-                                  th:text="${role}">
-                                USER
-                            </span>
+
+                        <div class="user-list-user">
+
+                            <div class="user-list-avatar"
+                                 th:text="${user.name != null
+                                     and !#strings.isEmpty(user.name)
+                                     ? #strings.substring(user.name, 0, 1)
+                                     : '?'}">
+
+                                N
+
+                            </div>
+
+
+                            <div class="user-list-user-info">
+
+                                <strong th:text="${user.name != null
+                                        and !#strings.isEmpty(user.name)
+                                        ? user.name
+                                        : 'Chưa cập nhật'}">
+
+                                    Nguyễn Văn A
+
+                                </strong>
+
+                                <span th:text="'User ID: ' + ${user.id}">
+                                    User ID: 1
+                                </span>
+
+                            </div>
+
                         </div>
+
                     </td>
 
+
+                    <!-- EMAIL -->
                     <td>
-                        <a th:href="@{/moderator/users/{id}(id=${user.id})}">
+
+                        <span class="user-list-email"
+                              th:text="${user.email != null
+                                  and !#strings.isEmpty(user.email)
+                                  ? user.email
+                                  : 'Chưa cập nhật'}">
+
+                            user@example.com
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- PHONE -->
+                    <td>
+
+                        <span th:text="${user.phone != null
+                            and !#strings.isEmpty(user.phone)
+                            ? user.phone
+                            : 'Chưa cập nhật'}">
+
+                            0123456789
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- STATUS -->
+                    <td>
+
+                        <span th:if="${user.status != null}"
+                              class="user-list-status"
+                              th:classappend="' user-list-status-' +
+                                  ${#strings.toLowerCase(user.status.toString())}"
+                              th:text="${user.status}">
+
+                            ACTIVE
+
+                        </span>
+
+
+                        <span th:if="${user.status == null}"
+                              class="user-list-status user-list-status-unknown">
+
+                            UNKNOWN
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- ROLE -->
+                    <td>
+
+                        <div class="user-list-roles"
+                             th:if="${user.roles != null
+                                 and !user.roles.isEmpty()}">
+
+                            <span th:each="role : ${user.roles}"
+                                  class="user-list-role"
+                                  th:text="${role}">
+
+                                USER
+
+                            </span>
+
+                        </div>
+
+
+                        <span class="user-list-empty-value"
+                              th:if="${user.roles == null
+                                  or user.roles.isEmpty()}">
+
+                            Không có vai trò
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- ACTION -->
+                    <td>
+                        <a th:href="@{/moderator/users/{id}(id=${user.id})}"
+                           class="user-list-button user-list-button-secondary">
                             Xem chi tiết
                         </a>
                     </td>
@@ -187,29 +342,58 @@
 
 
         <!-- EMPTY STATE -->
-        <div class="empty-state"
+        <div class="user-list-empty"
              th:if="${users == null
-                     or users.content == null
-                     or users.content.isEmpty()}">
+                 or users.content == null
+                 or users.content.isEmpty()}">
+
+            <div class="user-list-empty-icon">
+
+                <svg viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.7"
+                     aria-hidden="true">
+
+                    <circle cx="11"
+                            cy="11"
+                            r="8"/>
+
+                    <path d="m21 21-4.35-4.35"/>
+
+                </svg>
+
+            </div>
 
             <h3>
                 Không tìm thấy người dùng
             </h3>
 
             <p>
-                Không có tài khoản nào phù hợp với điều kiện tìm kiếm.
+                Không có người dùng nào phù hợp với từ khóa hoặc trạng thái đã chọn.
             </p>
+
+            <a th:href="@{/moderator/users}"
+               class="user-list-button user-list-button-secondary">
+
+                Xóa bộ lọc
+
+            </a>
 
         </div>
 
 
         <!-- PAGINATION -->
-        <div class="pagination"
-             th:if="${users != null and users.totalPages > 1}">
+        <div class="user-list-pagination"
+             th:if="${users != null
+                 and users.totalPages > 1}">
 
-            <div>
-                <a class="pagination-button"
-                   th:if="${users.pageNumber > 0}"
+
+            <!-- PREVIOUS -->
+            <div class="user-list-pagination-side">
+
+                <a th:if="${users.pageNumber > 0}"
+                   class="user-list-page-button"
                    th:href="@{/moderator/users(
                        page=${users.pageNumber - 1},
                        size=${users.pageSize},
@@ -217,20 +401,35 @@
                        status=${searchRequest.status},
                        role=${searchRequest.role}
                    )}">
+
                     ← Trang trước
+
                 </a>
+
             </div>
 
-            <span class="pagination-info"
-                  th:text="'Trang ' + ${users.pageNumber + 1}
-                         + ' / '
-                         + ${users.totalPages}">
-                Trang 1 / 1
-            </span>
 
-            <div>
-                <a class="pagination-button"
-                   th:if="${!users.last}"
+            <!-- PAGE INFO -->
+            <div class="user-list-pagination-center">
+
+                <span th:text="'Trang '
+                    + ${users.pageNumber + 1}
+                    + ' / '
+                    + ${users.totalPages}">
+
+                    Trang 1 / 1
+
+                </span>
+
+            </div>
+
+
+            <!-- NEXT -->
+            <div class="user-list-pagination-side
+                        user-list-pagination-right">
+
+                <a th:if="${!users.last}"
+                   class="user-list-page-button"
                    th:href="@{/moderator/users(
                        page=${users.pageNumber + 1},
                        size=${users.pageSize},
@@ -238,8 +437,11 @@
                        status=${searchRequest.status},
                        role=${searchRequest.role}
                    )}">
+
                     Trang sau →
+
                 </a>
+
             </div>
 
         </div>
