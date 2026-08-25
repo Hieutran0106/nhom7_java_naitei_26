@@ -493,6 +493,58 @@ class BookingServiceImplTest {
                 verify(bookingRepository, org.mockito.Mockito.never()).saveAndFlush(booking);
         }
 
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to COMPLETED")
+        void changeStatusShouldUpdateStatusToCompleted() {
+                User user = User.builder().name("Nguyen Van B").email("user2@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 1").build();
+                Booking booking = Booking.builder()
+                                .id(43L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.CONFIRMED)
+                                .build();
+                given(bookingRepository.findById(43L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "CONFIRMED", locale))
+                                .willReturn("<p>Completed</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 43L }, locale))
+                                .willReturn("Booking #43 status updated");
+
+                Booking updated = bookingService.changeStatus(43L, "COMPLETED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.COMPLETED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user2@coworking.test", "Booking #43 status updated", "<p>Completed</p>");
+        }
+
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to REJECTED")
+        void changeStatusShouldUpdateStatusToRejected() {
+                User user = User.builder().name("Nguyen Van C").email("user3@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 2").build();
+                Booking booking = Booking.builder()
+                                .id(44L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.PENDING)
+                                .build();
+                given(bookingRepository.findById(44L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                .willReturn("<p>Rejected</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 44L }, locale))
+                                .willReturn("Booking #44 status updated");
+
+                Booking updated = bookingService.changeStatus(44L, "REJECTED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.REJECTED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user3@coworking.test", "Booking #44 status updated", "<p>Rejected</p>");
+        }
+
         @Nested
         @DisplayName("cancelBooking Tests")
         class CancelBookingTests {
@@ -634,6 +686,48 @@ class BookingServiceImplTest {
                         given(bookingRepository.findById(104L)).willReturn(Optional.of(booking));
 
                         assertThatThrownBy(() -> bookingService.cancelBooking(104L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is COMPLETED")
+                void cancelBooking_BadRequest_CompletedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(105L)
+                                        .user(user)
+                                        .status(BookingStatus.COMPLETED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(105L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(105L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is REJECTED")
+                void cancelBooking_BadRequest_RejectedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(106L)
+                                        .user(user)
+                                        .status(BookingStatus.REJECTED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(106L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(106L, email))
                                         .isInstanceOf(AppException.class)
                                         .hasMessage("booking.cannot.cancel.invalid.status")
                                         .extracting("status")
