@@ -12,6 +12,8 @@ public interface BookingService {
 
     BookingResponse createBooking(BookingRequest request, String userEmail);
 
+    BookingResponse cancelBooking(Long bookingId, String userEmail);
+
     PageResponse<BookingResponse> searchBookings(BookingSearchRequest request);
 
     BookingResponse getBookingById(Long bookingId);

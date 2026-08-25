@@ -164,6 +164,32 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
+    public BookingResponse cancelBooking(Long bookingId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new AppException("booking.cannot.cancel.not.owner", HttpStatus.FORBIDDEN);
+        }
+
+        BookingStatus currentStatus = booking.getStatus();
+        if (currentStatus == null ||
+                (currentStatus != BookingStatus.PENDING
+                        && currentStatus != BookingStatus.APPROVED)) {
+            throw new AppException("booking.cannot.cancel.invalid.status", HttpStatus.BAD_REQUEST);
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    @Override
+    @Transactional
     public Booking changeStatus(Long bookingId, String newStatus) {
         BookingStatus normalizedStatus = normalizeStatus(newStatus);
         Booking booking = bookingRepository.findById(bookingId)
