@@ -5,6 +5,7 @@ import com.nhom7.coworkingspace.config.JwtProperties;
 import com.nhom7.coworkingspace.controller.api.BookingController;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
@@ -76,9 +77,10 @@ class BookingControllerTest {
                 .startTime(start)
                 .endTime(end)
                 .totalPrice(new BigDecimal("200000.00"))
-                .status("PENDING")
+                .status(com.nhom7.coworkingspace.enums.BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
+
 
         given(bookingService.createBooking(any(BookingRequest.class), eq("user@test.com")))
                 .willReturn(response);
@@ -118,7 +120,7 @@ class BookingControllerTest {
                 .id(1L)
                 .userEmail("user@test.com")
                 .spaceId(10L)
-                .status("CANCELLED")
+                .status(BookingStatus.CANCELLED)
                 .build();
 
         given(bookingService.cancelBooking(eq(1L), eq("user@test.com")))

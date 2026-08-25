@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.dto.response;
 
+import com.nhom7.coworkingspace.enums.BookingStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ public class BookingResponse {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private BigDecimal totalPrice;
-    private String status;
+    private BookingStatus status;
     private LocalDateTime createdAt;
 }
+
