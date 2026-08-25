@@ -1,69 +1,251 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quản lý người dùng</title>
-    <link rel="stylesheet" th:href="@{/css/moderator-users.css}">
-</head>
-<body>
-<main>
-    <h1>Quản lý người dùng</h1>
-    <p>Tìm người dùng và mở trang chi tiết để quản lý tài khoản.</p>
-    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
-    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/moderator-layout :: layout(
+          'Quản lý người dùng',
+          'users',
+          ~{::section}
+      )}">
 
-    <section class="card">
-        <form class="filters" method="get" th:action="@{/moderator/users}" th:object="${searchRequest}">
-            <label>
-                <span>Từ khóa</span>
-                <input type="search" th:field="*{keyword}" placeholder="Tên, email hoặc số điện thoại">
-            </label>
-            <label>
-                <span>Trạng thái</span>
-                <select th:field="*{status}">
-                    <option value="">Tất cả</option>
-                    <option th:each="item : ${statuses}" th:value="${item}" th:text="${item}">ACTIVE</option>
+<section>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                Quản lý người dùng
+            </h2>
+
+            <p class="page-description">
+                Tìm kiếm, xem chi tiết và quản lý tài khoản người dùng trong hệ thống.
+            </p>
+        </div>
+    </div>
+
+
+    <!-- FLASH MESSAGE -->
+    <div th:if="${successMessage}"
+         class="alert alert-success"
+         th:text="${successMessage}">
+    </div>
+
+    <div th:if="${errorMessage}"
+         class="alert alert-error"
+         th:text="${errorMessage}">
+    </div>
+
+
+    <div class="content-card">
+
+        <!-- FILTER -->
+        <form method="get"
+              th:action="@{/moderator/users}"
+              th:object="${searchRequest}"
+              class="filter-form">
+
+            <div class="filter-group">
+                <label for="keyword">
+                    Từ khóa
+                </label>
+
+                <input id="keyword"
+                       type="search"
+                       th:field="*{keyword}"
+                       placeholder="Tên, email hoặc số điện thoại">
+            </div>
+
+            <div class="filter-group">
+                <label for="status">
+                    Trạng thái
+                </label>
+
+                <select id="status"
+                        th:field="*{status}">
+
+                    <option value="">
+                        Tất cả trạng thái
+                    </option>
+
+                    <option th:each="statusItem : ${statuses}"
+                            th:value="${statusItem}"
+                            th:text="${statusItem}">
+                        ACTIVE
+                    </option>
+
                 </select>
-            </label>
-            <label>
-                <span>Vai trò</span>
-                <select th:field="*{role}">
-                    <option value="">Tất cả</option>
-                    <option value="USER">USER</option>
-                    <option value="HOST">HOST</option>
-                    <option value="MODERATOR">MODERATOR</option>
-                    <option value="ADMIN">ADMIN</option>
+            </div>
+
+            <div class="filter-group">
+                <label for="role">
+                    Vai trò
+                </label>
+
+                <select id="role"
+                        th:field="*{role}">
+
+                    <option value="">
+                        Tất cả vai trò
+                    </option>
+
+                    <option value="USER">
+                        USER
+                    </option>
+
+                    <option value="HOST">
+                        HOST
+                    </option>
+
+                    <option value="MODERATOR">
+                        MODERATOR
+                    </option>
+
+                    <option value="ADMIN">
+                        ADMIN
+                    </option>
+
                 </select>
-            </label>
-            <button type="submit">Tìm kiếm</button>
+            </div>
+
+            <div class="filter-action">
+                <button type="submit"
+                        class="btn-primary">
+                    Tìm kiếm
+                </button>
+            </div>
+
         </form>
 
-        <div class="table-wrap" th:if="${!users.content.isEmpty()}">
-            <table>
-                <thead><tr><th>ID</th><th>Người dùng</th><th>Email</th><th>Trạng thái</th><th>Vai trò</th><th></th></tr></thead>
-                <tbody>
-                <tr th:each="item : ${users.content}">
-                    <td th:text="${item.id}">1</td>
-                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}" th:text="${item.name}">Tên người dùng</a></td>
-                    <td th:text="${item.email}">email@example.com</td>
-                    <td th:text="${item.status}">ACTIVE</td>
-                    <td><div class="roles"><span class="badge" th:each="role : ${item.roles}" th:text="${role}">USER</span></div></td>
-                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}">Xem chi tiết</a></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="empty" th:if="${users.content.isEmpty()}">Không tìm thấy người dùng phù hợp.</div>
 
-        <nav class="pagination" th:if="${users.totalPages > 1}">
-            <a th:if="${users.pageNumber > 0}"
-               th:href="@{/moderator/users(page=${users.pageNumber - 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang trước</a>
-            <span th:text="'Trang ' + ${users.pageNumber + 1} + ' / ' + ${users.totalPages}">Trang 1 / 1</span>
-            <a th:if="${!users.last}"
-               th:href="@{/moderator/users(page=${users.pageNumber + 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang sau</a>
-        </nav>
-    </section>
-</main>
-</body>
+        <!-- USER TABLE -->
+        <div class="table-wrapper"
+             th:if="${users != null
+                     and users.content != null
+                     and !users.content.isEmpty()}">
+
+            <table class="data-table">
+
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Người dùng</th>
+                    <th>Email</th>
+                    <th>Trạng thái</th>
+                    <th>Vai trò</th>
+                    <th>Thao tác</th>
+                </tr>
+                </thead>
+
+                <tbody>
+
+                <tr th:each="user : ${users.content}">
+
+                    <td th:text="${user.id}">
+                        1
+                    </td>
+
+                    <td>
+                        <a th:href="@{/moderator/users/{id}(id=${user.id})}"
+                           th:text="${user.name}">
+                            Nguyễn Văn A
+                        </a>
+                    </td>
+
+                    <td th:text="${user.email}">
+                        user@example.com
+                    </td>
+
+                    <td>
+                        <span class="status-badge"
+                              th:text="${user.status}">
+                            ACTIVE
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="role-list">
+                            <span th:each="role : ${user.roles}"
+                                  class="role-item"
+                                  th:text="${role}">
+                                USER
+                            </span>
+                        </div>
+                    </td>
+
+                    <td>
+                        <a th:href="@{/moderator/users/{id}(id=${user.id})}">
+                            Xem chi tiết
+                        </a>
+                    </td>
+
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- EMPTY STATE -->
+        <div class="empty-state"
+             th:if="${users == null
+                     or users.content == null
+                     or users.content.isEmpty()}">
+
+            <h3>
+                Không tìm thấy người dùng
+            </h3>
+
+            <p>
+                Không có tài khoản nào phù hợp với điều kiện tìm kiếm.
+            </p>
+
+        </div>
+
+
+        <!-- PAGINATION -->
+        <div class="pagination"
+             th:if="${users != null and users.totalPages > 1}">
+
+            <div>
+                <a class="pagination-button"
+                   th:if="${users.pageNumber > 0}"
+                   th:href="@{/moderator/users(
+                       page=${users.pageNumber - 1},
+                       size=${users.pageSize},
+                       keyword=${searchRequest.keyword},
+                       status=${searchRequest.status},
+                       role=${searchRequest.role}
+                   )}">
+                    ← Trang trước
+                </a>
+            </div>
+
+            <span class="pagination-info"
+                  th:text="'Trang ' + ${users.pageNumber + 1}
+                         + ' / '
+                         + ${users.totalPages}">
+                Trang 1 / 1
+            </span>
+
+            <div>
+                <a class="pagination-button"
+                   th:if="${!users.last}"
+                   th:href="@{/moderator/users(
+                       page=${users.pageNumber + 1},
+                       size=${users.pageSize},
+                       keyword=${searchRequest.keyword},
+                       status=${searchRequest.status},
+                       role=${searchRequest.role}
+                   )}">
+                    Trang sau →
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
 </html>
