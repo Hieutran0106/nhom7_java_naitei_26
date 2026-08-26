@@ -29,6 +29,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nhom7.coworkingspace.exception.AppException;
+import com.nhom7.coworkingspace.exception.BookingNotFoundException;
+import org.springframework.http.HttpStatus;
+
 @WebMvcTest(PaymentController.class)
 @Import({JwtAuthenticationFilter.class, JwtProperties.class})
 @DisplayName("PaymentController - WebMvc & Security Tests")
@@ -87,5 +91,44 @@ class PaymentControllerTest {
         mockMvc.perform(post("/api/payments/mock/bookings/1/pay")
                         .with(csrf()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "user@test.com", roles = {"USER"})
+    @DisplayName("Not booking owner -> POST /api/payments/mock/bookings/{id}/pay returns 403 Forbidden")
+    void givenNotOwner_whenPayBooking_thenReturn403() throws Exception {
+        given(bookingService.payBooking(eq(1L), eq("user@test.com")))
+                .willThrow(new AppException("booking.payment.not.owner", HttpStatus.FORBIDDEN));
+
+        mockMvc.perform(post("/api/payments/mock/bookings/1/pay")
+                        .with(csrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
+    @WithMockUser(username = "user@test.com", roles = {"USER"})
+    @DisplayName("Booking not found -> POST /api/payments/mock/bookings/{id}/pay returns 404 Not Found")
+    void givenBookingNotFound_whenPayBooking_thenReturn404() throws Exception {
+        given(bookingService.payBooking(eq(999L), eq("user@test.com")))
+                .willThrow(new BookingNotFoundException(999L));
+
+        mockMvc.perform(post("/api/payments/mock/bookings/999/pay")
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    @WithMockUser(username = "user@test.com", roles = {"USER"})
+    @DisplayName("Booking not in APPROVED status -> POST /api/payments/mock/bookings/{id}/pay returns 400 Bad Request")
+    void givenBookingNotApproved_whenPayBooking_thenReturn400() throws Exception {
+        given(bookingService.payBooking(eq(1L), eq("user@test.com")))
+                .willThrow(new AppException("booking.payment.not.approved", HttpStatus.BAD_REQUEST));
+
+        mockMvc.perform(post("/api/payments/mock/bookings/1/pay")
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

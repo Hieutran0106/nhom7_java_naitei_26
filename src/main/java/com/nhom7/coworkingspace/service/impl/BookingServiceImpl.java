@@ -10,6 +10,7 @@ import com.nhom7.coworkingspace.entity.Payment;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.enums.BookingStatus;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
 import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
@@ -237,7 +238,7 @@ public class BookingServiceImpl implements BookingService {
                 .booking(savedBooking)
                 .amount(savedBooking.getTotalPrice())
                 .paymentMethod("MOCK")
-                .status("COMPLETED")
+                .status(PaymentStatus.COMPLETED)
                 .paidAt(LocalDateTime.now(clock))
                 .transactionId("MOCK-" + System.currentTimeMillis() + "-" + savedBooking.getId())
                 .build();

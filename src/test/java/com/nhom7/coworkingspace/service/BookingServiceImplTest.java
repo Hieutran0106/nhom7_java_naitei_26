@@ -19,6 +19,7 @@ import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
 import com.nhom7.coworkingspace.repository.SpaceRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.service.impl.BookingServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -891,7 +892,7 @@ class BookingServiceImplTest {
                                         .booking(booking)
                                         .amount(new BigDecimal("150000.00"))
                                         .paymentMethod("MOCK")
-                                        .status("COMPLETED")
+                                        .status(PaymentStatus.COMPLETED)
                                         .paidAt(LocalDateTime.now(clock))
                                         .transactionId("MOCK-200")
                                         .build();

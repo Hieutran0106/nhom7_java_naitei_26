@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,8 +30,9 @@ public class Payment {
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
-    private String status;
+    private PaymentStatus status;
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
