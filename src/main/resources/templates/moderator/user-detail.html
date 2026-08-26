@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="'Chi tiết người dùng - ' + ${user.name}">Chi tiết người dùng</title>
+    <link rel="stylesheet" th:href="@{/css/moderator-user-detail.css}">
+</head>
+<body>
+<main>
+    <a th:href="@{/moderator/users}">&larr; Quay lại danh sách người dùng</a>
+    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <section class="card">
+        <h1 th:text="${user.name}">Tên người dùng</h1>
+        <div class="grid">
+            <div><span class="label">ID</span><span class="value" th:text="${user.id}">1</span></div>
+            <div><span class="label">Email</span><span class="value" th:text="${user.email}">email@example.com</span></div>
+            <div><span class="label">Số điện thoại</span><span class="value" th:text="${user.phone ?: 'Chưa cập nhật'}">Chưa cập nhật</span></div>
+            <div><span class="label">Trạng thái</span><span class="value" th:text="${user.status}">ACTIVE</span></div>
+            <div><span class="label">Xác minh danh tính</span><span class="value" th:text="${user.isIdentityVerified == true ? 'Đã xác minh' : 'Chưa xác minh'}">Chưa xác minh</span></div>
+            <div><span class="label">Xác minh doanh nghiệp</span><span class="value" th:text="${user.isBusinessVerified == true ? 'Đã xác minh' : 'Chưa xác minh'}">Chưa xác minh</span></div>
+            <div>
+                <span class="label">Vai trò hiện tại</span>
+                <div class="roles">
+                    <span class="badge" th:each="currentRole : ${user.roles}" th:text="${currentRole}">USER</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="role-panel" sec:authorize="hasRole('ADMIN')">
+            <h2>Thêm vai trò</h2>
+            <p>Chọn một vai trò chưa được gán cho người dùng này.</p>
+            <form method="post" th:action="@{/moderator/users/{id}/role(id=${user.id})}">
+                <label>
+                    <span class="label">Vai trò mới</span>
+                    <select name="role" required>
+                        <option value="" selected disabled>Chọn vai trò</option>
+                        <option th:each="role : ${availableRoles}"
+                                th:unless="${user.roles.contains(role)}"
+                                th:value="${role}"
+                                th:text="${role}">MODERATOR</option>
+                    </select>
+                </label>
+                <button type="submit">Cập nhật vai trò</button>
+            </form>
+        </div>
+    </section>
+</main>
+</body>
+</html>

@@ -27,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
@@ -260,6 +261,45 @@ class UserServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
+    }
+
+    @Test
+    void getUserById_shouldReturnMappedUserDetail() {
+        UserSearchResponse expected = UserSearchResponse.builder()
+                .id(3L)
+                .name("Test User")
+                .email("user@test.com")
+                .roles(Set.of("USER"))
+                .build();
+        given(userRepository.findById(3L)).willReturn(Optional.of(user));
+        given(userMapper.toUserSearchResponse(user)).willReturn(expected);
+
+        UserSearchResponse result = userService.getUserById(3L);
+
+        assertThat(result).isSameAs(expected);
+        verify(userRepository).findById(3L);
+        verify(userMapper).toUserSearchResponse(user);
+    }
+
+    @Test
+    void getUserById_shouldThrowNotFound_whenUserDoesNotExist() {
+        given(userRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUserById(99L))
+                .isInstanceOf(AppException.class)
+                .extracting("messageKey")
+                .isEqualTo("user.not.found");
+    }
+
+    @Test
+    void getAvailableRoleNames_shouldReturnNamesSortedByRepositoryQuery() {
+        Role adminRole = Role.builder().id(4L).name("ADMIN").build();
+        given(roleRepository.findAll(any(Sort.class))).willReturn(List.of(adminRole, moderatorRole, userRole));
+
+        List<String> result = userService.getAvailableRoleNames();
+
+        assertThat(result).containsExactly("ADMIN", "MODERATOR", "USER");
+        verify(roleRepository).findAll(Sort.by(Sort.Direction.ASC, "name"));
     }
 
     @Test

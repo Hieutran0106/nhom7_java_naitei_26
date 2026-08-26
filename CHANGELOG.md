@@ -106,7 +106,6 @@ File ghi lại những thay đổi của dự án.
   - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
 - Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
 
->>>>>>> master
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]
