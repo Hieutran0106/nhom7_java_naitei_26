@@ -121,7 +121,9 @@
                 <button type="submit"
                         class="user-list-button user-list-button-primary">
 
-                    <svg viewBox="0 0 24 24"
+                    <svg width="17"
+                         height="17"
+                         viewBox="0 0 24 24"
                          fill="none"
                          stroke="currentColor"
                          stroke-width="2"
@@ -369,7 +371,7 @@
 
                                 th:data-current-user-is-admin="${currentUserIsAdmin}"
 
-                                onclick="openUserDetail(this)">
+                                onclick="openUserDetail(this, event)">
 
                             Xem chi tiết
 
@@ -396,7 +398,9 @@
 
             <div class="user-list-empty-icon">
 
-                <svg viewBox="0 0 24 24"
+                <svg width="27"
+                     height="27"
+                     viewBox="0 0 24 24"
                      fill="none"
                      stroke="currentColor"
                      stroke-width="1.7"
@@ -766,7 +770,7 @@
                             type="button"
                             class="user-detail-action-button
                                    user-detail-action-verify"
-                            onclick="verifyIdentity()">
+                            onclick="verifyIdentity(event)">
 
                         Duyệt KYC
 
@@ -830,7 +834,7 @@
                             type="button"
                             class="user-detail-action-button
                                    user-detail-action-verify"
-                            onclick="verifyBusiness()">
+                            onclick="verifyBusiness(event)">
 
                         Duyệt giấy phép
 
@@ -871,7 +875,7 @@
                             type="button"
                             class="user-detail-action-button
                                    user-detail-action-danger"
-                            onclick="updateUserStatus()">
+                            onclick="updateUserStatus(event)">
 
                         Khóa tài khoản
 
@@ -890,6 +894,18 @@
          SCRIPT
     ====================================================== -->
     <script>
+
+        /*
+         * Toàn bộ script của trang được bọc trong 1 IIFE để các biến/hàm
+         * (vd. currentUserId) chỉ tồn tại trong scope riêng của trang này,
+         * không rơi vào Script scope dùng chung của document.
+         * Tránh lỗi "Identifier ... has already been declared" nếu có
+         * script khác (layout, devtools, extension...) cũng chạy trên
+         * cùng trang.
+         */
+        (function () {
+
+        "use strict";
 
         /* =====================================================
            CURRENT DRAWER STATE
@@ -1636,8 +1652,20 @@
         ====================================================== */
 
         function openUserDetail(
-            button
+            button,
+            event
         ) {
+
+            /*
+             * Chặn bubbling để nút "Xem chi tiết" không bao giờ bị
+             * một handler cấp cao hơn (row/card/document) bắt lại,
+             * kể cả khi sau này có thêm nút khác (Lock/Edit/Delete...)
+             * trên cùng row.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
 
             const data =
                 button.dataset;
@@ -1936,7 +1964,17 @@
            }
         ====================================================== */
 
-        async function updateUserStatus() {
+        async function updateUserStatus(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
 
             if (!currentUserId) {
                 return;
@@ -2062,7 +2100,17 @@
            }
         ====================================================== */
 
-        async function verifyIdentity() {
+        async function verifyIdentity(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
 
             if (
                 !currentUserId
@@ -2167,7 +2215,17 @@
            }
         ====================================================== */
 
-        async function verifyBusiness() {
+        async function verifyBusiness(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
 
             if (
                 !currentUserId
@@ -2370,6 +2428,26 @@
                 }
             }
         );
+
+
+        /* =====================================================
+           PUBLIC API
+           Các hàm dưới đây được gọi trực tiếp từ thuộc tính
+           onclick/onchange trong HTML (chạy ở global scope), nên
+           cần gắn tường minh vào window. Đây là điểm export DUY
+           NHẤT ra ngoài IIFE - mọi biến/hàm khác vẫn ở local scope.
+        ====================================================== */
+
+        window.submitUserFilterForm = submitUserFilterForm;
+        window.resetUserList = resetUserList;
+        window.openUserDetail = openUserDetail;
+        window.loadUserPage = loadUserPage;
+        window.closeUserDetail = closeUserDetail;
+        window.verifyIdentity = verifyIdentity;
+        window.verifyBusiness = verifyBusiness;
+        window.updateUserStatus = updateUserStatus;
+
+        })();
 
     </script>
 
