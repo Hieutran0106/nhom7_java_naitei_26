@@ -81,6 +81,10 @@ public class SpaceServiceImpl implements SpaceService {
             throw new AppException("venue.access.denied", HttpStatus.FORBIDDEN);
         }
 
+        if (venue.getStatus() != com.nhom7.coworkingspace.enums.VenueStatus.APPROVE) {
+            throw new AppException("venue.not.approved", HttpStatus.BAD_REQUEST);
+        }
+
         if (request.getOpenTime() != null && request.getCloseTime() != null
                 && !request.getOpenTime().isBefore(request.getCloseTime())) {
             throw new AppException("booking.operating.hours.invalid", HttpStatus.BAD_REQUEST);
@@ -140,15 +144,7 @@ public class SpaceServiceImpl implements SpaceService {
         Space space = spaceRepository.findById(id)
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (space.getVenue().getDeleted()) {
-            throw new AppException("venue.not.found", HttpStatus.NOT_FOUND);
-        }
-
-        boolean isOwner = space.getVenue().getOwner().getEmail().equals(hostEmail);
-        boolean isManager = space.getHosts().stream().anyMatch(h -> h.getEmail().equals(hostEmail));
-        if (!isOwner && !isManager) {
-            throw new AppException("common.forbidden", HttpStatus.FORBIDDEN);
-        }
+        checkSpaceAndHostAuthorization(space, hostEmail);
 
         if (request.getOpenTime() != null && request.getCloseTime() != null
                 && !request.getOpenTime().isBefore(request.getCloseTime())) {
@@ -180,15 +176,7 @@ public class SpaceServiceImpl implements SpaceService {
         Space space = spaceRepository.findById(spaceId)
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (space.getVenue().getDeleted()) {
-            throw new AppException("venue.not.found", HttpStatus.NOT_FOUND);
-        }
-
-        boolean isOwner = space.getVenue().getOwner().getEmail().equals(hostEmail);
-        boolean isManager = space.getHosts().stream().anyMatch(h -> h.getEmail().equals(hostEmail));
-        if (!isOwner && !isManager) {
-            throw new AppException("common.forbidden", HttpStatus.FORBIDDEN);
-        }
+        checkSpaceAndHostAuthorization(space, hostEmail);
 
         User manager = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
@@ -205,17 +193,24 @@ public class SpaceServiceImpl implements SpaceService {
         Space space = spaceRepository.findById(id)
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (space.getVenue().getDeleted()) {
-            throw new AppException("venue.not.found", HttpStatus.NOT_FOUND);
-        }
-
-        boolean isOwner = space.getVenue().getOwner().getEmail().equals(hostEmail);
-        boolean isManager = space.getHosts().stream().anyMatch(h -> h.getEmail().equals(hostEmail));
-        if (!isOwner && !isManager) {
-            throw new AppException("common.forbidden", HttpStatus.FORBIDDEN);
-        }
+        checkSpaceAndHostAuthorization(space, hostEmail);
 
         spaceRepository.delete(space);
         log.info("[SpaceService] Deleted space id={} by host={}", id, hostEmail);
+    }
+
+    private void checkSpaceAndHostAuthorization(Space space, String hostEmail) {
+        if (space.getVenue() == null || Boolean.TRUE.equals(space.getVenue().getDeleted())) {
+            throw new AppException("venue.not.found", HttpStatus.NOT_FOUND);
+        }
+
+        boolean isOwner = space.getVenue().getOwner() != null
+                && hostEmail.equals(space.getVenue().getOwner().getEmail());
+        boolean isManager = space.getHosts() != null
+                && space.getHosts().stream().anyMatch(h -> hostEmail.equals(h.getEmail()));
+
+        if (!isOwner && !isManager) {
+            throw new AppException("common.forbidden", HttpStatus.FORBIDDEN);
+        }
     }
 }

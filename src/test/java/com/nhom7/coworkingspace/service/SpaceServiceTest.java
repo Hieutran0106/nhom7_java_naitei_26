@@ -91,6 +91,7 @@ class SpaceServiceTest {
                 .city("Hanoi")
                 .street("Kim Ma")
                 .address("123 Kim Ma, Ba Dinh, Hanoi")
+                .status(com.nhom7.coworkingspace.enums.VenueStatus.APPROVE)
                 .deleted(false)
                 .build();
 
@@ -238,6 +239,35 @@ class SpaceServiceTest {
                 .hasMessage("venue.access.denied")
                 .extracting("status")
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("Should throw AppException when creating space in a PENDING venue")
+    void givenPendingVenue_whenCreateSpace_thenThrowVenueNotApproved() {
+        Venue pendingVenue = Venue.builder()
+                .id(101L)
+                .owner(hostOwner)
+                .name("Pending Venue")
+                .status(com.nhom7.coworkingspace.enums.VenueStatus.PENDING)
+                .deleted(false)
+                .build();
+
+        SpaceCreateRequest request = SpaceCreateRequest.builder()
+                .name("Meeting Room C")
+                .capacity(5)
+                .price(new BigDecimal("100000"))
+                .priceUnit("HOUR")
+                .openTime(LocalTime.of(8, 0))
+                .closeTime(LocalTime.of(18, 0))
+                .build();
+
+        given(venueRepository.findByIdAndDeletedFalse(101L)).willReturn(Optional.of(pendingVenue));
+
+        assertThatThrownBy(() -> spaceService.createSpace(101L, request, "host@example.com"))
+                .isInstanceOf(AppException.class)
+                .hasMessage("venue.not.approved")
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
