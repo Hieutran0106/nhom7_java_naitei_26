@@ -31,6 +31,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     @Query("SELECT COUNT(b) FROM Booking b WHERE UPPER(CAST(b.status AS string)) = UPPER(:status)")
     long countByStatusIgnoreCase(@Param("status") String status);
 
+    @EntityGraph(attributePaths = {"user", "space"})
+    Page<Booking> findByUserId(Long userId, Pageable pageable);
+
     @Query("""
             SELECT COUNT(b) > 0
             FROM Booking b
