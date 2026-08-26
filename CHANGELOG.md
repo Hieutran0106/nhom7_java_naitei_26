@@ -7,6 +7,21 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
+
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
+
+#### Added
+
+- Endpoint `GET /api/bookings/my-history`: cho phép user đã đăng nhập xem danh sách các booking do chính mình đặt, hỗ trợ phân trang và sắp xếp; lấy user qua `Authentication` (JWT), không nhận `userId` từ client
+- `BookingHistoryRequest`: DTO tiếp nhận tham số phân trang/sắp xếp (`page`, `size`, `sortBy`, `sortDir`), mặc định sắp xếp theo `createdAt` giảm dần (booking mới nhất trước)
+- `BookingRepository.findByUserId(...)`: truy vấn phân trang booking theo user, kèm `@EntityGraph(attributePaths = {"user", "space"})` để nạp sẵn quan hệ, tránh N+1 query
+- `BookingService.getMyBookingHistory(...)`/`BookingServiceImpl`: whitelist các trường được phép sắp xếp (`id`, `startTime`, `endTime`, `status`, `totalPrice`, `createdAt`) để chặn sort injection, tự động fallback về `createdAt` nếu `sortBy` không hợp lệ; giới hạn `size` tối đa 100
+- Message key `booking.history.fetched` (en/vi)
+- Unit test cho `BookingServiceImpl.getMyBookingHistory` (thành công, fallback sortBy không hợp lệ, user không tồn tại) và `BookingController` (`200 OK` khi đã xác thực, `401` khi chưa xác thực)
+
+---
+
 ### 2026-08-25 - Fix: Venue Moderation Workflow & Security Hardening (Code Review Follow-up)
 
 **Người thực hiện:** Huỳnh Trương Thảo Duyên
@@ -73,6 +88,7 @@ File ghi lại những thay đổi của dự án.
   - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
 - Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
 
+>>>>>>> master
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]

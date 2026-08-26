@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.service;
 
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
@@ -26,7 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 
@@ -43,6 +46,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -571,6 +575,90 @@ class BookingServiceImplTest {
                 assertThat(updated.getStatus()).isEqualTo(BookingStatus.REJECTED);
                 verify(bookingRepository).saveAndFlush(booking);
                 verify(emailService).sendHtmlEmail("user3@coworking.test", "Booking #44 status updated", "<p>Rejected</p>");
+        }
+
+        @Nested
+        @DisplayName("getMyBookingHistory Tests")
+        class GetMyBookingHistoryTests {
+
+                @Test
+                @DisplayName("Should return paginated booking history for current user")
+                void getMyBookingHistory_Success() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .status(BookingStatus.PENDING)
+                                        .createdAt(LocalDateTime.now())
+                                        .build();
+
+                        BookingResponse response = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("createdAt")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(booking), expectedPageable, 1));
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(response);
+
+                        PageResponse<BookingResponse> result = bookingService.getMyBookingHistory(email, request);
+
+                        assertThat(result.getContent()).containsExactly(response);
+                        assertThat(result.getTotalElements()).isEqualTo(1);
+                }
+
+                @Test
+                @DisplayName("Should fall back to default sort field when an unknown sortBy is supplied")
+                void getMyBookingHistory_InvalidSortByFallsBackToDefault() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("unknownField")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(), expectedPageable, 0));
+
+                        bookingService.getMyBookingHistory(email, request);
+
+                        verify(bookingRepository).findByUserId(1L, expectedPageable);
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when current user is not found")
+                void getMyBookingHistory_UserNotFound() {
+                        String email = "missing@coworking.test";
+                        BookingHistoryRequest request = BookingHistoryRequest.builder().build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getMyBookingHistory(email, request))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+                        verifyNoInteractions(bookingRepository, bookingMapper);
+                }
         }
 
         @Nested
