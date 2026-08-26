@@ -404,6 +404,97 @@ class BookingServiceImplTest {
         }
 
         @Nested
+        @DisplayName("Get Bookings For Host Tests")
+        class GetBookingsForHostTests {
+
+                @Test
+                @DisplayName("Should return paginated bookings scoped to the host's own spaces when bookings exist")
+                void getBookingsForHost_HasBookings_ReturnsScopedPage() {
+                        String hostEmail = "host@coworking.test";
+                        User host = User.builder().id(50L).email(hostEmail).build();
+
+                        Booking booking = Booking.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        Page<Booking> bookingPage = new PageImpl<>(List.of(booking), PageRequest.of(0, 10), 1);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class)))
+                                        .willReturn(bookingPage);
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        PageResponse<BookingResponse> response = bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getContent()).hasSize(1);
+                        assertThat(response.getContent().get(0).getId()).isEqualTo(1L);
+                        assertThat(response.getTotalElements()).isEqualTo(1);
+                        verify(bookingRepository).findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class));
+                }
+
+                @Test
+                @DisplayName("Should return an empty page when the host's spaces have no bookings")
+                void getBookingsForHost_NoBookings_ReturnsEmptyPage() {
+                        String hostEmail = "host@coworking.test";
+                        User host = User.builder().id(50L).email(hostEmail).build();
+
+                        Page<Booking> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class)))
+                                        .willReturn(emptyPage);
+
+                        PageResponse<BookingResponse> response = bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getContent()).isEmpty();
+                        assertThat(response.getTotalElements()).isZero();
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when the authenticated host cannot be resolved")
+                void getBookingsForHost_HostNotFound_ThrowsAppException() {
+                        String hostEmail = "missing-host@coworking.test";
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getBookingsForHost(hostEmail, 0, 10))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+
+                        verifyNoInteractions(bookingMapper);
+                }
+
+                @Test
+                @DisplayName("Should only query bookings scoped to the calling host's own id, never another host's")
+                void getBookingsForHost_NeverQueriesAnotherHostId() {
+                        String hostEmail = "host-a@coworking.test";
+                        User hostA = User.builder().id(1L).email(hostEmail).build();
+
+                        Page<Booking> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(hostA));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(1L), any(Pageable.class)))
+                                        .willReturn(emptyPage);
+
+                        bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        verify(bookingRepository).findByHostId(ArgumentMatchers.eq(1L), any(Pageable.class));
+                        verify(bookingRepository, org.mockito.Mockito.never())
+                                        .findByHostId(ArgumentMatchers.eq(2L), any(Pageable.class));
+                }
+        }
+
+        @Nested
         @DisplayName("Price Calculation Tests")
         class PriceCalculationTests {
 
