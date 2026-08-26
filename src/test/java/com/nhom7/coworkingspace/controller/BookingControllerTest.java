@@ -3,7 +3,6 @@ package com.nhom7.coworkingspace.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhom7.coworkingspace.config.JwtProperties;
 import com.nhom7.coworkingspace.controller.api.BookingController;
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
@@ -117,37 +116,6 @@ class BookingControllerTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @WithMockUser(username = "user@test.com", roles = {"USER"})
-    @DisplayName("Authenticated USER -> GET /api/bookings/my-history returns 200 OK")
-    void givenUserRole_whenGetMyBookingHistory_thenReturn200() throws Exception {
-        BookingResponse booking = BookingResponse.builder()
-                .id(1L)
-                .userEmail("user@test.com")
-                .spaceId(10L)
-                .status(BookingStatus.APPROVED)
-                .build();
-
-        PageResponse<BookingResponse> pageResponse = PageResponse.fromPage(
-                new org.springframework.data.domain.PageImpl<>(List.of(booking)));
-
-        given(bookingService.getMyBookingHistory(any(com.nhom7.coworkingspace.dto.request.BookingSearchRequest.class), eq("user@test.com")))
-                .willReturn(pageResponse);
-
-        mockMvc.perform(get("/api/bookings/my-history"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.content[0].id").value(1))
-                .andExpect(jsonPath("$.data.content[0].status").value("APPROVED"));
-    }
-
-    @Test
-    @DisplayName("Unauthenticated request -> GET /api/bookings/my-history returns 401 Unauthorized")
-    void givenUnauthenticated_whenGetMyBookingHistory_thenReturn401() throws Exception {
-        mockMvc.perform(get("/api/bookings/my-history"))
                 .andExpect(status().isUnauthorized());
     }
 

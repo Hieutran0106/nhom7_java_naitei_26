@@ -1,6 +1,5 @@
 package com.nhom7.coworkingspace.service.impl;
 
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
@@ -245,23 +244,6 @@ public class BookingServiceImpl implements BookingService {
 
         Payment savedPayment = paymentRepository.save(payment);
         return paymentMapper.toPaymentResponse(savedPayment);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PageResponse<BookingResponse> getMyBookingHistory(BookingSearchRequest request, String userEmail) {
-        log.debug("[BookingService] Getting booking history for userEmail={}", userEmail);
-
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
-
-        if (request == null) {
-            request = BookingSearchRequest.builder().build();
-        }
-
-        request.setUserId(user.getId());
-
-        return searchBookings(request);
     }
 
     @Override

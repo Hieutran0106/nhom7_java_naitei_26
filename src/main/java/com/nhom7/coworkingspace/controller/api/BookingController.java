@@ -1,6 +1,5 @@
 package com.nhom7.coworkingspace.controller.api;
 
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
@@ -58,38 +57,6 @@ public class BookingController {
         String message = messageSource.getMessage("booking.created", null, locale);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), message, response));
-    }
-
-    /**
-     * Get the booking history of the currently authenticated user.
-     *
-     * <p>Requires authenticated user.</p>
-     *
-     * @param request pagination and sorting parameters
-     * @param authentication security context authentication
-     * @return paginated list of the current user's bookings wrapped in ApiResponse
-     */
-    /**
-     * Get booking history for current authenticated user.
-     *
-     * @param request search and filter criteria
-     * @param authentication security context authentication
-     * @return paginated booking history wrapped in ApiResponse
-     */
-    @GetMapping("/my-history")
-    @PreAuthorize("hasAnyRole('USER', 'HOST', 'MODERATOR', 'ADMIN')")
-    @Operation(
-            summary = "Get My Booking History",
-            description = "Retrieves paginated booking history for the current authenticated user."
-    )
-    public ResponseEntity<ApiResponse<PageResponse<BookingResponse>>> getMyBookingHistory(
-            @org.springdoc.core.annotations.ParameterObject @ModelAttribute BookingSearchRequest request,
-            Authentication authentication
-    ) {
-        PageResponse<BookingResponse> response = bookingService.getMyBookingHistory(request, authentication.getName());
-        Locale locale = LocaleContextHolder.getLocale();
-        String message = messageSource.getMessage("booking.my_history.fetched", null, locale);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), message, response));
     }
 
     /**

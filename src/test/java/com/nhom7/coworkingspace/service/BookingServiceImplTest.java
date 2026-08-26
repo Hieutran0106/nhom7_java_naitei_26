@@ -1,6 +1,5 @@
 package com.nhom7.coworkingspace.service;
 
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
@@ -999,34 +998,6 @@ class BookingServiceImplTest {
                                         .hasMessage("booking.payment.not.approved")
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.BAD_REQUEST);
-                }
-        }
-
-        @Nested
-        @DisplayName("Get My Booking History Tests")
-        class GetMyBookingHistoryTests {
-
-                @Test
-                @DisplayName("Should fetch my booking history and force current userId in filter")
-                void getMyBookingHistory_Success() {
-                        String email = "user@test.com";
-                        User user = User.builder().id(5L).email(email).build();
-                        BookingSearchRequest request = BookingSearchRequest.builder().build();
-
-                        Booking booking = Booking.builder().id(100L).user(user).build();
-                        BookingResponse bookingResponse = BookingResponse.builder().id(100L).userId(5L).build();
-                        Page<Booking> page = new PageImpl<>(List.of(booking));
-
-                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-                        given(bookingRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(page);
-                        given(bookingMapper.toBookingResponse(booking)).willReturn(bookingResponse);
-
-                        PageResponse<BookingResponse> result = bookingService.getMyBookingHistory(request, email);
-
-                        assertThat(result).isNotNull();
-                        assertThat(result.getContent()).hasSize(1);
-                        assertThat(result.getContent().get(0).getUserId()).isEqualTo(5L);
-                        assertThat(request.getUserId()).isEqualTo(5L);
                 }
         }
 }

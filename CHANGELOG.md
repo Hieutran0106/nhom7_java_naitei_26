@@ -26,7 +26,7 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
-### 2026-08-25 - Payment API (POST /api/payments/mock/bookings/{id}/pay) & Booking History API (GET /api/bookings/my-history) (#99300)
+### 2026-08-25 - Payment API (POST /api/payments/mock/bookings/{id}/pay) (#99300)
 
 **Người thực hiện:** Nguyễn Minh An
 
@@ -37,15 +37,11 @@ File ghi lại những thay đổi của dự án.
   - Kiểm tra lịch đặt chỗ tồn tại (`404 Not Found`) và thuộc sở hữu của người dùng hiện tại (`403 Forbidden` nếu không phải chủ sở hữu)
   - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu không ở trạng thái `APPROVED` hoặc đã thanh toán `PAID`)
   - Cập nhật trạng thái `bookings.status = PAID` và lưu bản ghi thanh toán mới vào bảng `payment` với `status = COMPLETED`
-- Endpoint `GET /api/bookings/my-history`: Lấy danh sách lịch sử đặt chỗ của người dùng đang đăng nhập
-  - Tự động gán `userId = current_userId` trong `BookingSearchRequest` để phòng chống lỗ hổng phân quyền IDOR
-  - Hỗ trợ lọc động theo `status`, `fromDate`, `toDate`, `keyword`, kết hợp phân trang (`page`, `size`) và sắp xếp linh hoạt (`sortBy`, `sortDir`)
 - MapStruct Interface `PaymentMapper`: chuyển đổi `Payment` entity sang `PaymentResponse` DTO
 - Bổ sung giá trị `PAID` vào Enum `BookingStatus`
 - Unit test suite:
-  - `BookingServiceImplTest.PayBookingTests` và `BookingServiceImplTest.GetMyBookingHistoryTests`: kiểm thử toàn diện luồng thành công, phân quyền, bảo mật IDOR và các trường hợp ngoại lệ
+  - `BookingServiceImplTest.PayBookingTests`: kiểm thử toàn diện luồng thành công, phân quyền và các trường hợp ngoại lệ
   - `PaymentControllerTest`: MockMvc unit test kiểm thử API `POST /api/payments/mock/bookings/{id}/pay`
-  - `BookingControllerTest`: Bổ sung MockMvc unit test kiểm thử API `GET /api/bookings/my-history`
 
 ---
 
