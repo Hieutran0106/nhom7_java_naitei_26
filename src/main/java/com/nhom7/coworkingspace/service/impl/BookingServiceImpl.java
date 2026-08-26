@@ -8,6 +8,7 @@ import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.entity.Venue;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
 import com.nhom7.coworkingspace.enums.SpaceStatus;
@@ -194,13 +195,48 @@ public class BookingServiceImpl implements BookingService {
         BookingStatus normalizedStatus = normalizeStatus(newStatus);
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
-        BookingStatus previousStatus = booking.getStatus();
 
-        if (normalizedStatus == previousStatus) {
+        if (normalizedStatus == booking.getStatus()) {
             return booking;
         }
 
-        booking.setStatus(normalizedStatus);
+        return persistStatusChange(booking, normalizedStatus);
+    }
+
+    // Host-facing counterpart of changeStatus: restricted to APPROVED/REJECTED, only the Host who
+    // owns the booking's Space (via Space -> Venue -> owner, the same ownership path used by
+    // VenueServiceImpl) may act, and only while the booking is still PENDING.
+    @Override
+    @Transactional
+    public BookingResponse updateBookingStatusByHost(Long bookingId, BookingStatus newStatus, String hostEmail) {
+        if (newStatus != BookingStatus.APPROVED && newStatus != BookingStatus.REJECTED) {
+            throw new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST);
+        }
+
+        User host = userRepository.findByEmail(hostEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        Venue venue = booking.getSpace().getVenue();
+        if (venue == null || venue.getOwner() == null || !venue.getOwner().getId().equals(host.getId())) {
+            throw new AppException("booking.access.denied", HttpStatus.FORBIDDEN);
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new AppException("booking.status.transition.invalid", HttpStatus.BAD_REQUEST);
+        }
+
+        Booking savedBooking = persistStatusChange(booking, newStatus);
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    // Shared by changeStatus and updateBookingStatusByHost: persists the new status and notifies
+    // the booking's user by email, same side effects changeStatus already had.
+    private Booking persistStatusChange(Booking booking, BookingStatus newStatus) {
+        BookingStatus previousStatus = booking.getStatus();
+        booking.setStatus(newStatus);
         Booking savedBooking = bookingRepository.saveAndFlush(booking);
 
         Locale locale = toLocale(savedBooking.getUser().getLanguage());

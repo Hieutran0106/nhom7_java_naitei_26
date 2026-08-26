@@ -6,6 +6,7 @@ import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
+import com.nhom7.coworkingspace.enums.BookingStatus;
 
 public interface BookingService {
 
@@ -20,6 +21,8 @@ public interface BookingService {
     PageResponse<BookingResponse> searchBookings(BookingSearchRequest request);
 
     BookingResponse getBookingById(Long bookingId);
+
+    BookingResponse updateBookingStatusByHost(Long bookingId, BookingStatus newStatus, String hostEmail);
 }
 
 
