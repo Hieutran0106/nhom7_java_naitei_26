@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -28,4 +29,6 @@ public interface SpaceRepository extends JpaRepository<Space, Long>, JpaSpecific
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Space s WHERE s.id = :id")
     Optional<Space> findByIdForUpdate(@Param("id") Long id);
+
+    List<Space> findByVenueId(Long venueId);
 }

@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -45,8 +46,13 @@ public class Venue {
     @Column(name = "longitude", precision = 11, scale = 8)
     private BigDecimal longitude;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
-    private String status;
+    private VenueStatus status;
+
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private Boolean deleted = false;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

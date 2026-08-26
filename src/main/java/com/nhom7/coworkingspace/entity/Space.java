@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.entity;
 
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -49,8 +50,9 @@ public class Space {
     @Column(name = "close_time")
     private LocalTime closeTime;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
-    private String status;
+    private SpaceStatus status;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "space_host", joinColumns = @JoinColumn(name = "space_id"), inverseJoinColumns = @JoinColumn(name = "user_id"))
