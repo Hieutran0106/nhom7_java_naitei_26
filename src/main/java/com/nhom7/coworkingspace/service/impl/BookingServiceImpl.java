@@ -100,7 +100,6 @@ public class BookingServiceImpl implements BookingService {
         return PageResponse.fromPage(dtoPage);
     }
 
-
     @Override
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long bookingId) {
@@ -109,7 +108,6 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
         return bookingMapper.toBookingResponse(booking);
     }
-
 
     @Override
     @Transactional
@@ -132,6 +130,12 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
         if (space.getStatus() != null && space.getStatus() != SpaceStatus.ACTIVE) {
+            throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
+        }
+
+        if (space.getVenue() != null
+                && (Boolean.TRUE.equals(space.getVenue().getDeleted())
+                || space.getVenue().getStatus() != com.nhom7.coworkingspace.enums.VenueStatus.APPROVE)) {
             throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
         }
 
@@ -248,6 +252,23 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getMyBookingHistory(BookingSearchRequest request, String userEmail) {
+        log.debug("[BookingService] Getting booking history for userEmail={}", userEmail);
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        if (request == null) {
+            request = BookingSearchRequest.builder().build();
+        }
+
+        request.setUserId(user.getId());
+
+        return searchBookings(request);
+    }
+
+    @Override
     @Transactional
     public Booking changeStatus(Long bookingId, String newStatus) {
         BookingStatus normalizedStatus = normalizeStatus(newStatus);
@@ -267,7 +288,7 @@ public class BookingServiceImpl implements BookingService {
                 savedBooking, previousStatus != null ? previousStatus.name() : null, locale);
         String subject = messageSource.getMessage(
                 "email.booking.status.subject",
-                new Object[]{savedBooking.getId()},
+                new Object[] { savedBooking.getId() },
                 locale);
         emailService.sendHtmlEmail(
                 savedBooking.getUser().getEmail(),
@@ -325,4 +346,3 @@ public class BookingServiceImpl implements BookingService {
         return Locale.forLanguageTag(language.replace('_', '-'));
     }
 }
-

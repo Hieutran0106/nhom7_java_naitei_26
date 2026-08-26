@@ -213,6 +213,34 @@ class BookingServiceImplTest {
 
                         assertThatThrownBy(() -> bookingService.createBooking(request, email))
                                         .isInstanceOf(AppException.class)
+                                        .hasMessage("space.not.available");
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when space venue is PENDING or BLOCKED")
+                void createBooking_VenueNotApproved() {
+                        String email = "customer@coworking.test";
+                        LocalDateTime start = LocalDateTime.now(clock).plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime end = start.plusHours(2);
+
+                        User user = User.builder().id(1L).email(email).build();
+                        com.nhom7.coworkingspace.entity.Venue pendingVenue = com.nhom7.coworkingspace.entity.Venue.builder()
+                                        .id(1L)
+                                        .status(com.nhom7.coworkingspace.enums.VenueStatus.PENDING)
+                                        .build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.ACTIVE).venue(pendingVenue).build();
+
+                        BookingRequest request = BookingRequest.builder()
+                                        .spaceId(10L)
+                                        .startTime(start)
+                                        .endTime(end)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(spaceRepository.findByIdForUpdate(10L)).willReturn(Optional.of(space));
+
+                        assertThatThrownBy(() -> bookingService.createBooking(request, email))
+                                        .isInstanceOf(AppException.class)
                                         .hasMessage("space.not.available")
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.BAD_REQUEST);

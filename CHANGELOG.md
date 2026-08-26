@@ -7,6 +7,25 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-27 - Space Management API & Logic (Create, View, Edit, Delete, Managers) (#99344)
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- Endpoint `POST /api/venues/{venueId}/spaces` (`SpaceController`, role `HOST`): thêm không gian làm việc vào Venue thuộc sở hữu của Host, validate tên, sức chứa (>0), giá thuê, đơn vị giá, giờ mở/đóng cửa (`openTime < closeTime`) và yêu cầu Venue ở trạng thái `APPROVED`
+- Endpoint `GET /api/spaces/my-spaces` (`SpaceController`, role `HOST`): trả về danh sách các không gian làm việc thuộc sở hữu Venue hoặc do Host quản lý với hỗ trợ phân trang
+- Endpoint `GET /api/venues/{venueId}/spaces`: danh sách các space thuộc 1 Venue
+- Endpoint `PUT /api/spaces/{id}` (`SpaceController`, role `HOST`): cập nhật thông tin space, kiểm tra quyền sở hữu/quản lý và validate giờ hoạt động (`openTime < closeTime`)
+- Endpoint `DELETE /api/spaces/{id}` (`SpaceController`, role `HOST`): xóa space sau khi kiểm tra quyền sở hữu/quản lý
+- Endpoint `POST /api/spaces/{id}/managers` (`SpaceController`, role `HOST`): gán người dùng làm manager quản lý space
+- Predicate tự động trong `SpaceSpecification`: lọc chỉ các space thuộc Venue ở trạng thái `APPROVED`, `deleted == false` và `space.status == SpaceStatus.ACTIVE`
+- Ràng buộc đặt chỗ trong `BookingServiceImpl`: chặn tạo đặt chỗ nếu Venue chứa Space chưa được duyệt (`status != APPROVE`) hoặc đã bị xóa
+- Message keys đa ngôn ngữ (en/vi) cho các thao tác quản lý space và các thông báo validation
+- Unit test suite đầy đủ trong `SpaceServiceTest` và `BookingServiceImplTest` kiểm thử toàn bộ luồng thành công, phân quyền, validate `openTime < closeTime` và trạng thái `VenueStatus.APPROVE`
+
+---
+
 ### 2026-08-26 - View Spaces Booking (GET /api/host/bookings)
 
 **Người thực hiện:** Huỳnh Trương Thảo Duyên
@@ -26,7 +45,7 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
-### 2026-08-25 - Payment API (POST /api/payments/mock/bookings/{id}/pay) (#99300)
+### 2026-08-25 - Payment API (POST /api/payments/mock/bookings/{id}/pay) & Booking History API (GET /api/bookings/my-history) (#99300)
 
 **Người thực hiện:** Nguyễn Minh An
 
@@ -37,11 +56,15 @@ File ghi lại những thay đổi của dự án.
   - Kiểm tra lịch đặt chỗ tồn tại (`404 Not Found`) và thuộc sở hữu của người dùng hiện tại (`403 Forbidden` nếu không phải chủ sở hữu)
   - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu không ở trạng thái `APPROVED` hoặc đã thanh toán `PAID`)
   - Cập nhật trạng thái `bookings.status = PAID` và lưu bản ghi thanh toán mới vào bảng `payment` với `status = COMPLETED`
+- Endpoint `GET /api/bookings/my-history`: Lấy danh sách lịch sử đặt chỗ của người dùng đang đăng nhập
+  - Tự động gán `userId = current_userId` trong `BookingSearchRequest` để phòng chống lỗ hổng phân quyền IDOR
+  - Hỗ trợ lọc động theo `status`, `fromDate`, `toDate`, `keyword`, kết hợp phân trang (`page`, `size`) và sắp xếp linh hoạt (`sortBy`, `sortDir`)
 - MapStruct Interface `PaymentMapper`: chuyển đổi `Payment` entity sang `PaymentResponse` DTO
 - Bổ sung giá trị `PAID` vào Enum `BookingStatus`
 - Unit test suite:
-  - `BookingServiceImplTest.PayBookingTests`: kiểm thử toàn diện luồng thành công, phân quyền và các trường hợp ngoại lệ
+  - `BookingServiceImplTest.PayBookingTests` và `BookingServiceImplTest.GetMyBookingHistoryTests`: kiểm thử toàn diện luồng thành công, phân quyền, bảo mật IDOR và các trường hợp ngoại lệ
   - `PaymentControllerTest`: MockMvc unit test kiểm thử API `POST /api/payments/mock/bookings/{id}/pay`
+  - `BookingControllerTest`: Bổ sung MockMvc unit test kiểm thử API `GET /api/bookings/my-history`
 
 ---
 
@@ -124,6 +147,8 @@ File ghi lại những thay đổi của dự án.
   - Kiểm tra xác thực người dùng sở hữu lịch đặt chỗ (`403 Forbidden` nếu không phải chủ sở hữu)
   - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu booking ở trạng thái `CONFIRMED` (đã thanh toán), `COMPLETED`, `REJECTED` hoặc đã `CANCELLED`)
   - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
+---
+
 ---
 
 ### 2026-08-22 - View Statistics and Payment History
