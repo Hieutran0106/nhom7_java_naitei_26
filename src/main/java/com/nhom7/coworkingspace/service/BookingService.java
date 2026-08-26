@@ -15,6 +15,8 @@ public interface BookingService {
 
     PageResponse<BookingResponse> getMyBookingHistory(String userEmail, BookingHistoryRequest request);
 
+    BookingResponse cancelBooking(Long bookingId, String userEmail);
+
     PageResponse<BookingResponse> searchBookings(BookingSearchRequest request);
 
     BookingResponse getBookingById(Long bookingId);

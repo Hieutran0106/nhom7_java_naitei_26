@@ -10,6 +10,7 @@ import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.BookingNotFoundException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
@@ -124,9 +125,7 @@ public class BookingServiceImpl implements BookingService {
                 .or(() -> spaceRepository.findById(request.getSpaceId()))
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (StringUtils.hasText(space.getStatus())
-                && !"ACTIVE".equalsIgnoreCase(space.getStatus())
-                && !"AVAILABLE".equalsIgnoreCase(space.getStatus())) {
+        if (space.getStatus() != null && space.getStatus() != SpaceStatus.ACTIVE) {
             throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
         }
 
@@ -160,6 +159,32 @@ public class BookingServiceImpl implements BookingService {
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse cancelBooking(Long bookingId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new AppException("booking.cannot.cancel.not.owner", HttpStatus.FORBIDDEN);
+        }
+
+        BookingStatus currentStatus = booking.getStatus();
+        if (currentStatus == null ||
+                (currentStatus != BookingStatus.PENDING
+                        && currentStatus != BookingStatus.APPROVED)) {
+            throw new AppException("booking.cannot.cancel.invalid.status", HttpStatus.BAD_REQUEST);
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        Booking savedBooking = bookingRepository.save(booking);
+
         return bookingMapper.toBookingResponse(savedBooking);
     }
 

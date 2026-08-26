@@ -9,7 +9,7 @@ File ghi lại những thay đổi của dự án.
 
 ### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
 
-**Người thực hiện:** [Tên thành viên]
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
 
 #### Added
 
@@ -22,6 +22,73 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
+### 2026-08-25 - Fix: Venue Moderation Workflow & Security Hardening (Code Review Follow-up)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Enum `VenueStatus` (`PENDING`, `APPROVE`, `BLOCKED`) thay cho `status: String` tự do trên `Venue`/`VenueResponse` - venue mới tạo luôn ở `PENDING` (`VenueServiceImpl.createVenue`), không nhận `status` từ client dưới bất kỳ hình thức nào
+- Endpoint `PUT /api/moderator/venues/{id}/status` (`ModeratorVenueController`, role `MODERATOR`/`ADMIN`): duyệt (`APPROVE`) hoặc khóa (`BLOCKED`) venue. Chặn moderator tự duyệt/khóa venue của chính mình (`venue.cannot.moderate.self`, `403`); no-op (không `save`) nếu set lại đúng status hiện tại
+- DTO `UpdateVenueStatusRequest` (`status: VenueStatus`, `@NotNull`) và method `VenueService.updateVenueStatus(...)`
+- Khi venue chuyển sang `BLOCKED`, cascade toàn bộ `Space` thuộc venue sang `INACTIVE` (dùng chung `deactivateSpaces(...)` với `deleteVenue`) - `APPROVE` không tự động bật lại Space vì có thể chúng đã bị tắt vì lý do khác trước đó
+- Enum `SpaceStatus` (`ACTIVE`, `INACTIVE`) thay cho `status: String` tự do trên `Space`/`SpaceResponse`
+- `@DecimalMin`/`@DecimalMax` cho `latitude` (-90..90) và `longitude` (-180..180) trong `VenueRequest`
+- `SpaceRepository.findByVenueId(...)`; `VenueRepository.countByStatus(VenueStatus)` thay cho `countByStatusIgnoreCase(String)`
+- Message key mới (en/vi): `venue.status.updated`, `venue.cannot.moderate.self`, `validation.venue.latitude.range`, `validation.venue.longitude.range`
+- Test mới: `ModeratorVenueControllerTest`; các case `updateVenueStatus` (thành công, idempotent, tự duyệt bị chặn, không tìm thấy, cascade Space khi `BLOCKED`) trong `VenueServiceImplTest`; case Space `INACTIVE` bị từ chối booking (`space.not.available`) trong `BookingServiceImplTest`
+
+#### Changed
+
+- `VenueController`: thêm `@PreAuthorize("hasRole('HOST')")` cho cả 4 endpoint (`POST`, `GET /my-venues`, `PUT`, `DELETE`) thay vì chỉ kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` như trước
+- `VenueRequest`: bỏ hẳn field `status` - HOST không còn cách nào set status của venue qua `create`/`update`, chỉ moderator/admin mới đổi được qua endpoint riêng ở trên
+- `VenueServiceImpl.deleteVenue`: cascade `Space` thuộc venue sang `INACTIVE` khi soft-delete venue (giữ nguyên Space, không xóa, để không mất lịch sử booking)
+- `BookingServiceImpl`: gộp điều kiện chấp nhận 2 giá trị chuỗi không nhất quán `"ACTIVE"`/`"AVAILABLE"` thành một so sánh enum duy nhất `SpaceStatus.ACTIVE`
+- `StatisticsServiceImpl`: `venueRepository.countByStatusIgnoreCase("ACTIVE")` → `countByStatus(VenueStatus.APPROVE)`
+- `VenueControllerTest`: thêm `@EnableMethodSecurity` và test `verifyNoInteractions(venueService)` để xác nhận `@PreAuthorize` thực sự chặn ở tầng Security chứ không chỉ vì service ném exception (lỗ hổng kiểm thử phát hiện trong lúc review)
+
+---
+
+### 2026-08-22 - Host Venue Management (CRUD)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `POST /api/venues`: cho phép user có role `HOST` tạo venue mới (kèm danh sách `amenityIds`) thuộc sở hữu của chính mình - owner luôn được lấy từ `SecurityContext` (`authentication.getName()`), không nhận `ownerId` từ client
+- Endpoint `GET /api/venues/my-venues`: lấy danh sách venue (chưa bị xóa) của HOST hiện tại, có phân trang (`page`, `size`), sắp xếp theo `id` giảm dần
+- Endpoint `PUT /api/venues/{id}`: cập nhật venue - trả `404` nếu venue không tồn tại (hoặc đã bị soft delete), trả `403` nếu venue thuộc HOST khác
+- Endpoint `DELETE /api/venues/{id}`: soft delete venue (set cờ `deleted = true`, không xóa dữ liệu thật) - áp dụng cùng rule kiểm tra tồn tại/quyền sở hữu như update
+- `VenueRequest` DTO: `name` (bắt buộc, tối đa 200 ký tự), `description`, `address`, `city`, `street`, `latitude`/`longitude`, `status`, `amenityIds` (`Set<Long>`, mặc định rỗng)
+- `VenueResponse`/`AmenityResponse` DTO và `VenueMapper` (MapStruct): map `Venue` entity sang response kèm thông tin owner (`ownerId`, `ownerName`) và danh sách amenity
+- `VenueService`/`VenueServiceImpl`: xử lý nghiệp vụ tạo/sửa/xóa/liệt kê venue, kiểm tra role `HOST` (`resolveHostUser`), kiểm tra quyền sở hữu (`assertOwnership`) và validate `amenityIds` tồn tại thật trong DB (`resolveAmenities`, trả `400 amenity.not.found` nếu có id không hợp lệ)
+- `VenueRepository`: bổ sung `findByOwnerIdAndDeletedFalse(...)` (phân trang) và `findByIdAndDeletedFalse(...)`
+- `AmenityRepository`: repository mới cho entity `Amenity`
+- `VenueNotFoundException`: exception riêng cho venue không tồn tại (`404`, message `venue.not.found`)
+- Cột `deleted` (`Boolean`, mặc định `false`) trên `Venue` entity phục vụ soft delete
+- Message key mới (en/vi): `venue.updated`, `venue.deleted`, `venue.list.success`, `venue.host.required`, `venue.access.denied`, `amenity.not.found`, cùng các message validation `validation.venue.*` (name/address/city/street/status)
+- `VenueControllerTest`, `VenueServiceImplTest`: unit test cho các luồng tạo/sửa/xóa/liệt kê venue, bao gồm case không phải HOST, không phải chủ sở hữu, venue/amenity không tồn tại
+
+#### Changed
+
+- `VenueController`: đánh dấu `@SecurityRequirement(name = "BearerAuth")` cho toàn bộ endpoint `/api/venues/**` trên Swagger UI; việc bắt buộc role `HOST` được kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` (chưa dùng `@PreAuthorize`)
+
+### 2026-08-24 - Booking Cancellation API (PUT /api/bookings/{id}/cancel) (#99295)
+
+---
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- Endpoint `PUT /api/bookings/{id}/cancel`: cho phép người dùng đã đăng nhập hủy lịch đặt chỗ của chính mình ở trạng thái `PENDING` hoặc `APPROVED` (chưa thanh toán)
+- Method `BookingService.cancelBooking(Long bookingId, String userEmail)` và cài đặt trong `BookingServiceImpl`:
+  - Kiểm tra xác thực người dùng sở hữu lịch đặt chỗ (`403 Forbidden` nếu không phải chủ sở hữu)
+  - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu booking ở trạng thái `CONFIRMED` (đã thanh toán), `COMPLETED`, `REJECTED` hoặc đã `CANCELLED`)
+  - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
+- Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
+
+>>>>>>> master
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]

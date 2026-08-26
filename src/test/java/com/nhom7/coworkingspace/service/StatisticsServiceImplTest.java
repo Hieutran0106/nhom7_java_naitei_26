@@ -5,6 +5,7 @@ import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Payment;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
@@ -66,7 +67,7 @@ class StatisticsServiceImplTest {
 
         given(
                 venueRepository
-                        .countByStatusIgnoreCase("ACTIVE")
+                        .countByStatus(VenueStatus.APPROVE)
         ).willReturn(5L);
 
         StatisticsOverviewResponse result =
@@ -90,7 +91,7 @@ class StatisticsServiceImplTest {
                 .countByStatusIgnoreCase("COMPLETED");
 
         verify(venueRepository)
-                .countByStatusIgnoreCase("ACTIVE");
+                .countByStatus(VenueStatus.APPROVE);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.dto.response;
 
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -32,5 +33,5 @@ public class SpaceResponse {
     private String priceUnit;
     private LocalTime openTime;
     private LocalTime closeTime;
-    private String status;
+    private SpaceStatus status;
 }

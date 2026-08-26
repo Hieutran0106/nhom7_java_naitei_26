@@ -8,6 +8,7 @@ import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
@@ -107,7 +108,8 @@ class BookingServiceImplTest {
                         User user = User.builder().id(1L).email(email).build();
                         Space space = Space.builder()
                                         .id(10L)
-                                        .status("ACTIVE")
+                                        .name("Desk 1")
+                                        .status(SpaceStatus.ACTIVE)
                                         .price(new BigDecimal("100000.00"))
                                         .priceUnit("HOUR")
                                         .build();
@@ -158,7 +160,7 @@ class BookingServiceImplTest {
                         LocalDateTime end = start.plusHours(2);
 
                         User user = User.builder().id(1L).email(email).build();
-                        Space space = Space.builder().id(10L).status("ACTIVE").build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.ACTIVE).build();
 
                         BookingRequest request = BookingRequest.builder()
                                         .spaceId(10L)
@@ -173,6 +175,32 @@ class BookingServiceImplTest {
                         assertThatThrownBy(() -> bookingService.createBooking(request, email))
                                         .isInstanceOf(AppException.class)
                                         .hasMessage("booking.overlap.error")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when the Space is INACTIVE (e.g. its venue was blocked/deleted)")
+                void createBooking_InactiveSpace_NotAvailable() {
+                        String email = "customer@coworking.test";
+                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime end = start.plusHours(2);
+
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.INACTIVE).build();
+
+                        BookingRequest request = BookingRequest.builder()
+                                        .spaceId(10L)
+                                        .startTime(start)
+                                        .endTime(end)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+
+                        assertThatThrownBy(() -> bookingService.createBooking(request, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("space.not.available")
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.BAD_REQUEST);
                 }
@@ -227,8 +255,8 @@ class BookingServiceImplTest {
                         User user = User.builder().id(1L).email(email).build();
                         Space space = Space.builder()
                                         .id(10L)
-                                        .status("ACTIVE")
-                                        .openTime(LocalTime.of(8, 0))
+                                        .status(SpaceStatus.ACTIVE)
+                                        .openTime(LocalTime.of(8, 0)) // Opens at 08:00
                                         .closeTime(LocalTime.of(20, 0))
                                         .build();
 
@@ -497,6 +525,58 @@ class BookingServiceImplTest {
                 verify(bookingRepository, org.mockito.Mockito.never()).saveAndFlush(booking);
         }
 
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to COMPLETED")
+        void changeStatusShouldUpdateStatusToCompleted() {
+                User user = User.builder().name("Nguyen Van B").email("user2@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 1").build();
+                Booking booking = Booking.builder()
+                                .id(43L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.CONFIRMED)
+                                .build();
+                given(bookingRepository.findById(43L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "CONFIRMED", locale))
+                                .willReturn("<p>Completed</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 43L }, locale))
+                                .willReturn("Booking #43 status updated");
+
+                Booking updated = bookingService.changeStatus(43L, "COMPLETED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.COMPLETED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user2@coworking.test", "Booking #43 status updated", "<p>Completed</p>");
+        }
+
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to REJECTED")
+        void changeStatusShouldUpdateStatusToRejected() {
+                User user = User.builder().name("Nguyen Van C").email("user3@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 2").build();
+                Booking booking = Booking.builder()
+                                .id(44L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.PENDING)
+                                .build();
+                given(bookingRepository.findById(44L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                .willReturn("<p>Rejected</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 44L }, locale))
+                                .willReturn("Booking #44 status updated");
+
+                Booking updated = bookingService.changeStatus(44L, "REJECTED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.REJECTED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user3@coworking.test", "Booking #44 status updated", "<p>Rejected</p>");
+        }
+
         @Nested
         @DisplayName("getMyBookingHistory Tests")
         class GetMyBookingHistoryTests {
@@ -578,6 +658,196 @@ class BookingServiceImplTest {
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.NOT_FOUND);
                         verifyNoInteractions(bookingRepository, bookingMapper);
+                }
+        }
+
+        @Nested
+        @DisplayName("cancelBooking Tests")
+        class CancelBookingTests {
+
+                @Test
+                @DisplayName("Should cancel PENDING booking successfully when requested by owner")
+                void cancelBooking_Success_PendingStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(100L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+                        verify(bookingRepository).save(booking);
+                        verifyNoInteractions(emailService, emailTemplateService);
+                }
+
+                @Test
+                @DisplayName("Should cancel APPROVED booking successfully when requested by owner")
+                void cancelBooking_Success_ApprovedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.APPROVED)
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(101L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(101L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(101L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+                        verify(bookingRepository).save(booking);
+                }
+
+                @Test
+                @DisplayName("Should throw 403 Forbidden when user is not the owner of the booking")
+                void cancelBooking_Forbidden_NotOwner() {
+                        String currentUserEmail = "userB@test.com";
+                        User owner = User.builder().id(1L).email("owner@test.com").build();
+                        User currentUser = User.builder().id(2L).email(currentUserEmail).build();
+                        Booking booking = Booking.builder()
+                                        .id(102L)
+                                        .user(owner)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        given(userRepository.findByEmail(currentUserEmail)).willReturn(Optional.of(currentUser));
+                        given(bookingRepository.findById(102L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(102L, currentUserEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.not.owner")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.FORBIDDEN);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is CONFIRMED (PAID)")
+                void cancelBooking_BadRequest_ConfirmedPaid() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(103L)
+                                        .user(user)
+                                        .status(BookingStatus.CONFIRMED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(103L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(103L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is already CANCELLED")
+                void cancelBooking_BadRequest_AlreadyCancelled() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(104L)
+                                        .user(user)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(104L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(104L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is COMPLETED")
+                void cancelBooking_BadRequest_CompletedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(105L)
+                                        .user(user)
+                                        .status(BookingStatus.COMPLETED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(105L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(105L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is REJECTED")
+                void cancelBooking_BadRequest_RejectedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(106L)
+                                        .user(user)
+                                        .status(BookingStatus.REJECTED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(106L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(106L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
                 }
         }
 }
