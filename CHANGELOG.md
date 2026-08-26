@@ -7,6 +7,14 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-26 - Statistics Dashboard UI (#99357, #99359)
+
+#### Added
+
+- Trang `GET /admin/statistics` dành riêng cho Admin, hiển thị tổng số user, booking thành công, venue hoạt động và tổng doanh thu.
+- Biểu đồ doanh thu 12 tháng, bộ chọn năm, trạng thái không có dữ liệu và trạng thái lỗi.
+- Giao diện responsive cùng kiểm thử MVC và phân quyền cho dashboard.
+
 ### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]
