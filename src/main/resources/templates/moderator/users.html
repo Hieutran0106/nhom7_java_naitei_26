@@ -367,6 +367,8 @@
                                     ? #strings.setJoin(user.roles, ', ')
                                     : ''}"
 
+                                th:data-current-user-is-admin="${currentUserIsAdmin}"
+
                                 onclick="openUserDetail(this)">
 
                             Xem chi tiết
@@ -904,6 +906,9 @@
         let currentCccdUrl = null;
 
         let currentBusinessLicenseUrl = null;
+
+        let currentUserCanLock =
+            true;
 
 
         const userDetailDrawer =
@@ -1512,9 +1517,65 @@
            STATUS BUTTON
         ====================================================== */
 
+        /* =====================================================
+           PEER-ROLE LOCK RESTRICTION
+
+           Backend rule (enforced server-side, this is UX only):
+           - A Moderator cannot lock another Moderator.
+           - An Admin cannot lock another Admin.
+           Unlocking (BLOCKED/INACTIVE -> ACTIVE) is always allowed.
+        ====================================================== */
+
+        function canCurrentUserLockTarget(
+            targetRoles,
+            currentUserIsAdmin
+        ) {
+
+            const roles =
+                (targetRoles || "")
+                    .toUpperCase();
+
+
+            const targetIsAdmin =
+                roles.includes(
+                    "ADMIN"
+                );
+
+
+            const targetIsModerator =
+                roles.includes(
+                    "MODERATOR"
+                );
+
+
+            if (
+                currentUserIsAdmin
+                &&
+                targetIsAdmin
+            ) {
+
+                return false;
+            }
+
+
+            if (
+                !currentUserIsAdmin
+                &&
+                targetIsModerator
+            ) {
+
+                return false;
+            }
+
+
+            return true;
+        }
+
+
         function configureStatusButton(
             userId,
-            status
+            status,
+            canLock = true
         ) {
 
             currentUserId =
@@ -1531,10 +1592,13 @@
                 );
 
 
-            if (
+            const isCurrentlyLocked =
                 status === "BLOCKED"
-                || status === "INACTIVE"
-            ) {
+                ||
+                status === "INACTIVE";
+
+
+            if (isCurrentlyLocked) {
 
                 button.textContent =
                     "Mở khóa tài khoản";
@@ -1544,15 +1608,25 @@
                     "user-detail-action-button "
                     + "user-detail-action-success";
 
+
+                button.disabled =
+                    false;
+
             } else {
 
                 button.textContent =
-                    "Khóa tài khoản";
+                    canLock
+                        ? "Khóa tài khoản"
+                        : "Không có quyền khóa";
 
 
                 button.className =
                     "user-detail-action-button "
                     + "user-detail-action-danger";
+
+
+                button.disabled =
+                    !canLock;
             }
         }
 
@@ -1767,9 +1841,23 @@
 
 
             /* STATUS BUTTON */
+            const currentUserIsAdmin =
+                detailBoolean(
+                    data.currentUserIsAdmin
+                );
+
+
+            currentUserCanLock =
+                canCurrentUserLockTarget(
+                    data.roles,
+                    currentUserIsAdmin
+                );
+
+
             configureStatusButton(
                 id,
-                status
+                status,
+                currentUserCanLock
             );
 
 
@@ -1864,6 +1952,21 @@
                     : "BLOCKED";
 
 
+            if (
+                nextStatus === "BLOCKED"
+                &&
+                !currentUserCanLock
+            ) {
+
+                alert(
+                    "Bạn không có quyền khóa tài khoản này."
+                );
+
+
+                return;
+            }
+
+
             const actionText =
                 nextStatus === "BLOCKED"
                     ? "khóa"
@@ -1919,7 +2022,8 @@
 
                 configureStatusButton(
                     currentUserId,
-                    currentUserStatus
+                    currentUserStatus,
+                    currentUserCanLock
                 );
 
 

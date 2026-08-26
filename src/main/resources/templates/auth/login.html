@@ -217,7 +217,7 @@
     }
 
 
-    function redirectAfterLogin(
+    function ensureManagementAccess(
         loginData
     ) {
 
@@ -228,74 +228,25 @@
 
 
         /*
+         * Trang login này chỉ phục vụ khu vực quản trị
+         * (Moderator Web UI).
+         *
          * ADMIN kế thừa quyền Moderator.
+         *
+         * USER / HOST không được phép đăng nhập tại đây,
+         * kể cả khi email/mật khẩu đúng.
          */
         if (
-            roles.includes("ADMIN")
-            ||
-            roles.includes("MODERATOR")
+            !roles.includes("ADMIN")
+            &&
+            !roles.includes("MODERATOR")
         ) {
 
-            window.location.replace(
-                "/moderator/users"
+            throw new Error(
+                "Tài khoản này không có quyền truy cập trang quản trị. "
+                + "Chỉ Admin hoặc Moderator được phép đăng nhập tại đây."
             );
-
-            return;
         }
-
-
-        /*
-         * USER / HOST vẫn được đăng nhập.
-         *
-         * Project hiện tại chưa có Web UI riêng
-         * dành cho USER/HOST.
-         *
-         * Vì vậy chưa nên bịa route
-         * /user/home hoặc /host/dashboard.
-         */
-        if (roles.includes("HOST")) {
-
-            showLoginError(
-                "Đăng nhập thành công. "
-                + "Tài khoản Host hiện chưa có trang Web riêng."
-            );
-
-            loginButton.disabled =
-                false;
-
-            loginButton.textContent =
-                "Đăng nhập";
-
-            return;
-        }
-
-
-        if (roles.includes("USER")) {
-
-            showLoginError(
-                "Đăng nhập thành công. "
-                + "Tài khoản User hiện chưa có trang Web riêng."
-            );
-
-            loginButton.disabled =
-                false;
-
-            loginButton.textContent =
-                "Đăng nhập";
-
-            return;
-        }
-
-
-        showLoginError(
-            "Tài khoản chưa có vai trò hợp lệ."
-        );
-
-        loginButton.disabled =
-            false;
-
-        loginButton.textContent =
-            "Đăng nhập";
     }
 
 
@@ -407,13 +358,18 @@
                 }
 
 
+                ensureManagementAccess(
+                    loginData
+                );
+
+
                 saveLoginInformation(
                     loginData
                 );
 
 
-                redirectAfterLogin(
-                    loginData
+                window.location.replace(
+                    "/moderator/users"
                 );
 
 

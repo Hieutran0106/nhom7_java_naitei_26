@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -113,7 +114,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(pageResponse);
 
@@ -152,7 +154,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("admin@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -182,7 +185,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -210,7 +214,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         assertEquals(
@@ -233,7 +238,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -258,7 +264,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         assertEquals(
@@ -281,7 +288,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -306,7 +314,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         assertEquals(
@@ -329,7 +338,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -354,7 +364,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         assertEquals(
@@ -377,7 +388,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(emptyPage());
 
@@ -406,7 +418,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         UserSearchRequest request =
@@ -437,7 +450,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(
                 PageResponse.<UserSearchResponse>builder()
@@ -475,7 +489,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         UserSearchRequest request =
@@ -506,7 +521,8 @@ class ModeratorUserWebControllerTest {
 
         given(
                 userService.searchUsers(
-                        any(UserSearchRequest.class)
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
                 )
         ).willReturn(
                 PageResponse.<UserSearchResponse>builder()
@@ -552,7 +568,8 @@ class ModeratorUserWebControllerTest {
         verify(
                 userService
         ).searchUsers(
-                captor.capture()
+                captor.capture(),
+                eq("moderator@test.com")
         );
 
         UserSearchRequest request =
@@ -791,7 +808,7 @@ class ModeratorUserWebControllerTest {
                 .last(true)
                 .build();
 
-        given(userService.searchUsers(any(UserSearchRequest.class))).willReturn(pageResponse);
+        given(userService.searchUsers(any(UserSearchRequest.class), eq("moderator@test.com"))).willReturn(pageResponse);
 
         mockMvc.perform(get("/moderator/users"))
                 .andExpect(status().isOk())

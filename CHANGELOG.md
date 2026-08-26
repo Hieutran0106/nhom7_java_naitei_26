@@ -8,7 +8,6 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
-
 ### 2026-08-27 - Space Management API & Logic (Create, View, Edit, Delete, Managers) (#99344)
 
 **Người thực hiện:** Nguyễn Minh An
@@ -28,7 +27,44 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
+### 2026-08-27 - Phân quyền khóa tài khoản trong Quản lý người dùng
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Quy tắc nghiệp vụ mới tại tầng Service (`UserServiceImpl.validateCannotLockSamePrivilegedRole`):
+  - `MODERATOR` không được phép khóa (`BLOCKED`/`INACTIVE`) tài khoản của `MODERATOR` khác.
+  - `ADMIN` không được phép khóa tài khoản của `ADMIN` khác.
+  - Mở khóa (chuyển về `ACTIVE`) vẫn được phép trong mọi trường hợp — quy tắc chỉ chặn hành động khóa.
+  - Vi phạm sẽ ném `AppException` với `HttpStatus.FORBIDDEN` (`403`), được `GlobalExceptionHandler` trả về đúng status code cho client, không chỉ dựa vào việc ẩn nút trên UI.
+- Message key mới (en/vi): `user.cannot.lock.peer.admin`, `user.cannot.lock.peer.moderator`.
+- `UserSpecification.buildSearchSpecification(request, excludedRole)`: overload mới hỗ trợ loại trừ toàn bộ tài khoản thuộc một role khỏi kết quả tìm kiếm bằng subquery ở tầng SQL.
+- Test mới trong `UserServiceImplTest`: `updateUserStatus_shouldThrowForbidden_whenAdminLockingAnotherAdmin`, `updateUserStatus_shouldThrowForbidden_whenModeratorLockingAnotherModerator`, `updateUserStatus_shouldAllowAdmin_toUnlockAnotherAdmin`, `updateUserStatus_shouldAllowModerator_toLockRegularUser`, `searchUsers_shouldExcludeAdminAccounts_whenCallerIsModerator`.
+- Test mới trong `ModeratorUserControllerTest`: xác nhận endpoint `PUT /api/moderator/users/{id}/status` trả về `403 Forbidden` khi Admin/Moderator cố khóa tài khoản cùng cấp qua gọi API trực tiếp.
+
+#### Changed
+
+- `UserService.searchUsers(...)` đổi chữ ký thành `searchUsers(UserSearchRequest request, String currentUserEmail)`: kết quả tìm kiếm giờ được lọc theo quyền của người gọi.
+  - `MODERATOR` (không có role `ADMIN`) sẽ **không bao giờ** nhận được tài khoản `ADMIN` trong danh sách trả về, kể cả khi gọi trực tiếp REST API — thực thi ở tầng SQL, không phải chỉ ẩn ở UI.
+  - `ADMIN` vẫn thấy đầy đủ danh sách bao gồm các tài khoản `ADMIN` khác.
+- `ModeratorUserController` & `ModeratorUserWebController`: truyền thêm danh tính người gọi (`Authentication`) xuống `UserService.searchUsers(...)`.
+- `ModeratorUserWebController.listUsers`: bổ sung model attribute `currentUserIsAdmin` để trang Thymeleaf biết vai trò người đang đăng nhập.
+- `templates/moderator/users.html`:
+  - Thêm `data-current-user-is-admin` trên nút mở chi tiết user.
+  - Nút "Khóa tài khoản" tự động bị vô hiệu hóa (disabled) kèm nhãn "Không có quyền khóa" khi tài khoản đang xem cùng cấp với người đang đăng nhập (Admin xem Admin khác, Moderator xem Moderator khác); nút "Mở khóa tài khoản" không bị ảnh hưởng.
+  - Guard phía client trong `updateUserStatus()` chặn gọi API sớm khi biết chắc không có quyền — chỉ là UX, quyết định thật vẫn do backend.
+- Cập nhật toàn bộ test hiện có (`UserServiceImplTest`, `ModeratorUserControllerTest`, `ModeratorUserWebControllerTest`) theo chữ ký `searchUsers` mới.
+
+#### Testing
+
+- `mvn test`: 201/201 test pass, không có regression ở các chức năng khác (booking, auth, KYC verification, statistics...).
+
+---
+
 ## [2026-08-26] #99301 - Tạo Modal/Drawer xem chi tiết User
+
+**Người thực hiện:** Trần Trung Hiếu
 
 ### Added
 

@@ -79,7 +79,8 @@ class ModeratorUserControllerTest {
                                 .last(true)
                                 .build();
 
-                given(userService.searchUsers(any(UserSearchRequest.class))).willReturn(pageResponse);
+                given(userService.searchUsers(any(UserSearchRequest.class), eq("moderator@test.com")))
+                                .willReturn(pageResponse);
 
                 mockMvc.perform(get("/api/moderator/users")
                                 .with(csrf())
@@ -105,7 +106,8 @@ class ModeratorUserControllerTest {
                                 .last(true)
                                 .build();
 
-                given(userService.searchUsers(any(UserSearchRequest.class))).willReturn(pageResponse);
+                given(userService.searchUsers(any(UserSearchRequest.class), eq("admin@test.com")))
+                                .willReturn(pageResponse);
 
                 mockMvc.perform(get("/api/moderator/users")
                                 .with(csrf())
@@ -156,6 +158,38 @@ class ModeratorUserControllerTest {
                                 .andExpect(jsonPath("$.code").value(200))
                                 .andExpect(jsonPath("$.data.id").value(5))
                                 .andExpect(jsonPath("$.data.status").value("BLOCKED"));
+        }
+
+        @Test
+        @WithMockUser(username = "moderator@test.com", roles = { "MODERATOR" })
+        @DisplayName("MODERATOR locking another MODERATOR -> PUT /api/moderator/users/{id}/status returns 403 Forbidden")
+        void givenModeratorLockingModerator_whenUpdateUserStatus_thenReturn403() throws Exception {
+                given(userService.updateUserStatus(eq(5L), eq(UserStatus.BLOCKED), eq("moderator@test.com")))
+                                .willThrow(new com.nhom7.coworkingspace.exception.AppException(
+                                                "user.cannot.lock.peer.moderator",
+                                                org.springframework.http.HttpStatus.FORBIDDEN));
+
+                mockMvc.perform(put("/api/moderator/users/5/status")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\": \"BLOCKED\"}"))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = { "ADMIN" })
+        @DisplayName("ADMIN locking another ADMIN -> PUT /api/moderator/users/{id}/status returns 403 Forbidden")
+        void givenAdminLockingAdmin_whenUpdateUserStatus_thenReturn403() throws Exception {
+                given(userService.updateUserStatus(eq(5L), eq(UserStatus.BLOCKED), eq("admin@test.com")))
+                                .willThrow(new com.nhom7.coworkingspace.exception.AppException(
+                                                "user.cannot.lock.peer.admin",
+                                                org.springframework.http.HttpStatus.FORBIDDEN));
+
+                mockMvc.perform(put("/api/moderator/users/5/status")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\": \"BLOCKED\"}"))
+                                .andExpect(status().isForbidden());
         }
 
         @Test

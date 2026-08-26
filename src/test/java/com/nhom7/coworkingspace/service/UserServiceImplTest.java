@@ -224,12 +224,19 @@ class UserServiceImplTest {
                 .roles(Set.of("USER"))
                 .build();
 
+        User adminCaller = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminCaller));
         when(userRepository.findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class)))
                 .thenReturn(page);
         when(userMapper.toUserSearchResponse(user))
                 .thenReturn(responseDto);
 
-        PageResponse<UserSearchResponse> result = userService.searchUsers(request);
+        PageResponse<UserSearchResponse> result = userService.searchUsers(request, "admin@test.com");
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
@@ -252,12 +259,19 @@ class UserServiceImplTest {
                 .roles(Set.of("USER"))
                 .build();
 
+        User adminCaller = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminCaller));
         when(userRepository.findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class)))
                 .thenReturn(page);
         when(userMapper.toUserSearchResponse(user))
                 .thenReturn(responseDto);
 
-        PageResponse<UserSearchResponse> result = userService.searchUsers(request);
+        PageResponse<UserSearchResponse> result = userService.searchUsers(request, "admin@test.com");
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
@@ -300,6 +314,39 @@ class UserServiceImplTest {
 
         assertThat(result).containsExactly("ADMIN", "MODERATOR", "USER");
         verify(roleRepository).findAll(Sort.by(Sort.Direction.ASC, "name"));
+    }
+
+    @Test
+    void searchUsers_shouldExcludeAdminAccounts_whenCallerIsModerator() {
+        UserSearchRequest request = UserSearchRequest.builder().build();
+
+        Page<User> page = new PageImpl<>(List.of(user));
+        UserSearchResponse responseDto = UserSearchResponse.builder()
+                .id(3L)
+                .name("Test User")
+                .email("user@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of("USER"))
+                .build();
+
+        User moderatorCaller = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorCaller));
+        when(userRepository.findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class)))
+                .thenReturn(page);
+        when(userMapper.toUserSearchResponse(user))
+                .thenReturn(responseDto);
+
+        PageResponse<UserSearchResponse> result = userService.searchUsers(request, "moderator@test.com");
+
+        assertNotNull(result);
+        assertEquals(1, result.getContent().size());
+        verify(userRepository, times(1))
+                .findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class));
     }
 
     @Test
@@ -462,6 +509,123 @@ class UserServiceImplTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
         assertEquals("user.cannot.modify.admin", ex.getMessageKey());
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUserStatus_shouldThrowForbidden_whenAdminLockingAnotherAdmin() {
+        User adminTarget = User.builder()
+                .id(10L)
+                .email("other-admin@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        User adminActor = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateUserStatus(10L, UserStatus.BLOCKED, "admin@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.lock.peer.admin", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUserStatus_shouldThrowForbidden_whenModeratorLockingAnotherModerator() {
+        User moderatorTarget = User.builder()
+                .id(11L)
+                .email("other-moderator@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        User moderatorActor = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        when(userRepository.findById(11L)).thenReturn(Optional.of(moderatorTarget));
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateUserStatus(11L, UserStatus.BLOCKED, "moderator@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.lock.peer.moderator", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUserStatus_shouldAllowAdmin_toUnlockAnotherAdmin() {
+        User adminTarget = User.builder()
+                .id(10L)
+                .email("other-admin@test.com")
+                .status(UserStatus.BLOCKED)
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        User adminActor = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
+                .id(10L)
+                .email("other-admin@test.com")
+                .status(UserStatus.ACTIVE)
+                .roles(Set.of("ADMIN"))
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminActor));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response = userService.updateUserStatus(10L, UserStatus.ACTIVE, "admin@test.com");
+
+        assertNotNull(response);
+        assertEquals(UserStatus.ACTIVE, response.getStatus());
+        verify(userRepository, times(1)).save(adminTarget);
+    }
+
+    @Test
+    void updateUserStatus_shouldAllowModerator_toLockRegularUser() {
+        User moderatorActor = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
+                .id(3L)
+                .email("user@test.com")
+                .status(UserStatus.BLOCKED)
+                .roles(Set.of("USER"))
+                .build();
+
+        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response = userService.updateUserStatus(3L, UserStatus.BLOCKED, "moderator@test.com");
+
+        assertNotNull(response);
+        assertEquals(UserStatus.BLOCKED, response.getStatus());
+        verify(userRepository, times(1)).save(user);
     }
 
     @Test

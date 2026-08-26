@@ -6,6 +6,8 @@ import com.nhom7.coworkingspace.entity.User;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -19,6 +21,15 @@ public final class UserSpecification {
     }
 
     public static Specification<User> buildSearchSpecification(UserSearchRequest request) {
+        return buildSearchSpecification(request, null);
+    }
+
+    /**
+     * @param excludedRole role name (e.g. "ADMIN") to exclude from the results entirely, or null
+     *                     to apply no exclusion. Used so a MODERATOR caller never receives ADMIN
+     *                     accounts in the response, regardless of the requested role filter.
+     */
+    public static Specification<User> buildSearchSpecification(UserSearchRequest request, String excludedRole) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -46,6 +57,15 @@ public final class UserSpecification {
                     Join<User, Role> roleJoin = root.join("roles", JoinType.INNER);
                     predicates.add(cb.equal(cb.upper(roleJoin.get("name")), request.getRole().trim().toUpperCase()));
                 }
+            }
+
+            if (StringUtils.hasText(excludedRole)) {
+                Subquery<Long> excludedRoleSubquery = query.subquery(Long.class);
+                Root<User> subRoot = excludedRoleSubquery.from(User.class);
+                Join<User, Role> subRoleJoin = subRoot.join("roles", JoinType.INNER);
+                excludedRoleSubquery.select(subRoot.get("id"))
+                        .where(cb.equal(cb.upper(subRoleJoin.get("name")), excludedRole.trim().toUpperCase()));
+                predicates.add(cb.not(root.get("id").in(excludedRoleSubquery)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
