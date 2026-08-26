@@ -23,6 +23,8 @@ public interface BookingService {
     BookingResponse getBookingById(Long bookingId);
 
     BookingResponse updateBookingStatusByHost(Long bookingId, BookingStatus newStatus, String hostEmail);
+
+    PageResponse<BookingResponse> getBookingsForHost(String hostEmail, int page, int size);
 }
 
 
