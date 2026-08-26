@@ -1,10 +1,15 @@
 package com.nhom7.coworkingspace.service;
 
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
+import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
+import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
 import com.nhom7.coworkingspace.repository.BookingRepository;
@@ -16,25 +21,35 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-
-import java.time.Clock;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BookingServiceImpl Unit Tests")
@@ -61,10 +76,13 @@ class BookingServiceImplTest {
         @Mock
         private MessageSource messageSource;
 
+        private Clock clock;
         private BookingServiceImpl bookingService;
 
         @BeforeEach
         void setUp() {
+                Instant fixedInstant = Instant.parse("2026-08-20T00:00:00Z");
+                clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
                 bookingService = new BookingServiceImpl(
                                 bookingRepository,
                                 spaceRepository,
@@ -73,25 +91,25 @@ class BookingServiceImplTest {
                                 emailService,
                                 emailTemplateService,
                                 messageSource,
-                                Clock.systemUTC());
+                                clock);
         }
 
         @Nested
-        @DisplayName("createBooking Tests")
+        @DisplayName("Create Booking Tests")
         class CreateBookingTests {
 
                 @Test
-                @DisplayName("Should create booking successfully with PENDING status and calculated price")
+                @DisplayName("Should create booking successfully with valid inputs")
                 void createBooking_Success() {
                         String email = "customer@coworking.test";
-                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime start = LocalDateTime.now(clock).plusDays(1).withHour(9).withMinute(0);
                         LocalDateTime end = start.plusHours(2);
 
-                        User user = User.builder().id(1L).email(email).name("Nguyen Van A").build();
+                        User user = User.builder().id(1L).email(email).build();
                         Space space = Space.builder()
                                         .id(10L)
                                         .name("Desk 1")
-                                        .status("ACTIVE")
+                                        .status(SpaceStatus.ACTIVE)
                                         .price(new BigDecimal("100000.00"))
                                         .priceUnit("HOUR")
                                         .build();
@@ -109,19 +127,19 @@ class BookingServiceImplTest {
                                         .startTime(start)
                                         .endTime(end)
                                         .totalPrice(new BigDecimal("200000.00"))
-                                        .status("PENDING")
+                                        .status(BookingStatus.PENDING)
                                         .build();
 
                         BookingResponse expectedResponse = BookingResponse.builder()
                                         .id(100L)
                                         .userEmail(email)
                                         .spaceId(10L)
-                                        .status("PENDING")
+                                        .status(BookingStatus.PENDING)
                                         .totalPrice(new BigDecimal("200000.00"))
                                         .build();
 
                         given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+                        given(spaceRepository.findByIdForUpdate(10L)).willReturn(Optional.of(space));
                         given(bookingRepository.existsActiveOverlap(10L, start, end)).willReturn(false);
                         given(bookingRepository.save(any(Booking.class))).willReturn(savedBooking);
                         given(bookingMapper.toBookingResponse(savedBooking)).willReturn(expectedResponse);
@@ -129,7 +147,7 @@ class BookingServiceImplTest {
                         BookingResponse response = bookingService.createBooking(request, email);
 
                         assertThat(response).isNotNull();
-                        assertThat(response.getStatus()).isEqualTo("PENDING");
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.PENDING);
                         assertThat(response.getTotalPrice()).isEqualByComparingTo("200000.00");
                         verify(bookingRepository).save(any(Booking.class));
                 }
@@ -138,11 +156,11 @@ class BookingServiceImplTest {
                 @DisplayName("Should throw AppException when active booking overlap exists (PENDING/APPROVED)")
                 void createBooking_OverlapError() {
                         String email = "customer@coworking.test";
-                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime start = LocalDateTime.now(clock).plusDays(1).withHour(9).withMinute(0);
                         LocalDateTime end = start.plusHours(2);
 
                         User user = User.builder().id(1L).email(email).build();
-                        Space space = Space.builder().id(10L).status("ACTIVE").build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.ACTIVE).build();
 
                         BookingRequest request = BookingRequest.builder()
                                         .spaceId(10L)
@@ -151,7 +169,7 @@ class BookingServiceImplTest {
                                         .build();
 
                         given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+                        given(spaceRepository.findByIdForUpdate(10L)).willReturn(Optional.of(space));
                         given(bookingRepository.existsActiveOverlap(10L, start, end)).willReturn(true);
 
                         assertThatThrownBy(() -> bookingService.createBooking(request, email))
@@ -162,10 +180,36 @@ class BookingServiceImplTest {
                 }
 
                 @Test
+                @DisplayName("Should throw AppException when the Space is INACTIVE (e.g. its venue was blocked/deleted)")
+                void createBooking_InactiveSpace_NotAvailable() {
+                        String email = "customer@coworking.test";
+                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0);
+                        LocalDateTime end = start.plusHours(2);
+
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).status(SpaceStatus.INACTIVE).build();
+
+                        BookingRequest request = BookingRequest.builder()
+                                        .spaceId(10L)
+                                        .startTime(start)
+                                        .endTime(end)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+
+                        assertThatThrownBy(() -> bookingService.createBooking(request, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("space.not.available")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
                 @DisplayName("Should throw AppException when startTime is after endTime")
                 void createBooking_InvalidTimeRange() {
                         String email = "customer@coworking.test";
-                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(11).withMinute(0);
+                        LocalDateTime start = LocalDateTime.now(clock).plusDays(1).withHour(11).withMinute(0);
                         LocalDateTime end = start.minusHours(2);
 
                         BookingRequest request = BookingRequest.builder()
@@ -183,9 +227,9 @@ class BookingServiceImplTest {
 
                 @Test
                 @DisplayName("Should throw AppException when startTime is in the past")
-                void createBooking_PastStartTime() {
+                void createBooking_PastTime() {
                         String email = "customer@coworking.test";
-                        LocalDateTime start = LocalDateTime.now().minusDays(1);
+                        LocalDateTime start = LocalDateTime.now(clock).minusDays(1);
                         LocalDateTime end = start.plusHours(2);
 
                         BookingRequest request = BookingRequest.builder()
@@ -205,13 +249,13 @@ class BookingServiceImplTest {
                 @DisplayName("Should throw AppException when booking outside space operating hours")
                 void createBooking_OutsideOperatingHours() {
                         String email = "customer@coworking.test";
-                        LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(7).withMinute(0); // 07:00
-                        LocalDateTime end = start.plusHours(2); // 09:00
+                        LocalDateTime start = LocalDateTime.now(clock).plusDays(1).withHour(7).withMinute(0);
+                        LocalDateTime end = start.plusHours(2);
 
                         User user = User.builder().id(1L).email(email).build();
                         Space space = Space.builder()
                                         .id(10L)
-                                        .status("ACTIVE")
+                                        .status(SpaceStatus.ACTIVE)
                                         .openTime(LocalTime.of(8, 0)) // Opens at 08:00
                                         .closeTime(LocalTime.of(20, 0))
                                         .build();
@@ -223,7 +267,7 @@ class BookingServiceImplTest {
                                         .build();
 
                         given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-                        given(spaceRepository.findById(10L)).willReturn(Optional.of(space));
+                        given(spaceRepository.findByIdForUpdate(10L)).willReturn(Optional.of(space));
 
                         assertThatThrownBy(() -> bookingService.createBooking(request, email))
                                         .isInstanceOf(AppException.class)
@@ -234,12 +278,246 @@ class BookingServiceImplTest {
         }
 
         @Nested
-        @DisplayName("calculateTotalPrice Tests")
-        class PriceCalculationTests {
+        @DisplayName("Search Bookings Tests")
+        class SearchBookingsTests {
 
                 @Test
-                @DisplayName("Calculate price by HOUR: 2 hours 30 mins at 100,000 -> 250,000.00")
+                @DisplayName("searchBookings should return paged booking responses")
+                void searchBookings_Success() {
+                        BookingSearchRequest request = BookingSearchRequest.builder()
+                                        .keyword("test")
+                                        .status(BookingStatus.PENDING)
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("id")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Booking booking = Booking.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        BookingResponse bookingResponse = BookingResponse.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        Page<Booking> bookingPage = new PageImpl<>(List.of(booking));
+
+                        given(bookingRepository.findAll(ArgumentMatchers.<Specification<Booking>>any(), any(Pageable.class)))
+                                        .willReturn(bookingPage);
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(bookingResponse);
+
+                        PageResponse<BookingResponse> result = bookingService.searchBookings(request);
+
+                        assertThat(result).isNotNull();
+                        assertThat(result.getContent()).hasSize(1);
+                        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
+                        assertThat(result.getContent().get(0).getStatus()).isEqualTo(BookingStatus.PENDING);
+                }
+
+                @Test
+                @DisplayName("searchBookings with null request should use default values and succeed")
+                void searchBookings_NullRequest_Success() {
+                        Booking booking = Booking.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        BookingResponse bookingResponse = BookingResponse.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        Page<Booking> bookingPage = new PageImpl<>(List.of(booking));
+
+                        given(bookingRepository.findAll(ArgumentMatchers.<Specification<Booking>>any(), any(Pageable.class)))
+                                        .willReturn(bookingPage);
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(bookingResponse);
+
+                        PageResponse<BookingResponse> result = bookingService.searchBookings(null);
+
+                        assertThat(result).isNotNull();
+                        assertThat(result.getContent()).hasSize(1);
+                }
+
+                @Test
+                @DisplayName("searchBookings with fromDate after toDate should throw AppException")
+                void searchBookings_InvalidDateRange_ThrowsAppException() {
+                        BookingSearchRequest request = BookingSearchRequest.builder()
+                                        .fromDate(LocalDateTime.of(2026, 8, 30, 0, 0))
+                                        .toDate(LocalDateTime.of(2026, 8, 1, 0, 0))
+                                        .build();
+
+                        org.assertj.core.api.Assertions.assertThatThrownBy(() -> bookingService.searchBookings(request))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.time.invalid");
+                }
+        }
+
+
+        @Nested
+        @DisplayName("Get Booking By ID Tests")
+        class GetBookingByIdTests {
+
+                @Test
+                @DisplayName("Should return BookingResponse when booking exists")
+                void getBookingById_Success() {
+                        Long bookingId = 1L;
+                        Booking booking = Booking.builder()
+                                        .id(bookingId)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(bookingId)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        given(bookingRepository.findById(bookingId)).willReturn(Optional.of(booking));
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.getBookingById(bookingId);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getId()).isEqualTo(bookingId);
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.PENDING);
+                }
+
+                @Test
+                @DisplayName("Should throw BookingNotFoundException when booking does not exist")
+                void getBookingById_NotFound() {
+                        Long bookingId = 999L;
+                        given(bookingRepository.findById(bookingId)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getBookingById(bookingId))
+                                        .isInstanceOf(com.nhom7.coworkingspace.exception.BookingNotFoundException.class)
+                                        .hasMessage("booking.not.found");
+                }
+        }
+
+        @Nested
+        @DisplayName("Get Bookings For Host Tests")
+        class GetBookingsForHostTests {
+
+                @Test
+                @DisplayName("Should return paginated bookings scoped to the host's own spaces when bookings exist")
+                void getBookingsForHost_HasBookings_ReturnsScopedPage() {
+                        String hostEmail = "host@coworking.test";
+                        User host = User.builder().id(50L).email(hostEmail).build();
+
+                        Booking booking = Booking.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(1L)
+                                        .status(BookingStatus.PENDING)
+                                        .totalPrice(new BigDecimal("100000.00"))
+                                        .build();
+
+                        Page<Booking> bookingPage = new PageImpl<>(List.of(booking), PageRequest.of(0, 10), 1);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class)))
+                                        .willReturn(bookingPage);
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        PageResponse<BookingResponse> response = bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getContent()).hasSize(1);
+                        assertThat(response.getContent().get(0).getId()).isEqualTo(1L);
+                        assertThat(response.getTotalElements()).isEqualTo(1);
+                        verify(bookingRepository).findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class));
+                }
+
+                @Test
+                @DisplayName("Should return an empty page when the host's spaces have no bookings")
+                void getBookingsForHost_NoBookings_ReturnsEmptyPage() {
+                        String hostEmail = "host@coworking.test";
+                        User host = User.builder().id(50L).email(hostEmail).build();
+
+                        Page<Booking> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(50L), any(Pageable.class)))
+                                        .willReturn(emptyPage);
+
+                        PageResponse<BookingResponse> response = bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getContent()).isEmpty();
+                        assertThat(response.getTotalElements()).isZero();
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when the authenticated host cannot be resolved")
+                void getBookingsForHost_HostNotFound_ThrowsAppException() {
+                        String hostEmail = "missing-host@coworking.test";
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getBookingsForHost(hostEmail, 0, 10))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+
+                        verifyNoInteractions(bookingMapper);
+                }
+
+                @Test
+                @DisplayName("Should only query bookings scoped to the calling host's own id, never another host's")
+                void getBookingsForHost_NeverQueriesAnotherHostId() {
+                        String hostEmail = "host-a@coworking.test";
+                        User hostA = User.builder().id(1L).email(hostEmail).build();
+
+                        Page<Booking> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(hostA));
+                        given(bookingRepository.findByHostId(ArgumentMatchers.eq(1L), any(Pageable.class)))
+                                        .willReturn(emptyPage);
+
+                        bookingService.getBookingsForHost(hostEmail, 0, 10);
+
+                        verify(bookingRepository).findByHostId(ArgumentMatchers.eq(1L), any(Pageable.class));
+                        verify(bookingRepository, org.mockito.Mockito.never())
+                                        .findByHostId(ArgumentMatchers.eq(2L), any(Pageable.class));
+                }
+        }
+
+        @Nested
+        @DisplayName("Price Calculation Tests")
+        class PriceCalculationTests {
+
+
+                @Test
+                @DisplayName("Calculate price by HOUR: 2 hours at 100,000 = 200,000.00")
                 void calculatePrice_Hour() {
+                        Space space = Space.builder()
+                                        .price(new BigDecimal("100000.00"))
+                                        .priceUnit("HOUR")
+                                        .build();
+
+                        LocalDateTime start = LocalDateTime.of(2026, 8, 25, 9, 0);
+                        LocalDateTime end = LocalDateTime.of(2026, 8, 25, 11, 0);
+
+                        BigDecimal totalPrice = bookingService.calculateTotalPrice(space, start, end);
+
+                        assertThat(totalPrice).isEqualByComparingTo("200000.00");
+                }
+
+                @Test
+                @DisplayName("Calculate price by HOUR: 2.5 hours (150 mins) at 100,000 = 250,000.00")
+                void calculatePrice_HourFractional() {
                         Space space = Space.builder()
                                         .price(new BigDecimal("100000.00"))
                                         .priceUnit("HOUR")
@@ -262,7 +540,7 @@ class BookingServiceImplTest {
                                         .build();
 
                         LocalDateTime start = LocalDateTime.of(2026, 8, 25, 9, 0);
-                        LocalDateTime end = LocalDateTime.of(2026, 8, 26, 15, 0); // 30 hours = 2 days ceiling
+                        LocalDateTime end = LocalDateTime.of(2026, 8, 26, 15, 0);
 
                         BigDecimal totalPrice = bookingService.calculateTotalPrice(space, start, end);
 
@@ -278,13 +556,14 @@ class BookingServiceImplTest {
                                         .build();
 
                         LocalDateTime start = LocalDateTime.of(2026, 8, 1, 9, 0);
-                        LocalDateTime end = LocalDateTime.of(2026, 9, 15, 9, 0); // 45 days = 2 months ceiling
+                        LocalDateTime end = LocalDateTime.of(2026, 9, 15, 9, 0);
 
                         BigDecimal totalPrice = bookingService.calculateTotalPrice(space, start, end);
 
                         assertThat(totalPrice).isEqualByComparingTo("6000000.00");
                 }
         }
+
 
         @Test
         @DisplayName("changeStatus should persist and send booking status email")
@@ -302,7 +581,7 @@ class BookingServiceImplTest {
                                 .startTime(LocalDateTime.of(2026, 8, 22, 9, 0))
                                 .endTime(LocalDateTime.of(2026, 8, 22, 11, 0))
                                 .totalPrice(new BigDecimal("250000.00"))
-                                .status("PENDING")
+                                .status(BookingStatus.PENDING)
                                 .build();
                 given(bookingRepository.findById(42L)).willReturn(Optional.of(booking));
                 given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
@@ -315,7 +594,7 @@ class BookingServiceImplTest {
 
                 Booking updated = bookingService.changeStatus(42L, " approved ");
 
-                assertThat(updated.getStatus()).isEqualTo("APPROVED");
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.APPROVED);
                 verify(bookingRepository).saveAndFlush(booking);
                 verify(emailTemplateService).renderBookingStatusChanged(booking, "PENDING", locale);
                 verify(emailService).sendHtmlEmail(
@@ -327,7 +606,7 @@ class BookingServiceImplTest {
         @Test
         @DisplayName("changeStatus should not persist or send email when status is unchanged")
         void changeStatusShouldNotPersistOrSendEmailWhenStatusIsUnchanged() {
-                Booking booking = Booking.builder().id(42L).status("APPROVED").build();
+                Booking booking = Booking.builder().id(42L).status(BookingStatus.APPROVED).build();
                 given(bookingRepository.findById(42L)).willReturn(Optional.of(booking));
 
                 Booking unchanged = bookingService.changeStatus(42L, " approved ");
@@ -335,5 +614,331 @@ class BookingServiceImplTest {
                 assertThat(unchanged).isSameAs(booking);
                 verifyNoInteractions(emailService, emailTemplateService);
                 verify(bookingRepository, org.mockito.Mockito.never()).saveAndFlush(booking);
+        }
+
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to COMPLETED")
+        void changeStatusShouldUpdateStatusToCompleted() {
+                User user = User.builder().name("Nguyen Van B").email("user2@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 1").build();
+                Booking booking = Booking.builder()
+                                .id(43L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.CONFIRMED)
+                                .build();
+                given(bookingRepository.findById(43L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "CONFIRMED", locale))
+                                .willReturn("<p>Completed</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 43L }, locale))
+                                .willReturn("Booking #43 status updated");
+
+                Booking updated = bookingService.changeStatus(43L, "COMPLETED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.COMPLETED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user2@coworking.test", "Booking #43 status updated", "<p>Completed</p>");
+        }
+
+        @Test
+        @DisplayName("changeStatus should persist and send email when changing status to REJECTED")
+        void changeStatusShouldUpdateStatusToRejected() {
+                User user = User.builder().name("Nguyen Van C").email("user3@coworking.test").language("en").build();
+                Space space = Space.builder().name("Desk 2").build();
+                Booking booking = Booking.builder()
+                                .id(44L)
+                                .user(user)
+                                .space(space)
+                                .status(BookingStatus.PENDING)
+                                .build();
+                given(bookingRepository.findById(44L)).willReturn(Optional.of(booking));
+                given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                Locale locale = Locale.ENGLISH;
+                given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                .willReturn("<p>Rejected</p>");
+                given(messageSource.getMessage("email.booking.status.subject", new Object[] { 44L }, locale))
+                                .willReturn("Booking #44 status updated");
+
+                Booking updated = bookingService.changeStatus(44L, "REJECTED");
+
+                assertThat(updated.getStatus()).isEqualTo(BookingStatus.REJECTED);
+                verify(bookingRepository).saveAndFlush(booking);
+                verify(emailService).sendHtmlEmail("user3@coworking.test", "Booking #44 status updated", "<p>Rejected</p>");
+        }
+
+        @Nested
+        @DisplayName("getMyBookingHistory Tests")
+        class GetMyBookingHistoryTests {
+
+                @Test
+                @DisplayName("Should return paginated booking history for current user")
+                void getMyBookingHistory_Success() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .status(BookingStatus.PENDING)
+                                        .createdAt(LocalDateTime.now())
+                                        .build();
+
+                        BookingResponse response = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("createdAt")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(booking), expectedPageable, 1));
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(response);
+
+                        PageResponse<BookingResponse> result = bookingService.getMyBookingHistory(email, request);
+
+                        assertThat(result.getContent()).containsExactly(response);
+                        assertThat(result.getTotalElements()).isEqualTo(1);
+                }
+
+                @Test
+                @DisplayName("Should fall back to default sort field when an unknown sortBy is supplied")
+                void getMyBookingHistory_InvalidSortByFallsBackToDefault() {
+                        String email = "customer@coworking.test";
+                        User user = User.builder().id(1L).email(email).build();
+
+                        BookingHistoryRequest request = BookingHistoryRequest.builder()
+                                        .page(0)
+                                        .size(10)
+                                        .sortBy("unknownField")
+                                        .sortDir("DESC")
+                                        .build();
+
+                        Pageable expectedPageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findByUserId(eq(1L), eq(expectedPageable)))
+                                        .willReturn(new PageImpl<>(List.of(), expectedPageable, 0));
+
+                        bookingService.getMyBookingHistory(email, request);
+
+                        verify(bookingRepository).findByUserId(1L, expectedPageable);
+                }
+
+                @Test
+                @DisplayName("Should throw AppException when current user is not found")
+                void getMyBookingHistory_UserNotFound() {
+                        String email = "missing@coworking.test";
+                        BookingHistoryRequest request = BookingHistoryRequest.builder().build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(() -> bookingService.getMyBookingHistory(email, request))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+                        verifyNoInteractions(bookingRepository, bookingMapper);
+                }
+        }
+
+        @Nested
+        @DisplayName("cancelBooking Tests")
+        class CancelBookingTests {
+
+                @Test
+                @DisplayName("Should cancel PENDING booking successfully when requested by owner")
+                void cancelBooking_Success_PendingStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(100L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(100L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(100L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+                        verify(bookingRepository).save(booking);
+                        verifyNoInteractions(emailService, emailTemplateService);
+                }
+
+                @Test
+                @DisplayName("Should cancel APPROVED booking successfully when requested by owner")
+                void cancelBooking_Success_ApprovedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Space space = Space.builder().id(10L).name("Space A").build();
+                        Booking booking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.APPROVED)
+                                        .build();
+
+                        Booking cancelledBooking = Booking.builder()
+                                        .id(101L)
+                                        .user(user)
+                                        .space(space)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(101L)
+                                        .userEmail(email)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(101L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.save(booking)).willReturn(cancelledBooking);
+                        given(bookingMapper.toBookingResponse(cancelledBooking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.cancelBooking(101L, email);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+                        verify(bookingRepository).save(booking);
+                }
+
+                @Test
+                @DisplayName("Should throw 403 Forbidden when user is not the owner of the booking")
+                void cancelBooking_Forbidden_NotOwner() {
+                        String currentUserEmail = "userB@test.com";
+                        User owner = User.builder().id(1L).email("owner@test.com").build();
+                        User currentUser = User.builder().id(2L).email(currentUserEmail).build();
+                        Booking booking = Booking.builder()
+                                        .id(102L)
+                                        .user(owner)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        given(userRepository.findByEmail(currentUserEmail)).willReturn(Optional.of(currentUser));
+                        given(bookingRepository.findById(102L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(102L, currentUserEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.not.owner")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.FORBIDDEN);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is CONFIRMED (PAID)")
+                void cancelBooking_BadRequest_ConfirmedPaid() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(103L)
+                                        .user(user)
+                                        .status(BookingStatus.CONFIRMED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(103L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(103L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is already CANCELLED")
+                void cancelBooking_BadRequest_AlreadyCancelled() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(104L)
+                                        .user(user)
+                                        .status(BookingStatus.CANCELLED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(104L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(104L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is COMPLETED")
+                void cancelBooking_BadRequest_CompletedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(105L)
+                                        .user(user)
+                                        .status(BookingStatus.COMPLETED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(105L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(105L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking status is REJECTED")
+                void cancelBooking_BadRequest_RejectedStatus() {
+                        String email = "owner@test.com";
+                        User user = User.builder().id(1L).email(email).build();
+                        Booking booking = Booking.builder()
+                                        .id(106L)
+                                        .user(user)
+                                        .status(BookingStatus.REJECTED)
+                                        .build();
+
+                        given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
+                        given(bookingRepository.findById(106L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(() -> bookingService.cancelBooking(106L, email))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.cannot.cancel.invalid.status")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
         }
 }

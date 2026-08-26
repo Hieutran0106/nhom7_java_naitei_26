@@ -1,12 +1,16 @@
 package com.nhom7.coworkingspace.service.impl;
 
+import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
+import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
+import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.BookingNotFoundException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
@@ -16,8 +20,15 @@ import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.service.BookingService;
 import com.nhom7.coworkingspace.service.EmailService;
 import com.nhom7.coworkingspace.service.EmailTemplateService;
+import com.nhom7.coworkingspace.specification.BookingSpecification;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +41,15 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Locale;
+import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id", "startTime", "endTime", "status", "totalPrice", "createdAt");
 
     private final BookingRepository bookingRepository;
     private final SpaceRepository spaceRepository;
@@ -43,6 +59,51 @@ public class BookingServiceImpl implements BookingService {
     private final EmailTemplateService emailTemplateService;
     private final MessageSource messageSource;
     private final Clock clock;
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> searchBookings(BookingSearchRequest request) {
+        if (request == null) {
+            request = BookingSearchRequest.builder().build();
+        }
+
+        if (request.getFromDate() != null && request.getToDate() != null
+                && request.getFromDate().isAfter(request.getToDate())) {
+            throw new AppException("booking.time.invalid", HttpStatus.BAD_REQUEST);
+        }
+
+        log.debug("[BookingService] Searching bookings with params: keyword={}, status={}, userId={}, spaceId={}",
+                request.getKeyword(), request.getStatus(), request.getUserId(), request.getSpaceId());
+
+        Sort.Direction direction = "ASC".equalsIgnoreCase(request.getSortDir())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "id";
+        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "id";
+
+        int page = Math.max(0, request.getPage());
+        int size = Math.min(Math.max(1, request.getSize()), 100);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Specification<Booking> spec = BookingSpecification.buildSearchSpecification(request);
+        Page<Booking> bookingPage = bookingRepository.findAll(spec, pageable);
+
+        Page<BookingResponse> dtoPage = bookingPage.map(bookingMapper::toBookingResponse);
+        return PageResponse.fromPage(dtoPage);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponse getBookingById(Long bookingId) {
+        log.debug("[BookingService] Getting booking details for id={}", bookingId);
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+        return bookingMapper.toBookingResponse(booking);
+    }
+
 
     @Override
     @Transactional
@@ -64,9 +125,7 @@ public class BookingServiceImpl implements BookingService {
                 .or(() -> spaceRepository.findById(request.getSpaceId()))
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
-        if (StringUtils.hasText(space.getStatus())
-                && !"ACTIVE".equalsIgnoreCase(space.getStatus())
-                && !"AVAILABLE".equalsIgnoreCase(space.getStatus())) {
+        if (space.getStatus() != null && space.getStatus() != SpaceStatus.ACTIVE) {
             throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
         }
 
@@ -95,7 +154,7 @@ public class BookingServiceImpl implements BookingService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .totalPrice(totalPrice)
-                .status(BookingStatus.PENDING.name())
+                .status(BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now(clock))
                 .build();
 
@@ -105,13 +164,52 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public Booking changeStatus(Long bookingId, String newStatus) {
-        String normalizedStatus = normalizeStatus(newStatus);
+    public BookingResponse cancelBooking(Long bookingId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
-        String previousStatus = booking.getStatus();
 
-        if (normalizedStatus.equalsIgnoreCase(previousStatus)) {
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new AppException("booking.cannot.cancel.not.owner", HttpStatus.FORBIDDEN);
+        }
+
+        BookingStatus currentStatus = booking.getStatus();
+        if (currentStatus == null ||
+                (currentStatus != BookingStatus.PENDING
+                        && currentStatus != BookingStatus.APPROVED)) {
+            throw new AppException("booking.cannot.cancel.invalid.status", HttpStatus.BAD_REQUEST);
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getBookingsForHost(String hostEmail, int page, int size) {
+        User host = userRepository.findByEmail(hostEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page), Math.min(Math.max(1, size), 100), Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Booking> bookingPage = bookingRepository.findByHostId(host.getId(), pageable);
+
+        return PageResponse.fromPage(bookingPage.map(bookingMapper::toBookingResponse));
+    }
+
+    @Override
+    @Transactional
+    public Booking changeStatus(Long bookingId, String newStatus) {
+        BookingStatus normalizedStatus = normalizeStatus(newStatus);
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+        BookingStatus previousStatus = booking.getStatus();
+
+        if (normalizedStatus == previousStatus) {
             return booking;
         }
 
@@ -120,7 +218,7 @@ public class BookingServiceImpl implements BookingService {
 
         Locale locale = toLocale(savedBooking.getUser().getLanguage());
         String html = emailTemplateService.renderBookingStatusChanged(
-                savedBooking, previousStatus, locale);
+                savedBooking, previousStatus != null ? previousStatus.name() : null, locale);
         String subject = messageSource.getMessage(
                 "email.booking.status.subject",
                 new Object[]{savedBooking.getId()},
@@ -130,6 +228,29 @@ public class BookingServiceImpl implements BookingService {
                 subject,
                 html);
         return savedBooking;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getMyBookingHistory(String userEmail, BookingHistoryRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Sort.Direction direction = "ASC".equalsIgnoreCase(request.getSortDir())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "createdAt";
+        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "createdAt";
+
+        int page = Math.max(0, request.getPage());
+        int size = Math.min(Math.max(1, request.getSize()), 100);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Booking> bookingPage = bookingRepository.findByUserId(user.getId(), pageable);
+        Page<BookingResponse> dtoPage = bookingPage.map(bookingMapper::toBookingResponse);
+        return PageResponse.fromPage(dtoPage);
     }
 
     public BigDecimal calculateTotalPrice(Space space, LocalDateTime startTime, LocalDateTime endTime) {
@@ -161,11 +282,15 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private String normalizeStatus(String status) {
+    private BookingStatus normalizeStatus(String status) {
         if (status == null || status.isBlank()) {
             throw new AppException("booking.status.required", HttpStatus.BAD_REQUEST);
         }
-        return status.trim().toUpperCase(Locale.ROOT);
+        try {
+            return BookingStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new AppException("booking.status.invalid", HttpStatus.BAD_REQUEST);
+        }
     }
 
     private Locale toLocale(String language) {
@@ -175,3 +300,4 @@ public class BookingServiceImpl implements BookingService {
         return Locale.forLanguageTag(language.replace('_', '-'));
     }
 }
+

@@ -9,9 +9,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/spaces")
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class SpaceController {
 
     private final SpaceService spaceService;
+    private final MessageSource messageSource;
 
     /**
      * Search and filter co-working spaces.
@@ -38,6 +43,9 @@ public class SpaceController {
     public ResponseEntity<ApiResponse<PageResponse<SpaceResponse>>> searchSpaces(
             @ModelAttribute SpaceSearchRequest request) {
         PageResponse<SpaceResponse> result = spaceService.searchSpaces(request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Fetched co-working spaces successfully"));
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage("space.list.fetched", null, locale);
+        return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 }
+

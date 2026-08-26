@@ -7,6 +7,105 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-26 - View Spaces Booking (GET /api/host/bookings)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `GET /api/host/bookings` (`HostBookingController`, role `HOST`): trả về danh sách **tất cả booking thuộc các Space nằm trong Venue do chính Host đang đăng nhập sở hữu**, có phân trang (`page`, `size`, mặc định `0`/`10`, `size` bị ép giới hạn `1..100`), sắp xếp theo `createdAt` giảm dần - owner luôn lấy từ `Authentication` (`authentication.getName()`), không nhận `hostId` từ client
+- `BookingService.getBookingsForHost(hostEmail, page, size)` / cài đặt trong `BookingServiceImpl`: resolve Host qua email, chỉ truy vấn booking thuộc Space của đúng Host đó, không cho xem chéo dữ liệu Host khác
+- `BookingRepository.findByHostId(...)`: query JPQL lọc qua chuỗi quan hệ `Booking -> Space -> Venue -> owner`, tái dùng `@EntityGraph(attributePaths = {"user", "space"})` sẵn có để tránh N+1 (không tạo entity/DTO mới - tái sử dụng `BookingResponse`, `PageResponse`, `ApiResponse`, `BookingMapper` hiện có)
+- Message key mới (en/vi): `booking.list.empty` - khi Host chưa có booking nào, `message` trả về khác với trường hợp có dữ liệu (`booking.list.fetched`)
+- `HostBookingControllerTest` (mới, MockMvc): HOST có booking → `200`; HOST không có booking → `200` kèm message rỗng riêng; role không phải HOST → `403` (service không bị gọi, xác nhận `@PreAuthorize` chặn ở tầng Security); MODERATOR (không có role HOST) → `403`; chưa đăng nhập → `401`
+- `BookingServiceImplTest.GetBookingsForHostTests` (mới): có booking, không có booking, Host không tồn tại (`404 user.not.found`), và test xác nhận luôn query theo đúng `hostId` của Host gọi API, không bao giờ query `hostId` của Host khác
+
+#### Fixed
+
+- `messages.properties`/`messages_vi.properties`: gộp 2 key bị khai báo trùng (`role.not.found`, `user.list.fetched`) - Java `Properties` chỉ giữ khai báo cuối cùng nên dòng khai báo trước bị "chết" một cách âm thầm; đã dọn về đúng vị trí trong file, giữ nguyên nội dung message đang thực sự có hiệu lực để không đổi hành vi ứng dụng
+
+### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
+
+**Người thực hiện:** [Huỳnh Trương Thảo Duyên]
+
+#### Added
+
+- Endpoint `GET /api/bookings/my-history`: cho phép user đã đăng nhập xem danh sách các booking do chính mình đặt, hỗ trợ phân trang và sắp xếp; lấy user qua `Authentication` (JWT), không nhận `userId` từ client
+- `BookingHistoryRequest`: DTO tiếp nhận tham số phân trang/sắp xếp (`page`, `size`, `sortBy`, `sortDir`), mặc định sắp xếp theo `createdAt` giảm dần (booking mới nhất trước)
+- `BookingRepository.findByUserId(...)`: truy vấn phân trang booking theo user, kèm `@EntityGraph(attributePaths = {"user", "space"})` để nạp sẵn quan hệ, tránh N+1 query
+- `BookingService.getMyBookingHistory(...)`/`BookingServiceImpl`: whitelist các trường được phép sắp xếp (`id`, `startTime`, `endTime`, `status`, `totalPrice`, `createdAt`) để chặn sort injection, tự động fallback về `createdAt` nếu `sortBy` không hợp lệ; giới hạn `size` tối đa 100
+- Message key `booking.history.fetched` (en/vi)
+- Unit test cho `BookingServiceImpl.getMyBookingHistory` (thành công, fallback sortBy không hợp lệ, user không tồn tại) và `BookingController` (`200 OK` khi đã xác thực, `401` khi chưa xác thực)
+
+
+---
+
+### 2026-08-25 - Fix: Venue Moderation Workflow & Security Hardening (Code Review Follow-up)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Enum `VenueStatus` (`PENDING`, `APPROVE`, `BLOCKED`) thay cho `status: String` tự do trên `Venue`/`VenueResponse` - venue mới tạo luôn ở `PENDING` (`VenueServiceImpl.createVenue`), không nhận `status` từ client dưới bất kỳ hình thức nào
+- Endpoint `PUT /api/moderator/venues/{id}/status` (`ModeratorVenueController`, role `MODERATOR`/`ADMIN`): duyệt (`APPROVE`) hoặc khóa (`BLOCKED`) venue. Chặn moderator tự duyệt/khóa venue của chính mình (`venue.cannot.moderate.self`, `403`); no-op (không `save`) nếu set lại đúng status hiện tại
+- DTO `UpdateVenueStatusRequest` (`status: VenueStatus`, `@NotNull`) và method `VenueService.updateVenueStatus(...)`
+- Khi venue chuyển sang `BLOCKED`, cascade toàn bộ `Space` thuộc venue sang `INACTIVE` (dùng chung `deactivateSpaces(...)` với `deleteVenue`) - `APPROVE` không tự động bật lại Space vì có thể chúng đã bị tắt vì lý do khác trước đó
+- Enum `SpaceStatus` (`ACTIVE`, `INACTIVE`) thay cho `status: String` tự do trên `Space`/`SpaceResponse`
+- `@DecimalMin`/`@DecimalMax` cho `latitude` (-90..90) và `longitude` (-180..180) trong `VenueRequest`
+- `SpaceRepository.findByVenueId(...)`; `VenueRepository.countByStatus(VenueStatus)` thay cho `countByStatusIgnoreCase(String)`
+- Message key mới (en/vi): `venue.status.updated`, `venue.cannot.moderate.self`, `validation.venue.latitude.range`, `validation.venue.longitude.range`
+- Test mới: `ModeratorVenueControllerTest`; các case `updateVenueStatus` (thành công, idempotent, tự duyệt bị chặn, không tìm thấy, cascade Space khi `BLOCKED`) trong `VenueServiceImplTest`; case Space `INACTIVE` bị từ chối booking (`space.not.available`) trong `BookingServiceImplTest`
+
+#### Changed
+
+- `VenueController`: thêm `@PreAuthorize("hasRole('HOST')")` cho cả 4 endpoint (`POST`, `GET /my-venues`, `PUT`, `DELETE`) thay vì chỉ kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` như trước
+- `VenueRequest`: bỏ hẳn field `status` - HOST không còn cách nào set status của venue qua `create`/`update`, chỉ moderator/admin mới đổi được qua endpoint riêng ở trên
+- `VenueServiceImpl.deleteVenue`: cascade `Space` thuộc venue sang `INACTIVE` khi soft-delete venue (giữ nguyên Space, không xóa, để không mất lịch sử booking)
+- `BookingServiceImpl`: gộp điều kiện chấp nhận 2 giá trị chuỗi không nhất quán `"ACTIVE"`/`"AVAILABLE"` thành một so sánh enum duy nhất `SpaceStatus.ACTIVE`
+- `StatisticsServiceImpl`: `venueRepository.countByStatusIgnoreCase("ACTIVE")` → `countByStatus(VenueStatus.APPROVE)`
+- `VenueControllerTest`: thêm `@EnableMethodSecurity` và test `verifyNoInteractions(venueService)` để xác nhận `@PreAuthorize` thực sự chặn ở tầng Security chứ không chỉ vì service ném exception (lỗ hổng kiểm thử phát hiện trong lúc review)
+
+---
+
+### 2026-08-22 - Host Venue Management (CRUD)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `POST /api/venues`: cho phép user có role `HOST` tạo venue mới (kèm danh sách `amenityIds`) thuộc sở hữu của chính mình - owner luôn được lấy từ `SecurityContext` (`authentication.getName()`), không nhận `ownerId` từ client
+- Endpoint `GET /api/venues/my-venues`: lấy danh sách venue (chưa bị xóa) của HOST hiện tại, có phân trang (`page`, `size`), sắp xếp theo `id` giảm dần
+- Endpoint `PUT /api/venues/{id}`: cập nhật venue - trả `404` nếu venue không tồn tại (hoặc đã bị soft delete), trả `403` nếu venue thuộc HOST khác
+- Endpoint `DELETE /api/venues/{id}`: soft delete venue (set cờ `deleted = true`, không xóa dữ liệu thật) - áp dụng cùng rule kiểm tra tồn tại/quyền sở hữu như update
+- `VenueRequest` DTO: `name` (bắt buộc, tối đa 200 ký tự), `description`, `address`, `city`, `street`, `latitude`/`longitude`, `status`, `amenityIds` (`Set<Long>`, mặc định rỗng)
+- `VenueResponse`/`AmenityResponse` DTO và `VenueMapper` (MapStruct): map `Venue` entity sang response kèm thông tin owner (`ownerId`, `ownerName`) và danh sách amenity
+- `VenueService`/`VenueServiceImpl`: xử lý nghiệp vụ tạo/sửa/xóa/liệt kê venue, kiểm tra role `HOST` (`resolveHostUser`), kiểm tra quyền sở hữu (`assertOwnership`) và validate `amenityIds` tồn tại thật trong DB (`resolveAmenities`, trả `400 amenity.not.found` nếu có id không hợp lệ)
+- `VenueRepository`: bổ sung `findByOwnerIdAndDeletedFalse(...)` (phân trang) và `findByIdAndDeletedFalse(...)`
+- `AmenityRepository`: repository mới cho entity `Amenity`
+- `VenueNotFoundException`: exception riêng cho venue không tồn tại (`404`, message `venue.not.found`)
+- Cột `deleted` (`Boolean`, mặc định `false`) trên `Venue` entity phục vụ soft delete
+- Message key mới (en/vi): `venue.updated`, `venue.deleted`, `venue.list.success`, `venue.host.required`, `venue.access.denied`, `amenity.not.found`, cùng các message validation `validation.venue.*` (name/address/city/street/status)
+- `VenueControllerTest`, `VenueServiceImplTest`: unit test cho các luồng tạo/sửa/xóa/liệt kê venue, bao gồm case không phải HOST, không phải chủ sở hữu, venue/amenity không tồn tại
+
+#### Changed
+
+- `VenueController`: đánh dấu `@SecurityRequirement(name = "BearerAuth")` cho toàn bộ endpoint `/api/venues/**` trên Swagger UI; việc bắt buộc role `HOST` được kiểm tra thủ công trong `VenueServiceImpl.resolveHostUser(...)` (chưa dùng `@PreAuthorize`)
+
+### 2026-08-24 - Booking Cancellation API (PUT /api/bookings/{id}/cancel) (#99295)
+
+---
+
+**Người thực hiện:** Nguyễn Minh An
+
+#### Added
+
+- Endpoint `PUT /api/bookings/{id}/cancel`: cho phép người dùng đã đăng nhập hủy lịch đặt chỗ của chính mình ở trạng thái `PENDING` hoặc `APPROVED` (chưa thanh toán)
+- Method `BookingService.cancelBooking(Long bookingId, String userEmail)` và cài đặt trong `BookingServiceImpl`:
+  - Kiểm tra xác thực người dùng sở hữu lịch đặt chỗ (`403 Forbidden` nếu không phải chủ sở hữu)
+  - Kiểm tra trạng thái hợp lệ (`400 Bad Request` nếu booking ở trạng thái `CONFIRMED` (đã thanh toán), `COMPLETED`, `REJECTED` hoặc đã `CANCELLED`)
+  - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
+- Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
+
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]
@@ -29,6 +128,38 @@ File ghi lại những thay đổi của dự án.
 
 - Giới hạn các API thống kê và lịch sử thanh toán chỉ cho tài khoản có vai trò `ADMIN`
 - Doanh thu theo năm được trả về kèm đầy đủ 12 tháng, các tháng không có giao dịch có giá trị doanh thu bằng `0`
+
+---
+
+### 2026-08-23 - Chuẩn hóa BookingStatus, Chống N+1 Query & Moderator Booking APIs (GET /api/moderator/bookings, GET /api/moderator/bookings/{bookingId})
+
+**Người thực hiện:** [Trịnh Yến Nhi]
+
+#### Added
+
+- **API REST `GET /api/moderator/bookings`**: Cho phép Moderator và Admin tìm kiếm, lọc động và phân trang toàn bộ danh sách đặt chỗ theo `keyword` (tên user, email, tên space), `status` (Enum `BookingStatus`), `userId`, `spaceId`, `fromDate`, `toDate`, `sortBy`, `sortDir`, `page`, `size`. Phân quyền `@PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")`.
+- **API REST `GET /api/moderator/bookings/{bookingId}`**: Cho phép Moderator và Admin xem chi tiết 1 booking (kèm thông tin user và space). Ném `BookingNotFoundException(404)` nếu không tìm thấy.
+- **Web Controller `GET /moderator/bookings`**: Controller điều hướng cho giao diện quản lý booking của Moderator/Admin.
+- **DTO `BookingSearchRequest`**: Chứa các tham số tìm kiếm, lọc, phân trang, có đầy đủ annotations Swagger `@Schema` và `@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)`.
+
+- **`BookingSpecification`**: Xây dựng điều kiện truy vấn động an toàn qua JPA CriteriaBuilder (`S017`).
+- **Đa ngôn ngữ i18n**: Bổ sung các message keys đồng bộ trong `messages.properties` và `messages_vi.properties`:
+  - `booking.list.fetched`, `booking.detail.fetched`, `booking.status.invalid`, `space.list.fetched`.
+- **Tests**:
+  - `ModeratorBookingControllerTest`: MockMvc tests kiểm tra phân quyền và kết quả API REST (200 OK cho Moderator/Admin, 404 khi không tìm thấy, 403 cho User thường, 401 khi chưa đăng nhập).
+  - `ModeratorBookingWebControllerTest`: MockMvc tests kiểm tra bảo mật phân quyền Web Controller.
+  - `BookingServiceImplTest`: Bổ sung `@Nested SearchBookingsTests` và `@Nested GetBookingByIdTests`.
+
+#### Changed
+
+- **Chuẩn hóa Enum `BookingStatus`**: Chuyển đổi toàn bộ trường `status` trên Entity `Booking` và DTO `BookingResponse` từ `String` sang `@Enumerated(EnumType.STRING) BookingStatus` (`PENDING`, `APPROVED`, `CONFIRMED`, `REJECTED`, `CANCELLED`, `COMPLETED`).
+- **Ngăn chặn N+1 Queries**: Khai báo `@EntityGraph(attributePaths = {"user", "space"})` trên `BookingRepository.findAll(Specification, Pageable)` và `BookingRepository.findById(Long id)`. Spring Data JPA tự động sinh 1 truy vấn `LEFT OUTER JOIN` duy nhất nạp sẵn `User` và `Space`, triệt tiêu hoàn toàn các truy vấn lười phụ khi map sang DTO.
+- **Bảo vệ Sort Injection & Giới hạn phân trang**: Thêm whitelist `ALLOWED_SORT_FIELDS` và ép giới hạn `1 <= size <= 100` trong `BookingServiceImpl` và `SpaceServiceImpl`.
+- **Đồng bộ hóa logic va chạm lịch đặt**: Cập nhật `SpaceSpecification` và `BookingRepository.existsActiveOverlap` để loại trừ cả hai trạng thái `CANCELLED` và `REJECTED` khi kiểm tra lịch trống.
+- **Đa ngôn ngữ cho Space API**: Cập nhật `SpaceController` sử dụng `MessageSource` i18n.
+
+---
+
 ### 2026-08-22 - Register/Upgrade to HOST (POST /api/users/me/roles/host) (#99269)
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]
@@ -146,7 +277,7 @@ File ghi lại những thay đổi của dự án.
    }
    ```
 
-5. Lưu ý:
+4. Lưu ý:
    - Không gửi token, gửi refresh token, hoặc gửi access token đã logout → `403 Forbidden`.
    - `cccdUrl`/`businessLicenseUrl` là signed URL hết hạn sau 1 giờ — không nên cache lâu dài ở client, gọi lại `/me` để lấy URL mới khi cần.
 
@@ -335,7 +466,6 @@ File ghi lại những thay đổi của dự án.
 
 ---
 
-
 ### 2026-08-20 - Unit test for JwtAuthenticationFilter
 
 **Người thực hiện:** [Trịnh Yến Nhi]
@@ -409,15 +539,15 @@ File ghi lại những thay đổi của dự án.
 
 ## Entity Design Decisions
 
-| # | Chỗ thay đổi | ERD gốc | Code thực tế | Lý do |
-| --- | --- | --- | --- | --- |
-| 1 | Bảng User | `user` | `users` | `user` là reserved keyword trong PostgreSQL |
-| 2 | latitude / longitude | `decimal(10,8)` | `BigDecimal` | Tránh sai số float |
-| 3 | description | `text` | `columnDefinition = "TEXT"` | JPA mặc định dùng VARCHAR(255) |
-| 4 | capacity | `int` | `Integer` | Wrapper class hỗ trợ giá trị null |
-| 5 | open_time / close_time | `time` | `LocalTime` | Java type mapping cho PostgreSQL time |
-| 6 | Các timestamp | `timestamp` | `LocalDateTime` | Java type mapping cho PostgreSQL timestamp |
-| 7 | payment.booking_id | FK | `@OneToOne` + `unique = true` | Đảm bảo ràng buộc 1-1 ở tầng DB |
+| #   | Chỗ thay đổi           | ERD gốc         | Code thực tế                  | Lý do                                       |
+| --- | ---------------------- | --------------- | ----------------------------- | ------------------------------------------- |
+| 1   | Bảng User              | `user`          | `users`                       | `user` là reserved keyword trong PostgreSQL |
+| 2   | latitude / longitude   | `decimal(10,8)` | `BigDecimal`                  | Tránh sai số float                          |
+| 3   | description            | `text`          | `columnDefinition = "TEXT"`   | JPA mặc định dùng VARCHAR(255)              |
+| 4   | capacity               | `int`           | `Integer`                     | Wrapper class hỗ trợ giá trị null           |
+| 5   | open_time / close_time | `time`          | `LocalTime`                   | Java type mapping cho PostgreSQL time       |
+| 6   | Các timestamp          | `timestamp`     | `LocalDateTime`               | Java type mapping cho PostgreSQL timestamp  |
+| 7   | payment.booking_id     | FK              | `@OneToOne` + `unique = true` | Đảm bảo ràng buộc 1-1 ở tầng DB             |
 
 ---
 
@@ -445,3 +575,4 @@ _Template cho các lần cập nhật tiếp theo:_
 #### Removed
 
 - ...
+```
