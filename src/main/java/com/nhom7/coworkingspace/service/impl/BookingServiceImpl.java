@@ -221,10 +221,8 @@ public class BookingServiceImpl implements BookingService {
     // VenueServiceImpl) may act, and only while the booking is still PENDING.
     @Override
     @Transactional
-    public BookingResponse updateBookingStatusByHost(Long bookingId, BookingStatus newStatus, String hostEmail) {
-        if (newStatus != BookingStatus.APPROVED && newStatus != BookingStatus.REJECTED) {
-            throw new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST);
-        }
+    public BookingResponse updateBookingStatusByHost(Long bookingId, String newStatus, String hostEmail) {
+        BookingStatus targetStatus = resolveHostTargetStatus(newStatus);
 
         User host = userRepository.findByEmail(hostEmail)
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
@@ -241,8 +239,23 @@ public class BookingServiceImpl implements BookingService {
             throw new AppException("booking.status.transition.invalid", HttpStatus.BAD_REQUEST);
         }
 
-        Booking savedBooking = persistStatusChange(booking, newStatus);
+        Booking savedBooking = persistStatusChange(booking, targetStatus);
         return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    // Accepts whatever raw string the Host submitted and turns it into a valid target status,
+    // or rejects it with a message that spells out the only two accepted values - covers both a
+    // typo/garbage value (e.g. "aproved") and a real BookingStatus the Host just isn't allowed to
+    // set here (e.g. "CONFIRMED") with the same actionable error instead of a raw 500.
+    private BookingStatus resolveHostTargetStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            throw new AppException("booking.status.required", HttpStatus.BAD_REQUEST);
+        }
+        String normalized = rawStatus.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.equals(BookingStatus.APPROVED.name()) && !normalized.equals(BookingStatus.REJECTED.name())) {
+            throw new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST);
+        }
+        return BookingStatus.valueOf(normalized);
     }
 
     // Shared by changeStatus and updateBookingStatusByHost: persists the new status and notifies

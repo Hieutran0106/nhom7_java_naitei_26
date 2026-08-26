@@ -159,7 +159,7 @@ class HostBookingControllerTest {
     void givenHostRole_whenApprove_thenReturn200() throws Exception {
         BookingResponse response = BookingResponse.builder().id(1L).spaceId(10L).status(BookingStatus.APPROVED).build();
 
-        given(bookingService.updateBookingStatusByHost(eq(1L), eq(BookingStatus.APPROVED), eq("host@test.com")))
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("APPROVED"), eq("host@test.com")))
                 .willReturn(response);
 
         mockMvc.perform(put("/api/host/bookings/1/status")
@@ -177,7 +177,7 @@ class HostBookingControllerTest {
     void givenHostRole_whenReject_thenReturn200() throws Exception {
         BookingResponse response = BookingResponse.builder().id(1L).spaceId(10L).status(BookingStatus.REJECTED).build();
 
-        given(bookingService.updateBookingStatusByHost(eq(1L), eq(BookingStatus.REJECTED), eq("host@test.com")))
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("REJECTED"), eq("host@test.com")))
                 .willReturn(response);
 
         mockMvc.perform(put("/api/host/bookings/1/status")
@@ -228,7 +228,7 @@ class HostBookingControllerTest {
     @WithMockUser(username = "host@test.com", roles = {"HOST"})
     @DisplayName("Booking not found -> PUT /api/host/bookings/{id}/status returns 404 Not Found")
     void givenBookingNotFound_whenUpdateBookingStatus_thenReturn404() throws Exception {
-        given(bookingService.updateBookingStatusByHost(eq(999L), eq(BookingStatus.APPROVED), eq("host@test.com")))
+        given(bookingService.updateBookingStatusByHost(eq(999L), eq("APPROVED"), eq("host@test.com")))
                 .willThrow(new BookingNotFoundException(999L));
 
         mockMvc.perform(put("/api/host/bookings/999/status")
@@ -243,7 +243,7 @@ class HostBookingControllerTest {
     @WithMockUser(username = "otherhost@test.com", roles = {"HOST"})
     @DisplayName("Host does not own the Space -> PUT /api/host/bookings/{id}/status returns 403 Forbidden")
     void givenHostNotOwner_whenUpdateBookingStatus_thenReturn403() throws Exception {
-        given(bookingService.updateBookingStatusByHost(eq(1L), eq(BookingStatus.APPROVED), eq("otherhost@test.com")))
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("APPROVED"), eq("otherhost@test.com")))
                 .willThrow(new AppException("booking.access.denied", HttpStatus.FORBIDDEN));
 
         mockMvc.perform(put("/api/host/bookings/1/status")
@@ -258,7 +258,7 @@ class HostBookingControllerTest {
     @WithMockUser(username = "host@test.com", roles = {"HOST"})
     @DisplayName("Booking not PENDING -> PUT /api/host/bookings/{id}/status returns 400 Bad Request")
     void givenBookingNotPending_whenUpdateBookingStatus_thenReturn400() throws Exception {
-        given(bookingService.updateBookingStatusByHost(eq(1L), eq(BookingStatus.APPROVED), eq("host@test.com")))
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("APPROVED"), eq("host@test.com")))
                 .willThrow(new AppException("booking.status.transition.invalid", HttpStatus.BAD_REQUEST));
 
         mockMvc.perform(put("/api/host/bookings/1/status")
@@ -267,5 +267,39 @@ class HostBookingControllerTest {
                         .content("{\"status\": \"APPROVED\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @WithMockUser(username = "host@test.com", roles = {"HOST"})
+    @DisplayName("Status value that doesn't match any BookingStatus -> 400 Bad Request suggesting APPROVED/REJECTED")
+    void givenUnrecognizedStatusValue_whenUpdateBookingStatus_thenReturn400WithHint() throws Exception {
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("FOO"), eq("host@test.com")))
+                .willThrow(new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST));
+
+        mockMvc.perform(put("/api/host/bookings/1/status")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"FOO\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("APPROVED")))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("REJECTED")));
+    }
+
+    @Test
+    @WithMockUser(username = "host@test.com", roles = {"HOST"})
+    @DisplayName("Status value that is a real BookingStatus but not APPROVED/REJECTED -> 400 Bad Request suggesting APPROVED/REJECTED")
+    void givenNonApproveRejectStatusValue_whenUpdateBookingStatus_thenReturn400WithHint() throws Exception {
+        given(bookingService.updateBookingStatusByHost(eq(1L), eq("CONFIRMED"), eq("host@test.com")))
+                .willThrow(new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST));
+
+        mockMvc.perform(put("/api/host/bookings/1/status")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("APPROVED")))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("REJECTED")));
     }
 }

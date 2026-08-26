@@ -9,17 +9,28 @@ File ghi lại những thay đổi của dự án.
 
 ### 2026-08-26 - Host Approve/Reject Booking (PUT /api/host/bookings/{bookingId}/status)
 
-**Người thực hiện:** Claude
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
 
 #### Added
 
 - Endpoint `PUT /api/host/bookings/{bookingId}/status` (`HostBookingController`, role `HOST`): cho phép Host duyệt (`APPROVED`) hoặc từ chối (`REJECTED`) một booking đang ở trạng thái `PENDING` trên Space do chính mình sở hữu - owner luôn lấy từ `Authentication` (`authentication.getName()`), không nhận `hostId` từ client
 - `BookingService.updateBookingStatusByHost(bookingId, newStatus, hostEmail)` / cài đặt trong `BookingServiceImpl`: validate target status chỉ chấp nhận `APPROVED`/`REJECTED` (`400 booking.status.update.invalid`), kiểm tra booking tồn tại (`404 booking.not.found`), kiểm tra quyền sở hữu qua chuỗi quan hệ `Booking -> Space -> Venue -> owner` (`403 booking.access.denied`), và chỉ cho chuyển trạng thái khi booking đang `PENDING` (`400 booking.status.transition.invalid`)
 - Tách logic lưu + gửi email thông báo đổi trạng thái (trước đây nằm trong `changeStatus`) thành helper `persistStatusChange(...)` dùng chung cho cả `changeStatus` và `updateBookingStatusByHost` - không tạo lại logic, giữ nguyên hành vi gửi email hiện có
-- DTO `UpdateBookingStatusRequest` (`status: BookingStatus`, `@NotNull`)
+- DTO `UpdateBookingStatusRequest` (`status: String`, `@NotBlank`)
 - Message key mới (en/vi): `booking.status.updated`, `booking.access.denied`, `booking.status.update.invalid`, `booking.status.transition.invalid`
 - `HostBookingControllerTest` (mới, MockMvc): HOST duyệt/từ chối → `200`; role không phải HOST → `403` (service không bị gọi); chưa đăng nhập → `401`; body thiếu `status` → `400`; booking không tồn tại → `404`; Host không sở hữu Space → `403`; booking không ở trạng thái `PENDING` → `400`
 - `BookingServiceImplTest.UpdateBookingStatusByHostTests` (mới): duyệt/từ chối thành công, booking không tồn tại, Host không tồn tại, Host không sở hữu Space, booking không ở `PENDING`, target status không hợp lệ
+
+#### Fixed
+
+- Host gửi giá trị `status` không khớp bất kỳ hằng số nào của `BookingStatus` (vd `"FOO"`) trước đây khiến Jackson deserialize thất bại và rơi vào handler `Exception` chung của `GlobalExceptionHandler`, trả về `500 Internal Server Error` không rõ nguyên nhân - sửa bằng cách đổi `UpdateBookingStatusRequest.status` từ enum `BookingStatus` sang `String`, để chuỗi bất kỳ luôn deserialize thành công và được validate ở tầng Service thay vì thất bại sớm ở tầng JSON
+- `BookingServiceImpl.resolveHostTargetStatus(...)` (mới): chuẩn hóa status (trim, không phân biệt hoa/thường) rồi validate - mọi giá trị khác `APPROVED`/`REJECTED` (kể cả chuỗi hoàn toàn không khớp enum lẫn một `BookingStatus` hợp lệ nhưng không được phép như `CONFIRMED`) đều trả cùng một lỗi rõ ràng `400 Bad Request` (`booking.status.update.invalid`) thay vì `500`
+- Nội dung message `booking.status.update.invalid` (en/vi) cập nhật cụ thể hơn, gợi ý rõ 2 giá trị hợp lệ: *"Invalid booking status. Please choose one of the following values: APPROVED or REJECTED"* / *"Trạng thái đặt chỗ không hợp lệ. Vui lòng chọn một trong hai giá trị: APPROVED hoặc REJECTED"*
+- Bổ sung test cho `BookingServiceImplTest`/`HostBookingControllerTest`: status hoàn toàn không khớp enum, status hợp lệ nhưng không được phép (`CONFIRMED`), status rỗng/blank, và status viết thường vẫn được chấp nhận (case-insensitive)
+
+#### Changed
+
+- `@Tag` Swagger của `HostBookingController`: đổi tên nhóm từ "Host Booking API" thành "Host View Booking State" trên giao diện Swagger UI
 
 ---
 

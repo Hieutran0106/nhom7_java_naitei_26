@@ -24,7 +24,7 @@ import java.util.Locale;
 @RestController
 @RequestMapping("/api/host/bookings")
 @RequiredArgsConstructor
-@Tag(name = "Host Booking API", description = "Endpoints for HOST to view bookings made on their own Spaces and approve/reject them")
+@Tag(name = "Host View Booking State", description = "Endpoints for HOST to view bookings made on their own Spaces and approve/reject them")
 @SecurityRequirement(name = "BearerAuth")
 public class HostBookingController {
 
