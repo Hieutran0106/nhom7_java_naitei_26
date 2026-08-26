@@ -4,6 +4,7 @@ import com.nhom7.coworkingspace.dto.request.SpaceSearchRequest;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.Venue;
+import com.nhom7.coworkingspace.enums.BookingStatus;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -86,15 +87,17 @@ public class SpaceSpecification {
 
                 bookedSpaceSubquery.select(bookingRoot.get("space").get("id"))
                         .where(
-                                cb.notEqual(cb.lower(bookingRoot.get("status")), "cancelled"),
+                                cb.not(bookingRoot.get("status").in(BookingStatus.CANCELLED, BookingStatus.REJECTED)),
                                 cb.lessThan(bookingRoot.get("startTime"), request.getBookingEnd()),
                                 cb.greaterThan(bookingRoot.get("endTime"), request.getBookingStart())
                         );
 
                 predicates.add(cb.not(root.get("id").in(bookedSpaceSubquery)));
+
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 }
+
