@@ -189,6 +189,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getBookingsForHost(String hostEmail, int page, int size) {
+        User host = userRepository.findByEmail(hostEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page), Math.min(Math.max(1, size), 100), Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Booking> bookingPage = bookingRepository.findByHostId(host.getId(), pageable);
+
+        return PageResponse.fromPage(bookingPage.map(bookingMapper::toBookingResponse));
+    }
+
+    @Override
     @Transactional
     public Booking changeStatus(Long bookingId, String newStatus) {
         BookingStatus normalizedStatus = normalizeStatus(newStatus);

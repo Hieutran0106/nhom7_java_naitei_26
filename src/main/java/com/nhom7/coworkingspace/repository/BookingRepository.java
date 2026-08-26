@@ -46,4 +46,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             @Param("spaceId") Long spaceId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime);
+
+    @EntityGraph(attributePaths = { "user", "space" })
+    @Query("SELECT b FROM Booking b WHERE b.space.venue.owner.id = :hostId")
+    Page<Booking> findByHostId(@Param("hostId") Long hostId, Pageable pageable);
 }
