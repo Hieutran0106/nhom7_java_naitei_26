@@ -1,29 +1,40 @@
 <!DOCTYPE html>
+
 <html lang="vi"
       xmlns:th="http://www.thymeleaf.org"
       th:fragment="layout(pageTitle, activeMenu, content)">
 
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport"
           content="width=device-width, initial-scale=1">
 
     <title th:text="${pageTitle} + ' | Coworking Space'">
-        Moderator | Coworking Space
+        Management | Coworking Space
     </title>
+
+    <link rel="icon"
+          type="image/x-icon"
+          th:href="@{/favicon.ico}">
 
     <link rel="stylesheet"
           th:href="@{/css/moderator-layout.css}">
+
 </head>
 
 <body>
 
 <div class="moderator-layout">
 
-    <!-- SIDEBAR -->
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
     <aside id="moderatorSidebar"
            class="moderator-sidebar"
-           aria-label="Điều hướng Moderator">
+           aria-label="Điều hướng Management">
 
         <div class="sidebar-brand">
 
@@ -46,13 +57,16 @@
 
         </div>
 
+
         <nav class="sidebar-navigation">
 
             <div class="sidebar-section-title">
                 Quản lý
             </div>
 
+
             <!-- USERS -->
+
             <a th:href="@{/moderator/users}"
                class="sidebar-link"
                th:classappend="${activeMenu == 'users'} ? ' active' : ''"
@@ -69,8 +83,13 @@
                          stroke-linejoin="round">
 
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
+
+                        <circle cx="9"
+                                cy="7"
+                                r="4"/>
+
                         <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
 
                     </svg>
@@ -83,7 +102,9 @@
 
             </a>
 
+
             <!-- VENUES -->
+
             <a th:href="@{/moderator/venues}"
                class="sidebar-link"
                th:classappend="${activeMenu == 'venues'} ? ' active' : ''"
@@ -106,7 +127,9 @@
                               rx="2"/>
 
                         <path d="M9 21V9h6v12"/>
+
                         <path d="M9 5h.01"/>
+
                         <path d="M15 5h.01"/>
 
                     </svg>
@@ -119,7 +142,9 @@
 
             </a>
 
+
             <!-- BOOKINGS -->
+
             <a th:href="@{/moderator/bookings}"
                class="sidebar-link"
                th:classappend="${activeMenu == 'bookings'} ? ' active' : ''"
@@ -142,7 +167,9 @@
                               rx="2"/>
 
                         <path d="M16 2v4"/>
+
                         <path d="M8 2v4"/>
+
                         <path d="M3 10h18"/>
 
                     </svg>
@@ -157,6 +184,11 @@
 
         </nav>
 
+
+        <!-- =================================================
+             SIDEBAR PROFILE
+        ================================================== -->
+
         <div class="sidebar-footer">
 
             <div class="sidebar-profile">
@@ -167,11 +199,11 @@
 
                 <div class="sidebar-profile-info">
 
-                    <strong>
+                    <strong id="sidebarUserName">
                         Management Panel
                     </strong>
 
-                    <span>
+                    <span id="sidebarUserEmail">
                         Coworking Space
                     </span>
 
@@ -184,10 +216,16 @@
     </aside>
 
 
-    <!-- MAIN -->
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
     <div class="moderator-main">
 
-        <!-- TOPBAR -->
+        <!-- =================================================
+             TOPBAR
+        ================================================== -->
+
         <header class="moderator-topbar">
 
             <div class="topbar-left">
@@ -208,39 +246,60 @@
                          aria-hidden="true">
 
                         <path d="M4 6h16"/>
+
                         <path d="M4 12h16"/>
+
                         <path d="M4 18h16"/>
 
                     </svg>
 
                 </button>
 
+
                 <div class="topbar-heading">
 
-                    <span class="topbar-label">
-                        Moderator
+                    <span id="topbarRoleLabel"
+                          class="topbar-label">
+
+                        Management
+
                     </span>
 
                     <h1 th:text="${pageTitle}">
-                        Moderator
+                        Management
                     </h1>
 
                 </div>
 
             </div>
 
+
             <div class="topbar-right">
 
-                <span class="role-badge">
-                    Moderator / Admin
+                <span id="topbarRoleBadge"
+                      class="role-badge">
+
+                    Management
+
                 </span>
+
+                <button id="logoutButton"
+                        type="button"
+                        class="management-logout-button">
+
+                    Đăng xuất
+
+                </button>
 
             </div>
 
         </header>
 
 
-        <!-- CONTENT -->
+        <!-- =================================================
+             PAGE CONTENT
+        ================================================== -->
+
         <main class="moderator-content">
 
             <div class="content-container">
@@ -257,7 +316,10 @@
 </div>
 
 
-<!-- MOBILE OVERLAY -->
+<!-- =========================================================
+     SIDEBAR OVERLAY
+========================================================= -->
+
 <div id="sidebarOverlay"
      class="sidebar-overlay"
      aria-hidden="true">
@@ -265,111 +327,468 @@
 
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
 
-        const sidebar =
-            document.getElementById("moderatorSidebar");
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
 
-        const toggle =
-            document.getElementById("sidebarToggle");
+            /* =================================================
+               ELEMENTS
+            ================================================= */
 
-        const overlay =
-            document.getElementById("sidebarOverlay");
+            const sidebar =
+                document.getElementById(
+                    "moderatorSidebar"
+                );
 
-        const sidebarLinks =
-            document.querySelectorAll(".sidebar-link");
+            const toggle =
+                document.getElementById(
+                    "sidebarToggle"
+                );
 
-        function openSidebar() {
+            const overlay =
+                document.getElementById(
+                    "sidebarOverlay"
+                );
 
-            if (!sidebar || !overlay) {
-                return;
-            }
+            const sidebarLinks =
+                document.querySelectorAll(
+                    ".sidebar-link"
+                );
 
-            sidebar.classList.add("open");
-            overlay.classList.add("visible");
-            overlay.setAttribute("aria-hidden", "false");
 
-            document.body.style.overflow = "hidden";
+            /* =================================================
+               SIDEBAR
+            ================================================= */
 
-            if (toggle) {
-                toggle.setAttribute("aria-expanded", "true");
-                toggle.setAttribute("aria-label", "Đóng menu");
-            }
-        }
+            function openSidebar() {
 
-        function closeSidebar() {
+                if (
+                    !sidebar
+                    ||
+                    !overlay
+                ) {
 
-            if (!sidebar || !overlay) {
-                return;
-            }
-
-            sidebar.classList.remove("open");
-            overlay.classList.remove("visible");
-            overlay.setAttribute("aria-hidden", "true");
-
-            document.body.style.overflow = "";
-
-            if (toggle) {
-                toggle.setAttribute("aria-expanded", "false");
-                toggle.setAttribute("aria-label", "Mở menu");
-            }
-        }
-
-        function toggleSidebar() {
-
-            if (!sidebar) {
-                return;
-            }
-
-            if (sidebar.classList.contains("open")) {
-                closeSidebar();
-            } else {
-                openSidebar();
-            }
-        }
-
-        if (toggle) {
-            toggle.addEventListener("click", toggleSidebar);
-        }
-
-        if (overlay) {
-            overlay.addEventListener("click", closeSidebar);
-        }
-
-        sidebarLinks.forEach(function (link) {
-
-            link.addEventListener("click", function () {
-
-                if (window.innerWidth <= 900) {
-                    closeSidebar();
+                    return;
                 }
-            });
-        });
 
-        document.addEventListener("keydown", function (event) {
 
-            if (
-                event.key === "Escape" &&
-                sidebar &&
-                sidebar.classList.contains("open")
-            ) {
-                closeSidebar();
+                sidebar.classList.add(
+                    "open"
+                );
+
+                overlay.classList.add(
+                    "visible"
+                );
+
+                overlay.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+                document.body.style.overflow =
+                    "hidden";
+
 
                 if (toggle) {
-                    toggle.focus();
+
+                    toggle.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+
+                    toggle.setAttribute(
+                        "aria-label",
+                        "Đóng menu"
+                    );
                 }
             }
-        });
 
-        window.addEventListener("resize", function () {
 
-            if (window.innerWidth > 900) {
-                closeSidebar();
+            function closeSidebar() {
+
+                if (
+                    !sidebar
+                    ||
+                    !overlay
+                ) {
+
+                    return;
+                }
+
+
+                sidebar.classList.remove(
+                    "open"
+                );
+
+                overlay.classList.remove(
+                    "visible"
+                );
+
+                overlay.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+                document.body.style.overflow =
+                    "";
+
+
+                if (toggle) {
+
+                    toggle.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+                    toggle.setAttribute(
+                        "aria-label",
+                        "Mở menu"
+                    );
+                }
             }
-        });
 
-    });
+
+            function toggleSidebar() {
+
+                if (!sidebar) {
+
+                    return;
+                }
+
+
+                if (
+                    sidebar.classList.contains(
+                        "open"
+                    )
+                ) {
+
+                    closeSidebar();
+
+                } else {
+
+                    openSidebar();
+                }
+            }
+
+
+            if (toggle) {
+
+                toggle.addEventListener(
+                    "click",
+                    toggleSidebar
+                );
+            }
+
+
+            if (overlay) {
+
+                overlay.addEventListener(
+                    "click",
+                    closeSidebar
+                );
+            }
+
+
+            sidebarLinks.forEach(
+                function (link) {
+
+                    link.addEventListener(
+                        "click",
+                        function () {
+
+                            if (
+                                window.innerWidth <= 900
+                            ) {
+
+                                closeSidebar();
+                            }
+                        }
+                    );
+                }
+            );
+
+
+            document.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key === "Escape"
+                        &&
+                        sidebar
+                        &&
+                        sidebar.classList.contains(
+                            "open"
+                        )
+                    ) {
+
+                        closeSidebar();
+
+
+                        if (toggle) {
+
+                            toggle.focus();
+                        }
+                    }
+                }
+            );
+
+
+            window.addEventListener(
+                "resize",
+                function () {
+
+                    if (
+                        window.innerWidth > 900
+                    ) {
+
+                        closeSidebar();
+                    }
+                }
+            );
+
+
+            /* =================================================
+               CURRENT USER
+            ================================================= */
+
+            function getCurrentUser() {
+
+                const rawUser =
+                    sessionStorage.getItem(
+                        "currentUser"
+                    );
+
+
+                if (!rawUser) {
+
+                    return null;
+                }
+
+
+                try {
+
+                    return JSON.parse(
+                        rawUser
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "[Management] Invalid currentUser:",
+                        error
+                    );
+
+
+                    return null;
+                }
+            }
+
+
+            function resolveRoleLabel(
+                roles
+            ) {
+
+                if (
+                    !Array.isArray(roles)
+                ) {
+
+                    return "Management";
+                }
+
+
+                if (
+                    roles.includes(
+                        "ADMIN"
+                    )
+                ) {
+
+                    return "Admin";
+                }
+
+
+                if (
+                    roles.includes(
+                        "MODERATOR"
+                    )
+                ) {
+
+                    return "Moderator";
+                }
+
+
+                return "Management";
+            }
+
+
+            const currentUser =
+                getCurrentUser();
+
+
+            if (currentUser) {
+
+                const roleLabel =
+                    resolveRoleLabel(
+                        currentUser.roles
+                    );
+
+
+                const topbarRoleLabel =
+                    document.getElementById(
+                        "topbarRoleLabel"
+                    );
+
+                const topbarRoleBadge =
+                    document.getElementById(
+                        "topbarRoleBadge"
+                    );
+
+                const sidebarUserName =
+                    document.getElementById(
+                        "sidebarUserName"
+                    );
+
+                const sidebarUserEmail =
+                    document.getElementById(
+                        "sidebarUserEmail"
+                    );
+
+
+                if (topbarRoleLabel) {
+
+                    topbarRoleLabel.textContent =
+                        roleLabel;
+                }
+
+
+                if (topbarRoleBadge) {
+
+                    topbarRoleBadge.textContent =
+                        roleLabel;
+                }
+
+
+                if (
+                    sidebarUserName
+                    &&
+                    currentUser.name
+                ) {
+
+                    sidebarUserName.textContent =
+                        currentUser.name;
+                }
+
+
+                if (
+                    sidebarUserEmail
+                    &&
+                    currentUser.email
+                ) {
+
+                    sidebarUserEmail.textContent =
+                        currentUser.email;
+                }
+            }
+
+
+            /* =================================================
+               LOGOUT
+            ================================================= */
+
+            const logoutButton =
+                document.getElementById(
+                    "logoutButton"
+                );
+
+
+            async function logoutManagement() {
+
+                const token =
+                    sessionStorage.getItem(
+                        "accessToken"
+                    );
+
+
+                try {
+
+                    /*
+                     * Nếu có accessToken thì gọi API logout
+                     * để blacklist JWT.
+                     */
+                    if (token) {
+
+                        await fetch(
+                            "/api/auth/logout",
+                            {
+                                method:
+                                    "POST",
+
+                                credentials:
+                                    "same-origin",
+
+                                headers: {
+                                    Authorization:
+                                        `Bearer ${token}`
+                                }
+                            }
+                        );
+                    }
+
+
+                } catch (error) {
+
+                    /*
+                     * Dù API logout lỗi,
+                     * phía client vẫn phải clear session.
+                     */
+                    console.error(
+                        "[Management] Logout failed:",
+                        error
+                    );
+
+
+                } finally {
+
+                    /*
+                     * Xóa toàn bộ thông tin đăng nhập phía browser.
+                     */
+                    sessionStorage.removeItem(
+                        "accessToken"
+                    );
+
+                    sessionStorage.removeItem(
+                        "refreshToken"
+                    );
+
+                    sessionStorage.removeItem(
+                        "currentUser"
+                    );
+
+
+                    /*
+                     * Login giờ là login chung của hệ thống.
+                     */
+                    window.location.replace(
+                        "/login"
+                    );
+                }
+            }
+
+
+            if (logoutButton) {
+
+                logoutButton.addEventListener(
+                    "click",
+                    logoutManagement
+                );
+            }
+
+        }
+    );
+
 </script>
 
 </body>
+
 </html>

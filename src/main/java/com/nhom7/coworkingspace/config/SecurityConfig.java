@@ -19,6 +19,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
@@ -40,118 +41,231 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private List<String> corsAllowedOrigins;
 
-    /**
-     * Security Filter Chain for REST APIs (/api/**).
-     * 100% Stateless: no HTTP Sessions, CSRF disabled, Bearer Token authentication
-     * only.
-     */
     @Bean
     @Order(1)
-    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain apiSecurityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
+
         http
                 .securityMatcher("/api/**")
+
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .cors(cors ->
+                        cors.configurationSource(
+                                corsConfigurationSource()
+                        )
+                )
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
-                        .anyRequest().authenticated())
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(jwtAuthErrorHandler)
-                        .accessDeniedHandler(jwtAuthErrorHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+                        .requestMatchers(
+                                "/api/auth/**"
+                        )
+                        .permitAll()
+
+                        .requestMatchers(
+                                "/api/admin/**"
+                        )
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(
+                                "/api/moderator/**"
+                        )
+                        .hasAnyRole(
+                                "ADMIN",
+                                "MODERATOR"
+                        )
+
+                        .anyRequest()
+                        .authenticated()
+                )
+
+                .exceptionHandling(exceptions ->
+                        exceptions
+                                .authenticationEntryPoint(
+                                        jwtAuthErrorHandler
+                                )
+                                .accessDeniedHandler(
+                                        jwtAuthErrorHandler
+                                )
+                )
+
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
 
-    /**
-     * Security Filter Chain for Web UI & Swagger documentation (/**).
-     * Supports Sessions for Thymeleaf web management & CSRF protection.
-     */
     @Bean
     @Order(2)
-    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+    public SecurityFilterChain webSecurityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
 
-                // Never load/save the authenticated principal from/to the HTTP session.
-                // Without this, Spring Security's default HttpSessionSecurityContextRepository
-                // persists whoever JwtAuthenticationFilter authenticates into the session and
-                // silently restores them on later requests via the JSESSIONID cookie alone -
-                // bypassing the JWT check entirely (a logged-out/blacklisted/missing token would
-                // still "work" as long as the old session cookie is sent). Every request must
-                // prove identity via its own Authorization header.
+        http
+                .cors(cors ->
+                        cors.configurationSource(
+                                corsConfigurationSource()
+                        )
+                )
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.IF_REQUIRED
+                        )
+                )
+
                 .securityContext(securityContext ->
-                        securityContext.securityContextRepository(new NullSecurityContextRepository()))
+                        securityContext.securityContextRepository(
+                                new NullSecurityContextRepository()
+                        )
+                )
 
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers(
                                 "/",
+                                "/login",
+                                "/register",
                                 "/error",
-                                 "/favicon.ico",
+                                "/favicon.ico",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/api-docs/**",
                                 "/css/**",
                                 "/js/**",
-                                "/images/**")
+                                "/images/**"
+                        )
                         .permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/moderator/**").hasAnyRole("ADMIN", "MODERATOR")
 
-                        .anyRequest().authenticated())
+                        .requestMatchers(
+                                "/admin/**"
+                        )
+                        .hasRole("ADMIN")
 
-                // Without this, a missing/blacklisted/refresh token on a protected endpoint is
-                // rejected before DispatcherServlet ever runs, so GlobalExceptionHandler never
-                // sees it - the caller gets Spring Boot's generic default error page instead of
-                // a clear, localized ApiResponse message. Both callbacks are wired to the same
-                // handler: a request with no credentials at all goes through
-                // authenticationEntryPoint, one with credentials Spring Security still rejects
-                // (e.g. role checks) goes through accessDeniedHandler.
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(jwtAuthErrorHandler)
-                        .accessDeniedHandler(jwtAuthErrorHandler))
+                        .requestMatchers(
+                                "/moderator/**"
+                        )
+                        .hasAnyRole(
+                                "ADMIN",
+                                "MODERATOR"
+                        )
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        .anyRequest()
+                        .authenticated()
+                )
+
+                .exceptionHandling(exceptions ->
+                        exceptions
+                                .defaultAuthenticationEntryPointFor(
+                                        new LoginUrlAuthenticationEntryPoint(
+                                                "/login"
+                                        ),
+                                        request ->
+                                                request
+                                                        .getRequestURI()
+                                                        .startsWith(
+                                                                "/moderator/"
+                                                        )
+                                                ||
+                                                request
+                                                        .getRequestURI()
+                                                        .startsWith(
+                                                                "/admin/"
+                                                        )
+                                )
+                                .accessDeniedHandler(
+                                        jwtAuthErrorHandler
+                                )
+                )
+
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(corsAllowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        CorsConfiguration config =
+                new CorsConfiguration();
+
+        config.setAllowedOrigins(
+                corsAllowedOrigins
+        );
+
+        config.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
+
+        config.setAllowedHeaders(
+                List.of("*")
+        );
+
         config.setAllowCredentials(true);
+
         config.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration(
+                "/**",
+                config
+        );
+
         return source;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
-            throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config
+    ) throws Exception {
+
         return config.getAuthenticationManager();
     }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(customUserDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
+
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider();
+
+        provider.setUserDetailsService(
+                customUserDetailsService
+        );
+
+        provider.setPasswordEncoder(
+                passwordEncoder()
+        );
+
         return provider;
     }
 }

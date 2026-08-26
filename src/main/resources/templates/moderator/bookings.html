@@ -9,27 +9,26 @@
 
 <section>
 
-    <!-- PAGE HEADER -->
+    <!-- =====================================================
+         PAGE DESCRIPTION
+    ====================================================== -->
     <div class="page-header">
 
-        <div>
-
-            <h2 class="page-title">
-                Quản lý Booking
-            </h2>
-
-            <p class="page-description">
-                Tìm kiếm, theo dõi và quản lý các booking trong hệ thống.
-            </p>
-
-        </div>
+        <p class="page-description">
+            Tìm kiếm, theo dõi và quản lý các booking trong hệ thống.
+        </p>
 
     </div>
 
 
+    <!-- =====================================================
+         MAIN CARD
+    ====================================================== -->
     <div class="content-card">
 
-        <!-- FILTER -->
+        <!-- =================================================
+             FILTER
+        ================================================== -->
         <form method="get"
               th:action="@{/moderator/bookings}"
               th:object="${searchRequest}"
@@ -47,6 +46,7 @@
                        placeholder="Tên, email hoặc không gian">
 
             </div>
+
 
             <div class="filter-group">
 
@@ -70,6 +70,7 @@
 
             </div>
 
+
             <div class="filter-group">
 
                 <label for="userId">
@@ -84,11 +85,14 @@
 
             </div>
 
+
             <div class="filter-action">
 
                 <button type="submit"
                         class="btn-primary">
+
                     Tìm kiếm
+
                 </button>
 
             </div>
@@ -96,9 +100,13 @@
         </form>
 
 
-        <!-- BOOKING TABLE -->
+        <!-- =================================================
+             BOOKING TABLE
+        ================================================== -->
         <div class="table-wrapper"
-             th:if="${bookings != null and bookings.content != null and !bookings.content.isEmpty()}">
+             th:if="${bookings != null
+                 and bookings.content != null
+                 and !bookings.content.isEmpty()}">
 
             <table class="data-table">
 
@@ -116,14 +124,18 @@
 
                 </thead>
 
+
                 <tbody>
 
                 <tr th:each="booking : ${bookings.content}">
 
+                    <!-- ID -->
                     <td th:text="${booking.id}">
                         1
                     </td>
 
+
+                    <!-- USER -->
                     <td>
 
                         <strong th:text="${booking.userName}">
@@ -132,38 +144,56 @@
 
                         <div class="page-description"
                              th:text="${booking.userEmail}">
+
                             email@example.com
+
                         </div>
 
                     </td>
 
+
+                    <!-- SPACE -->
                     <td th:text="${booking.spaceName}">
                         Meeting Room
                     </td>
 
+
+                    <!-- START TIME -->
                     <td th:text="${#temporals.format(
                         booking.startTime,
                         'dd/MM/yyyy HH:mm'
                     )}">
+
                         25/08/2026 08:00
+
                     </td>
 
+
+                    <!-- END TIME -->
                     <td th:text="${#temporals.format(
                         booking.endTime,
                         'dd/MM/yyyy HH:mm'
                     )}">
+
                         25/08/2026 10:00
+
                     </td>
 
+
+                    <!-- TOTAL PRICE -->
                     <td th:text="${booking.totalPrice}">
                         500000
                     </td>
 
+
+                    <!-- STATUS -->
                     <td>
 
                         <span class="status-badge"
                               th:text="${booking.status}">
+
                             PENDING
+
                         </span>
 
                     </td>
@@ -177,9 +207,13 @@
         </div>
 
 
-        <!-- EMPTY -->
+        <!-- =================================================
+             EMPTY STATE
+        ================================================== -->
         <div class="empty-state"
-             th:if="${bookings == null or bookings.content == null or bookings.content.isEmpty()}">
+             th:if="${bookings == null
+                 or bookings.content == null
+                 or bookings.content.isEmpty()}">
 
             <h3>
                 Không tìm thấy Booking
@@ -192,10 +226,14 @@
         </div>
 
 
-        <!-- PAGINATION -->
+        <!-- =================================================
+             PAGINATION
+        ================================================== -->
         <div class="pagination"
-             th:if="${bookings != null and bookings.totalPages > 1}">
+             th:if="${bookings != null
+                 and bookings.totalPages > 1}">
 
+            <!-- PREVIOUS -->
             <div>
 
                 <a class="pagination-button"
@@ -208,19 +246,27 @@
                        userId=${searchRequest.userId},
                        spaceId=${searchRequest.spaceId}
                    )}">
+
                     ← Trang trước
+
                 </a>
 
             </div>
 
+
+            <!-- CURRENT PAGE -->
             <span class="pagination-info"
                   th:text="'Trang '
                          + ${bookings.pageNumber + 1}
                          + ' / '
                          + ${bookings.totalPages}">
+
                 Trang 1 / 1
+
             </span>
 
+
+            <!-- NEXT -->
             <div>
 
                 <a class="pagination-button"
@@ -233,7 +279,9 @@
                        userId=${searchRequest.userId},
                        spaceId=${searchRequest.spaceId}
                    )}">
+
                     Trang sau →
+
                 </a>
 
             </div>

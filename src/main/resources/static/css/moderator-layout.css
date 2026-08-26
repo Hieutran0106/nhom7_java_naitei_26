@@ -1901,3 +1901,32 @@ body.user-detail-open {
         flex-direction: column;
     }
 }
+
+.management-logout-button {
+    min-height: 36px;
+    padding: 7px 14px;
+
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+
+    background: #ffffff;
+    color: #374151;
+
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.management-logout-button:hover {
+    background: #f3f4f6;
+}
+
+@media (max-width: 640px) {
+
+    .management-logout-button {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+}
