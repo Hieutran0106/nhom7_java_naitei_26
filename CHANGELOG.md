@@ -15,6 +15,23 @@ File ghi lại những thay đổi của dự án.
 - Biểu đồ doanh thu 12 tháng, bộ chọn năm, trạng thái không có dữ liệu và trạng thái lỗi.
 - Giao diện responsive cùng kiểm thử MVC và phân quyền cho dashboard.
 
+### 2026-08-26 - View Spaces Booking (GET /api/host/bookings)
+
+**Người thực hiện:** Huỳnh Trương Thảo Duyên
+
+#### Added
+
+- Endpoint `GET /api/host/bookings` (`HostBookingController`, role `HOST`): trả về danh sách **tất cả booking thuộc các Space nằm trong Venue do chính Host đang đăng nhập sở hữu**, có phân trang (`page`, `size`, mặc định `0`/`10`, `size` bị ép giới hạn `1..100`), sắp xếp theo `createdAt` giảm dần - owner luôn lấy từ `Authentication` (`authentication.getName()`), không nhận `hostId` từ client
+- `BookingService.getBookingsForHost(hostEmail, page, size)` / cài đặt trong `BookingServiceImpl`: resolve Host qua email, chỉ truy vấn booking thuộc Space của đúng Host đó, không cho xem chéo dữ liệu Host khác
+- `BookingRepository.findByHostId(...)`: query JPQL lọc qua chuỗi quan hệ `Booking -> Space -> Venue -> owner`, tái dùng `@EntityGraph(attributePaths = {"user", "space"})` sẵn có để tránh N+1 (không tạo entity/DTO mới - tái sử dụng `BookingResponse`, `PageResponse`, `ApiResponse`, `BookingMapper` hiện có)
+- Message key mới (en/vi): `booking.list.empty` - khi Host chưa có booking nào, `message` trả về khác với trường hợp có dữ liệu (`booking.list.fetched`)
+- `HostBookingControllerTest` (mới, MockMvc): HOST có booking → `200`; HOST không có booking → `200` kèm message rỗng riêng; role không phải HOST → `403` (service không bị gọi, xác nhận `@PreAuthorize` chặn ở tầng Security); MODERATOR (không có role HOST) → `403`; chưa đăng nhập → `401`
+- `BookingServiceImplTest.GetBookingsForHostTests` (mới): có booking, không có booking, Host không tồn tại (`404 user.not.found`), và test xác nhận luôn query theo đúng `hostId` của Host gọi API, không bao giờ query `hostId` của Host khác
+
+#### Fixed
+
+- `messages.properties`/`messages_vi.properties`: gộp 2 key bị khai báo trùng (`role.not.found`, `user.list.fetched`) - Java `Properties` chỉ giữ khai báo cuối cùng nên dòng khai báo trước bị "chết" một cách âm thầm; đã dọn về đúng vị trí trong file, giữ nguyên nội dung message đang thực sự có hiệu lực để không đổi hành vi ứng dụng
+
 ### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]
@@ -27,6 +44,7 @@ File ghi lại những thay đổi của dự án.
 - `BookingService.getMyBookingHistory(...)`/`BookingServiceImpl`: whitelist các trường được phép sắp xếp (`id`, `startTime`, `endTime`, `status`, `totalPrice`, `createdAt`) để chặn sort injection, tự động fallback về `createdAt` nếu `sortBy` không hợp lệ; giới hạn `size` tối đa 100
 - Message key `booking.history.fetched` (en/vi)
 - Unit test cho `BookingServiceImpl.getMyBookingHistory` (thành công, fallback sortBy không hợp lệ, user không tồn tại) và `BookingController` (`200 OK` khi đã xác thực, `401` khi chưa xác thực)
+
 
 ---
 
@@ -96,7 +114,6 @@ File ghi lại những thay đổi của dự án.
   - Cập nhật trạng thái booking sang `CANCELLED` và tự động giải phóng khung giờ trống của Space
 - Unit test suite cho `BookingServiceImplTest.CancelBookingTests` và `BookingControllerTest` kiểm thử toàn diện các luồng thành công, phân quyền và các trường hợp ngoại lệ/edge cases
 
->>>>>>> master
 ### 2026-08-22 - View Statistics and Payment History
 
 **Người thực hiện:** [Trần Trung Hiếu]

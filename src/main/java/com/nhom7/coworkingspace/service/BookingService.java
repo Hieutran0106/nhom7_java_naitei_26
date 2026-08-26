@@ -20,6 +20,8 @@ public interface BookingService {
     PageResponse<BookingResponse> searchBookings(BookingSearchRequest request);
 
     BookingResponse getBookingById(Long bookingId);
+
+    PageResponse<BookingResponse> getBookingsForHost(String hostEmail, int page, int size);
 }
 
 
