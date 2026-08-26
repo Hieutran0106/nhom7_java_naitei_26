@@ -7,6 +7,14 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-26 - Payment History UI (#99362, #99365)
+
+#### Added
+
+- Trang `GET /admin/payments` dành riêng cho Admin để xem lịch sử thanh toán.
+- Phân trang và lọc theo mã giao dịch, trạng thái, phương thức thanh toán và khoảng ngày.
+- Trạng thái rỗng, lỗi tải dữ liệu, kiểm tra khoảng ngày và giao diện responsive.
+
 ### 2026-08-24 - My Booking History API (GET /api/bookings/my-history)
 
 **Người thực hiện:** [Huỳnh Trương Thảo Duyên]

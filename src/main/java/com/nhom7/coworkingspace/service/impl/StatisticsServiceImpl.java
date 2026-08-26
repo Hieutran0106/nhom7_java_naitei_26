@@ -1,7 +1,11 @@
 package com.nhom7.coworkingspace.service.impl;
 
+import com.nhom7.coworkingspace.dto.request.PaymentSearchRequest;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
+import com.nhom7.coworkingspace.dto.response.PaymentResponse;
 import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
+import com.nhom7.coworkingspace.entity.Payment;
 import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
@@ -9,10 +13,11 @@ import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.repository.VenueRepository;
 import com.nhom7.coworkingspace.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.nhom7.coworkingspace.dto.response.PaymentResponse;
-import com.nhom7.coworkingspace.entity.Payment;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -25,6 +30,8 @@ import java.util.Map;
 public class StatisticsServiceImpl implements StatisticsService {
 
     private static final String SUCCESSFUL_BOOKING_STATUS = "COMPLETED";
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -115,28 +122,52 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     @Override
-@Transactional(readOnly = true)
-public List<PaymentResponse> getAllPayments() {
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> getAllPayments() {
+        List<Payment> payments = paymentRepository.findAllByOrderByPaidAtDesc();
+        return payments.stream().map(this::toPaymentResponse).toList();
+    }
 
-    List<Payment> payments =
-            paymentRepository.findAllByOrderByPaidAtDesc();
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PaymentResponse> searchPayments(PaymentSearchRequest request) {
+        int pageNumber = Math.max(0, request.getPage());
+        int requestedSize = request.getSize() <= 0 ? DEFAULT_PAGE_SIZE : request.getSize();
+        int pageSize = Math.min(requestedSize, MAX_PAGE_SIZE);
 
-    return payments.stream()
-            .map(payment ->
-                    PaymentResponse.builder()
-                            .id(payment.getId())
-                            .bookingId(
-                                    payment.getBooking() != null
-                                            ? payment.getBooking().getId()
-                                            : null
-                            )
-                            .amount(payment.getAmount())
-                            .paymentMethod(payment.getPaymentMethod())
-                            .status(payment.getStatus())
-                            .paidAt(payment.getPaidAt())
-                            .transactionId(payment.getTransactionId())
-                            .build()
-            )
-            .toList();
-}
+        PageRequest pageable = PageRequest.of(
+                pageNumber,
+                pageSize,
+                Sort.by(Sort.Direction.DESC, "paidAt"));
+
+        Page<PaymentResponse> payments = paymentRepository.searchPayments(
+                        normalize(request.getKeyword()),
+                        normalize(request.getStatus()),
+                        normalize(request.getPaymentMethod()),
+                        request.getFromDate() == null ? null : request.getFromDate().atStartOfDay(),
+                        request.getToDate() == null ? null : request.getToDate().plusDays(1).atStartOfDay(),
+                        pageable)
+                .map(this::toPaymentResponse);
+
+        return PageResponse.fromPage(payments);
+    }
+
+    private PaymentResponse toPaymentResponse(Payment payment) {
+        return PaymentResponse.builder()
+                .id(payment.getId())
+                .bookingId(payment.getBooking() == null ? null : payment.getBooking().getId())
+                .amount(payment.getAmount())
+                .paymentMethod(payment.getPaymentMethod())
+                .status(payment.getStatus())
+                .paidAt(payment.getPaidAt())
+                .transactionId(payment.getTransactionId())
+                .build();
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
 }
