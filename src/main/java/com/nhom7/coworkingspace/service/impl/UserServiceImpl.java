@@ -81,7 +81,7 @@ public class UserServiceImpl implements UserService {
         Specification<User> spec = UserSpecification.buildSearchSpecification(request);
         Page<User> userPage = userRepository.findAll(spec, pageable);
 
-        Page<UserSearchResponse> dtoPage = userPage.map(userMapper::toUserSearchResponse);
+        Page<UserSearchResponse> dtoPage = userPage.map(this::buildUserSearchResponse);
         return PageResponse.fromPage(dtoPage);
     }
 
@@ -329,6 +329,14 @@ public class UserServiceImpl implements UserService {
         targetUser.setIsBusinessVerified(verified);
         User savedUser = userRepository.save(targetUser);
         return userMapper.toUpdateUserVerificationResponse(savedUser);
+    }
+
+
+    private UserSearchResponse buildUserSearchResponse(User user) {
+        UserSearchResponse response = userMapper.toUserSearchResponse(user);
+        response.setCccdUrl(resolveSignedUrl(user.getCccdUrl()));
+        response.setBusinessLicenseUrl(resolveSignedUrl(user.getBusinessLicenseUrl()));
+        return response;
     }
 
     private UserProfileResponse buildProfileResponse(User user) {
