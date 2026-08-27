@@ -19,9 +19,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -124,13 +122,6 @@ public class SecurityConfig {
                                 SessionCreationPolicy.IF_REQUIRED
                         )
                 )
-
-                .securityContext(securityContext ->
-                        securityContext.securityContextRepository(
-                                new NullSecurityContextRepository()
-                        )
-                )
-
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
@@ -165,35 +156,17 @@ public class SecurityConfig {
                         .anyRequest()
                         .authenticated()
                 )
-
-                .exceptionHandling(exceptions ->
-                        exceptions
-                                .defaultAuthenticationEntryPointFor(
-                                        new LoginUrlAuthenticationEntryPoint(
-                                                "/login"
-                                        ),
-                                        request ->
-                                                request
-                                                        .getRequestURI()
-                                                        .startsWith(
-                                                                "/moderator/"
-                                                        )
-                                                ||
-                                                request
-                                                        .getRequestURI()
-                                                        .startsWith(
-                                                                "/admin/"
-                                                        )
-                                )
-                                .accessDeniedHandler(
-                                        jwtAuthErrorHandler
-                                )
-                )
-
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                .formLogin(login -> login
+                        .loginPage("/login")
+                        .loginProcessingUrl("/login")
+                        .defaultSuccessUrl("/moderator/venues", true)
+                        .failureUrl("/login?error")
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID"));
 
         return http.build();
     }

@@ -1,12 +1,14 @@
 package com.nhom7.coworkingspace.controller;
 
 import com.nhom7.coworkingspace.config.JwtProperties;
+import com.nhom7.coworkingspace.config.SecurityConfig;
 import com.nhom7.coworkingspace.controller.web.ModeratorVenueWebController;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
 import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
+import com.nhom7.coworkingspace.security.JwtAuthErrorHandler;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
 import com.nhom7.coworkingspace.service.TokenBlacklistService;
 import com.nhom7.coworkingspace.service.VenueService;
@@ -37,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ModeratorVenueWebController.class)
 @EnableMethodSecurity
-@Import({JwtAuthenticationFilter.class, JwtProperties.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtProperties.class})
 @DisplayName("ModeratorVenueWebController - Thymeleaf Web MVC & Security Tests")
 class ModeratorVenueWebControllerTest {
 
@@ -55,6 +57,9 @@ class ModeratorVenueWebControllerTest {
 
     @MockBean
     private TokenBlacklistService tokenBlacklistService;
+
+    @MockBean
+    private JwtAuthErrorHandler jwtAuthErrorHandler;
 
     @Test
     @WithMockUser(username = "moderator@test.com", roles = "MODERATOR")
@@ -122,5 +127,13 @@ class ModeratorVenueWebControllerTest {
     void givenUserRole_whenListVenues_thenReturn403() throws Exception {
         mockMvc.perform(get("/moderator/venues"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Anonymous browser request is redirected to the web login page")
+    void givenAnonymousUser_whenListVenues_thenRedirectToLogin() throws Exception {
+        mockMvc.perform(get("/moderator/venues"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost/login"));
     }
 }
