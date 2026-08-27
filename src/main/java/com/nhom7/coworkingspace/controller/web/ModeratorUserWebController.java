@@ -34,8 +34,7 @@ public class ModeratorUserWebController {
     private final MessageSource messageSource;
 
     /**
-     * Render HTML page for moderator/admin to view, search, filter, and paginate
-     * users.
+     * Render HTML page for moderator/admin to view, search, filter, and paginate users.
      *
      * @param request search parameters
      * @param model   Spring MVC model
@@ -47,20 +46,55 @@ public class ModeratorUserWebController {
             @ModelAttribute("searchRequest") UserSearchRequest request,
             Authentication authentication,
             Model model) {
-        PageResponse<UserSearchResponse> userPage = userService.searchUsers(request, authentication.getName());
-        model.addAttribute("users", userPage);
-        model.addAttribute("statuses", UserStatus.values());
-        boolean isCurrentAdmin = authentication.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
-        model.addAttribute("currentUserIsAdmin", isCurrentAdmin);
+
+        PageResponse<UserSearchResponse> userPage =
+                userService.searchUsers(
+                        request,
+                        authentication.getName()
+                );
+
+        model.addAttribute(
+                "users",
+                userPage
+        );
+
+        model.addAttribute(
+                "statuses",
+                UserStatus.values()
+        );
+
+        boolean isCurrentAdmin =
+                authentication.getAuthorities()
+                        .stream()
+                        .anyMatch(authority ->
+                                authority.getAuthority()
+                                        .equals("ROLE_ADMIN")
+                        );
+
+        model.addAttribute(
+                "currentUserIsAdmin",
+                isCurrentAdmin
+        );
+
         return "moderator/users";
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
-    public String viewUserDetail(@PathVariable Long id, Model model) {
-        model.addAttribute("user", userService.getUserById(id));
-        model.addAttribute("availableRoles", userService.getAvailableRoleNames());
+    public String viewUserDetail(
+            @PathVariable Long id,
+            Model model) {
+
+        model.addAttribute(
+                "user",
+                userService.getUserById(id)
+        );
+
+        model.addAttribute(
+                "availableRoles",
+                userService.getAvailableRoleNames()
+        );
+
         return "moderator/user-detail";
     }
 
@@ -70,20 +104,72 @@ public class ModeratorUserWebController {
             @PathVariable Long id,
             @RequestParam("role") String role,
             RedirectAttributes redirectAttributes) {
-        Locale locale = LocaleContextHolder.getLocale();
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
         try {
-            userService.addRole(id, role);
-            String successMsg = messageSource.getMessage("user.role.updated", null, locale);
-            redirectAttributes.addFlashAttribute("successMessage", successMsg);
+
+            userService.changeRole(
+                    id,
+                    role
+            );
+
+            String successMsg =
+                    messageSource.getMessage(
+                            "user.role.updated",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    successMsg
+            );
+
         } catch (AppException ex) {
-            log.warn("[ModeratorUserWebController] Failed to update user role (id={}): {}", id, ex.getMessageKey());
-            String errorMsg = messageSource.getMessage(ex.getMessageKey(), null, ex.getMessageKey(), locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.warn(
+                    "[ModeratorUserWebController] Failed to update user role (id={}): {}",
+                    id,
+                    ex.getMessageKey()
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            ex.getMessageKey(),
+                            null,
+                            ex.getMessageKey(),
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
+
         } catch (Exception ex) {
-            log.error("[ModeratorUserWebController] Unexpected error updating role (id={}): {}", id, ex.getMessage(), ex);
-            String errorMsg = messageSource.getMessage("common.error", null, locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.error(
+                    "[ModeratorUserWebController] Unexpected error updating role (id={}): {}",
+                    id,
+                    ex.getMessage(),
+                    ex
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            "common.error",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
         }
+
         return "redirect:/moderator/users/" + id;
     }
 
@@ -95,21 +181,73 @@ public class ModeratorUserWebController {
             @RequestParam("status") UserStatus status,
             Authentication authentication,
             RedirectAttributes redirectAttributes) {
-        Locale locale = LocaleContextHolder.getLocale();
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
         try {
-            userService.updateUserStatus(id, status, authentication.getName());
-            String successMsg = messageSource.getMessage("user.status.updated", null, locale);
-            redirectAttributes.addFlashAttribute("successMessage", successMsg);
+
+            userService.updateUserStatus(
+                    id,
+                    status,
+                    authentication.getName()
+            );
+
+            String successMsg =
+                    messageSource.getMessage(
+                            "user.status.updated",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    successMsg
+            );
+
         } catch (AppException ex) {
-            log.warn("[ModeratorUserWebController] Failed to update user status (id={}): {}", id, ex.getMessageKey());
-            String errorMsg = messageSource.getMessage(ex.getMessageKey(), null, ex.getMessageKey(), locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.warn(
+                    "[ModeratorUserWebController] Failed to update user status (id={}): {}",
+                    id,
+                    ex.getMessageKey()
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            ex.getMessageKey(),
+                            null,
+                            ex.getMessageKey(),
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
+
         } catch (Exception ex) {
-            log.error("[ModeratorUserWebController] Unexpected error updating status (id={}): {}", id, ex.getMessage(),
-                    ex);
-            String errorMsg = messageSource.getMessage("common.error", null, locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.error(
+                    "[ModeratorUserWebController] Unexpected error updating status (id={}): {}",
+                    id,
+                    ex.getMessage(),
+                    ex
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            "common.error",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
         }
+
         return "redirect:/moderator/users";
     }
 
@@ -121,20 +259,73 @@ public class ModeratorUserWebController {
             @RequestParam("verified") Boolean verified,
             Authentication authentication,
             RedirectAttributes redirectAttributes) {
-        Locale locale = LocaleContextHolder.getLocale();
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
         try {
-            userService.updateIdentityVerification(id, verified, authentication.getName());
-            String successMsg = messageSource.getMessage("user.identity.verified.updated", null, locale);
-            redirectAttributes.addFlashAttribute("successMessage", successMsg);
+
+            userService.updateIdentityVerification(
+                    id,
+                    verified,
+                    authentication.getName()
+            );
+
+            String successMsg =
+                    messageSource.getMessage(
+                            "user.identity.verified.updated",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    successMsg
+            );
+
         } catch (AppException ex) {
-            log.warn("[ModeratorUserWebController] Failed to update identity verification (id={}): {}", id, ex.getMessageKey());
-            String errorMsg = messageSource.getMessage(ex.getMessageKey(), null, ex.getMessageKey(), locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.warn(
+                    "[ModeratorUserWebController] Failed to update identity verification (id={}): {}",
+                    id,
+                    ex.getMessageKey()
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            ex.getMessageKey(),
+                            null,
+                            ex.getMessageKey(),
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
+
         } catch (Exception ex) {
-            log.error("[ModeratorUserWebController] Unexpected error updating identity verification (id={}): {}", id, ex.getMessage(), ex);
-            String errorMsg = messageSource.getMessage("common.error", null, locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.error(
+                    "[ModeratorUserWebController] Unexpected error updating identity verification (id={}): {}",
+                    id,
+                    ex.getMessage(),
+                    ex
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            "common.error",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
         }
+
         return "redirect:/moderator/users";
     }
 
@@ -146,20 +337,73 @@ public class ModeratorUserWebController {
             @RequestParam("verified") Boolean verified,
             Authentication authentication,
             RedirectAttributes redirectAttributes) {
-        Locale locale = LocaleContextHolder.getLocale();
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
         try {
-            userService.updateBusinessVerification(id, verified, authentication.getName());
-            String successMsg = messageSource.getMessage("user.business.verified.updated", null, locale);
-            redirectAttributes.addFlashAttribute("successMessage", successMsg);
+
+            userService.updateBusinessVerification(
+                    id,
+                    verified,
+                    authentication.getName()
+            );
+
+            String successMsg =
+                    messageSource.getMessage(
+                            "user.business.verified.updated",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    successMsg
+            );
+
         } catch (AppException ex) {
-            log.warn("[ModeratorUserWebController] Failed to update business verification (id={}): {}", id, ex.getMessageKey());
-            String errorMsg = messageSource.getMessage(ex.getMessageKey(), null, ex.getMessageKey(), locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.warn(
+                    "[ModeratorUserWebController] Failed to update business verification (id={}): {}",
+                    id,
+                    ex.getMessageKey()
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            ex.getMessageKey(),
+                            null,
+                            ex.getMessageKey(),
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
+
         } catch (Exception ex) {
-            log.error("[ModeratorUserWebController] Unexpected error updating business verification (id={}): {}", id, ex.getMessage(), ex);
-            String errorMsg = messageSource.getMessage("common.error", null, locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+
+            log.error(
+                    "[ModeratorUserWebController] Unexpected error updating business verification (id={}): {}",
+                    id,
+                    ex.getMessage(),
+                    ex
+            );
+
+            String errorMsg =
+                    messageSource.getMessage(
+                            "common.error",
+                            null,
+                            locale
+                    );
+
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage",
+                    errorMsg
+            );
         }
+
         return "redirect:/moderator/users";
     }
 }

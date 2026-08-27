@@ -8,23 +8,20 @@ spring:
       minimum-idle: 0
       connection-timeout: 10000
       idle-timeout: 30000
+
   mail:
     username: YOUR_SMTP_USERNAME
     password: YOUR_SMTP_PASSWORD_OR_APP_PASSWORD
 
-    hikari:
-      maximum-pool-size: 2
-      minimum-idle: 0
-      connection-timeout: 10000
-      idle-timeout: 30000
-
 app:
   jwt:
-    # Run this command in PowerShell
+    # Run this command in PowerShell:
     # [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
     secret: YOUR_JWT_SECRET_AT_LEAST_32_CHARACTERS_LONG
+
   mail:
     from: YOUR_VERIFIED_SENDER_EMAIL
+
   supabase:
     # Supabase anon or service_role key from Supabase Dashboard -> Project Settings -> API
     key: YOUR_SUPABASE_KEY
