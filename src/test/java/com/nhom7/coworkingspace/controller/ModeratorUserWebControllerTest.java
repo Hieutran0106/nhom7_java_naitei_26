@@ -784,112 +784,288 @@ class ModeratorUserWebControllerTest {
 
 
     // =========================================================
-    // ACADEMY MASTER REGRESSION - USER DETAIL / ROLE MANAGEMENT
+    // USER DETAIL / ROLE MANAGEMENT
     // =========================================================
 
     @Test
-    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
-    @DisplayName("Authenticated MODERATOR -> GET /moderator/users renders template with model attributes")
-    void givenModeratorRole_whenListUsers_thenReturnViewWithModel() throws Exception {
-        UserSearchResponse userDto = UserSearchResponse.builder()
-                .id(1L)
-                .name("Nguyen Van A")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+    @WithMockUser(
+            username = "moderator@test.com",
+            roles = {"MODERATOR"}
+    )
+    @DisplayName(
+            "Authenticated MODERATOR -> GET /moderator/users renders template with model attributes"
+    )
+    void givenModeratorRole_whenListUsers_thenReturnViewWithModel()
+            throws Exception {
 
-        PageResponse<UserSearchResponse> pageResponse = PageResponse.<UserSearchResponse>builder()
-                .content(List.of(userDto))
-                .pageNumber(0)
-                .pageSize(10)
-                .totalElements(1)
-                .totalPages(1)
-                .last(true)
-                .build();
+        UserSearchResponse userDto =
+                UserSearchResponse.builder()
+                        .id(1L)
+                        .name("Nguyen Van A")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        given(userService.searchUsers(any(UserSearchRequest.class), eq("moderator@test.com"))).willReturn(pageResponse);
+        PageResponse<UserSearchResponse> pageResponse =
+                PageResponse.<UserSearchResponse>builder()
+                        .content(List.of(userDto))
+                        .pageNumber(0)
+                        .pageSize(10)
+                        .totalElements(1)
+                        .totalPages(1)
+                        .last(true)
+                        .build();
 
-        mockMvc.perform(get("/moderator/users"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("moderator/users"))
-                .andExpect(model().attributeExists("users"))
-                .andExpect(model().attributeExists("statuses"))
-                .andExpect(model().attributeExists("searchRequest"))
-                .andExpect(content().string(containsString("/moderator/users/1")));
+        given(
+                userService.searchUsers(
+                        any(UserSearchRequest.class),
+                        eq("moderator@test.com")
+                )
+        ).willReturn(pageResponse);
+
+        mockMvc.perform(
+                        get("/moderator/users")
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        view().name(
+                                "moderator/users"
+                        )
+                )
+                .andExpect(
+                        model().attributeExists(
+                                "users"
+                        )
+                )
+                .andExpect(
+                        model().attributeExists(
+                                "statuses"
+                        )
+                )
+                .andExpect(
+                        model().attributeExists(
+                                "searchRequest"
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "/moderator/users/1"
+                                )
+                        )
+                );
     }
 
 
     @Test
-    @WithMockUser(username = "admin@test.com", roles = {"ADMIN"})
-    @DisplayName("ADMIN -> GET user detail renders role options")
-    void givenAdminRole_whenViewUserDetail_thenReturnViewWithRoleOptions() throws Exception {
-        UserSearchResponse userDto = UserSearchResponse.builder()
-                .id(5L)
-                .name("Nguyen Van A")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+    @WithMockUser(
+            username = "admin@test.com",
+            roles = {"ADMIN"}
+    )
+    @DisplayName(
+            "ADMIN -> GET user detail renders assignable role options without ADMIN"
+    )
+    void givenAdminRole_whenViewUserDetail_thenReturnViewWithRoleOptions()
+            throws Exception {
 
-        given(userService.getUserById(5L)).willReturn(userDto);
-        given(userService.getAvailableRoleNames()).willReturn(List.of("ADMIN", "HOST", "MODERATOR", "USER"));
+        UserSearchResponse userDto =
+                UserSearchResponse.builder()
+                        .id(5L)
+                        .name("Nguyen Van A")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        mockMvc.perform(get("/moderator/users/5"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("moderator/user-detail"))
-                .andExpect(model().attribute("user", userDto))
-                .andExpect(model().attribute("availableRoles", List.of("ADMIN", "HOST", "MODERATOR", "USER")))
-                .andExpect(content().string(containsString("Cập nhật vai trò")))
-                .andExpect(content().string(containsString("/moderator/users/5/role")));
+        given(
+                userService.getUserById(5L)
+        ).willReturn(userDto);
+
+        given(
+                userService.getAvailableRoleNames()
+        ).willReturn(
+                List.of(
+                        "HOST",
+                        "MODERATOR",
+                        "USER"
+                )
+        );
+
+        mockMvc.perform(
+                        get("/moderator/users/5")
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        view().name(
+                                "moderator/user-detail"
+                        )
+                )
+                .andExpect(
+                        model().attribute(
+                                "user",
+                                userDto
+                        )
+                )
+                .andExpect(
+                        model().attribute(
+                                "availableRoles",
+                                List.of(
+                                        "HOST",
+                                        "MODERATOR",
+                                        "USER"
+                                )
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "Cập nhật vai trò"
+                                )
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "/moderator/users/5/role"
+                                )
+                        )
+                );
     }
 
 
     @Test
-    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
-    @DisplayName("MODERATOR -> GET user detail hides role update form")
-    void givenModeratorRole_whenViewUserDetail_thenHideRoleUpdateForm() throws Exception {
-        UserSearchResponse userDto = UserSearchResponse.builder()
-                .id(5L)
-                .name("Nguyen Van A")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+    @WithMockUser(
+            username = "moderator@test.com",
+            roles = {"MODERATOR"}
+    )
+    @DisplayName(
+            "MODERATOR -> GET user detail hides role update form"
+    )
+    void givenModeratorRole_whenViewUserDetail_thenHideRoleUpdateForm()
+            throws Exception {
 
-        given(userService.getUserById(5L)).willReturn(userDto);
-        given(userService.getAvailableRoleNames()).willReturn(List.of("ADMIN", "HOST", "MODERATOR", "USER"));
+        UserSearchResponse userDto =
+                UserSearchResponse.builder()
+                        .id(5L)
+                        .name("Nguyen Van A")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        mockMvc.perform(get("/moderator/users/5"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Cập nhật vai trò"))))
-                .andExpect(content().string(not(containsString("/moderator/users/5/role"))));
+        given(
+                userService.getUserById(5L)
+        ).willReturn(userDto);
+
+        given(
+                userService.getAvailableRoleNames()
+        ).willReturn(
+                List.of(
+                        "HOST",
+                        "MODERATOR",
+                        "USER"
+                )
+        );
+
+        mockMvc.perform(
+                        get("/moderator/users/5")
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        content().string(
+                                not(
+                                        containsString(
+                                                "Cập nhật vai trò"
+                                        )
+                                )
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                not(
+                                        containsString(
+                                                "/moderator/users/5/role"
+                                        )
+                                )
+                        )
+                );
     }
 
 
     @Test
-    @WithMockUser(username = "admin@test.com", roles = {"ADMIN"})
-    @DisplayName("ADMIN -> POST user role adds role and redirects to detail")
-    void givenAdminRole_whenUpdateUserRole_thenRedirectToDetail() throws Exception {
-        mockMvc.perform(post("/moderator/users/5/role")
-                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
-                        .param("role", "MODERATOR"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/moderator/users/5"))
-                .andExpect(flash().attributeExists("successMessage"));
+    @WithMockUser(
+            username = "admin@test.com",
+            roles = {"ADMIN"}
+    )
+    @DisplayName(
+            "ADMIN -> POST user role changes role and redirects to detail"
+    )
+    void givenAdminRole_whenUpdateUserRole_thenRedirectToDetail()
+            throws Exception {
 
-        verify(userService).addRole(5L, "MODERATOR");
+        mockMvc.perform(
+                        post(
+                                "/moderator/users/5/role"
+                        )
+                                .with(csrf())
+                                .param(
+                                        "role",
+                                        "MODERATOR"
+                                )
+                )
+                .andExpect(
+                        status().is3xxRedirection()
+                )
+                .andExpect(
+                        redirectedUrl(
+                                "/moderator/users/5"
+                        )
+                )
+                .andExpect(
+                        flash().attributeExists(
+                                "successMessage"
+                        )
+                );
+
+        verify(userService)
+                .changeRole(
+                        5L,
+                        "MODERATOR"
+                );
     }
 
 
     @Test
-    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
-    @DisplayName("MODERATOR -> POST user role returns 403 Forbidden")
-    void givenModeratorRole_whenUpdateUserRole_thenReturn403() throws Exception {
-        mockMvc.perform(post("/moderator/users/5/role")
-                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
-                        .param("role", "ADMIN"))
-                .andExpect(status().isForbidden());
+    @WithMockUser(
+            username = "moderator@test.com",
+            roles = {"MODERATOR"}
+    )
+    @DisplayName(
+            "MODERATOR -> POST user role returns 403 Forbidden"
+    )
+    void givenModeratorRole_whenUpdateUserRole_thenReturn403()
+            throws Exception {
+
+        mockMvc.perform(
+                        post(
+                                "/moderator/users/5/role"
+                        )
+                                .with(csrf())
+                                .param(
+                                        "role",
+                                        "ADMIN"
+                                )
+                )
+                .andExpect(
+                        status().isForbidden()
+                );
     }
 
 

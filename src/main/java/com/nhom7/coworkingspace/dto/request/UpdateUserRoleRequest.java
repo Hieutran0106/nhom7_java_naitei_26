@@ -8,6 +8,6 @@ import lombok.Setter;
 @Setter
 public class UpdateUserRoleRequest {
 
-    @NotBlank(message = "Role must not be blank")
+    @NotBlank(message = "{validation.role.required}")
     private String role;
 }

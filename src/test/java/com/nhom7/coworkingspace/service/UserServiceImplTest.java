@@ -32,6 +32,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.List;
@@ -71,19 +72,33 @@ class UserServiceImplTest {
     private static final String HOST_EMAIL = "user@test.com";
 
     private User user;
+
     private Role userRole;
+    private Role hostRole;
     private Role moderatorRole;
+    private Role adminRole;
 
     @BeforeEach
     void setUp() {
+
         userRole = Role.builder()
                 .id(1L)
                 .name("USER")
                 .build();
 
+        hostRole = Role.builder()
+                .id(2L)
+                .name("HOST")
+                .build();
+
         moderatorRole = Role.builder()
                 .id(3L)
                 .name("MODERATOR")
+                .build();
+
+        adminRole = Role.builder()
+                .id(4L)
+                .name("ADMIN")
                 .build();
 
         Set<Role> roles = new HashSet<>();
@@ -100,8 +115,15 @@ class UserServiceImplTest {
                 .build();
     }
 
+    // =========================================================
+    // CHANGE ROLE TESTS
+    // =========================================================
+
     @Test
-    void addRole_shouldAddModeratorAndKeepExistingUserRole() {
+    void changeRole_shouldReplaceHostWithModeratorAndKeepUserRole() {
+
+        user.getRoles().add(hostRole);
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
@@ -111,77 +133,170 @@ class UserServiceImplTest {
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        UpdateUserRoleResponse response = userService.addRole(3L, "MODERATOR");
+        UpdateUserRoleResponse response =
+                userService.changeRole(3L, "MODERATOR");
 
         assertNotNull(response);
         assertEquals(3L, response.getId());
         assertEquals("Test User", response.getName());
         assertEquals("user@test.com", response.getEmail());
+
         assertEquals(2, response.getRoles().size());
         assertTrue(response.getRoles().contains("USER"));
         assertTrue(response.getRoles().contains("MODERATOR"));
+        assertFalse(response.getRoles().contains("HOST"));
 
-        verify(userRepository, times(1))
-                .findById(3L);
-
-        verify(roleRepository, times(1))
-                .findByName("MODERATOR");
-
-        verify(userRepository, times(1))
-                .save(user);
+        verify(userRepository).findById(3L);
+        verify(roleRepository).findByName("MODERATOR");
+        verify(userRepository).save(user);
     }
 
     @Test
-    void addRole_shouldThrowNotFound_whenUserNotFound() {
+    void changeRole_shouldChangeModeratorToUserOnly() {
+
+        user.getRoles().add(moderatorRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("USER"))
+                .thenReturn(Optional.of(userRole));
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateUserRoleResponse response =
+                userService.changeRole(3L, "USER");
+
+        assertNotNull(response);
+        assertEquals(Set.of("USER"), response.getRoles());
+        assertFalse(response.getRoles().contains("MODERATOR"));
+
+        verify(userRepository).findById(3L);
+        verify(roleRepository).findByName("USER");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changeRole_shouldRejectDirectAdminAssignment() {
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.changeRole(3L, "ADMIN")
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+        assertEquals(
+                "role.assignment.not.allowed",
+                ex.getMessageKey()
+        );
+
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(roleRepository);
+    }
+
+    @Test
+    void changeRole_shouldRejectBlankRole() {
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.changeRole(3L, "   ")
+        );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "validation.role.required",
+                ex.getMessageKey()
+        );
+
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(roleRepository);
+    }
+
+    @Test
+    void changeRole_shouldThrowNotFound_whenUserNotFound() {
+
         when(userRepository.findById(99L))
                 .thenReturn(Optional.empty());
 
         AppException ex = assertThrows(
                 AppException.class,
-                () -> userService.addRole(99L, "MODERATOR")
+                () -> userService.changeRole(
+                        99L,
+                        "MODERATOR"
+                )
         );
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
-        assertEquals("user.not.found", ex.getMessageKey());
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                ex.getStatus()
+        );
 
-        verify(userRepository, times(1))
+        assertEquals(
+                "user.not.found",
+                ex.getMessageKey()
+        );
+
+        verify(userRepository)
                 .findById(99L);
 
-        verify(roleRepository, never())
-                .findByName(anyString());
+        verify(
+                roleRepository,
+                never()
+        ).findByName(anyString());
 
-        verify(userRepository, never())
-                .save(any());
+        verify(
+                userRepository,
+                never()
+        ).save(any(User.class));
     }
 
     @Test
-    void addRole_shouldThrowNotFound_whenRoleNotFound() {
+    void changeRole_shouldThrowNotFound_whenAssignableRoleMissingFromDatabase() {
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
-        when(roleRepository.findByName("NON_EXISTENT_ROLE"))
+        when(roleRepository.findByName("MODERATOR"))
                 .thenReturn(Optional.empty());
 
         AppException ex = assertThrows(
                 AppException.class,
-                () -> userService.addRole(3L, "NON_EXISTENT_ROLE")
+                () -> userService.changeRole(
+                        3L,
+                        "MODERATOR"
+                )
         );
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
-        assertEquals("role.not.found", ex.getMessageKey());
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                ex.getStatus()
+        );
 
-        verify(userRepository, times(1))
+        assertEquals(
+                "role.not.found",
+                ex.getMessageKey()
+        );
+
+        verify(userRepository)
                 .findById(3L);
 
-        verify(roleRepository, times(1))
-                .findByName("NON_EXISTENT_ROLE");
+        verify(roleRepository)
+                .findByName("MODERATOR");
 
-        verify(userRepository, never())
-                .save(any());
+        verify(
+                userRepository,
+                never()
+        ).save(any(User.class));
     }
 
     @Test
-    void addRole_shouldNormalizeRoleNameToUpperCase() {
+    void changeRole_shouldNormalizeRoleNameToUpperCase() {
+
         when(userRepository.findById(3L))
                 .thenReturn(Optional.of(user));
 
@@ -189,40 +304,167 @@ class UserServiceImplTest {
                 .thenReturn(Optional.of(moderatorRole));
 
         when(userRepository.save(any(User.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(
+                        invocation ->
+                                invocation.getArgument(0)
+                );
 
-        UpdateUserRoleResponse response = userService.addRole(3L, "  moderator  ");
+        UpdateUserRoleResponse response =
+                userService.changeRole(
+                        3L,
+                        "  moderator  "
+                );
 
         assertNotNull(response);
-        assertTrue(response.getRoles().contains("MODERATOR"));
 
-        verify(roleRepository, times(1))
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertTrue(
+                response.getRoles()
+                        .contains("MODERATOR")
+        );
+
+        verify(roleRepository)
                 .findByName("MODERATOR");
 
-        verify(userRepository, times(1))
+        verify(userRepository)
                 .save(user);
     }
 
     @Test
+    void changeRole_shouldRejectDowngradingLastAdmin() {
+
+        user.getRoles().add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("MODERATOR"))
+                .thenReturn(Optional.of(moderatorRole));
+
+        when(userRepository.countAdminUsers())
+                .thenReturn(1L);
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.changeRole(
+                        3L,
+                        "MODERATOR"
+                )
+        );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "role.last.admin.cannot.change",
+                ex.getMessageKey()
+        );
+
+        assertTrue(
+                user.getRoles()
+                        .contains(adminRole)
+        );
+
+        verify(userRepository)
+                .countAdminUsers();
+
+        verify(
+                userRepository,
+                never()
+        ).save(any(User.class));
+    }
+
+    @Test
+    void changeRole_shouldDowngradeAdmin_whenAnotherAdminExists() {
+
+        user.getRoles().add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("MODERATOR"))
+                .thenReturn(Optional.of(moderatorRole));
+
+        when(userRepository.countAdminUsers())
+                .thenReturn(2L);
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(
+                        invocation ->
+                                invocation.getArgument(0)
+                );
+
+        UpdateUserRoleResponse response =
+                userService.changeRole(
+                        3L,
+                        "MODERATOR"
+                );
+
+        assertNotNull(response);
+
+        assertEquals(
+                2,
+                response.getRoles().size()
+        );
+
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertTrue(
+                response.getRoles()
+                        .contains("MODERATOR")
+        );
+
+        assertFalse(
+                response.getRoles()
+                        .contains("ADMIN")
+        );
+
+        verify(userRepository)
+                .countAdminUsers();
+
+        verify(userRepository)
+                .save(user);
+    }
+
+    // =========================================================
+    // SEARCH / USER DETAIL
+    // =========================================================
+
+    @Test
     void searchUsers_shouldReturnPagedUserSearchResponse() {
-        UserSearchRequest request = UserSearchRequest.builder()
-                .keyword("test")
-                .status(UserStatus.ACTIVE)
-                .page(0)
-                .size(10)
-                .sortBy("name")
-                .sortDir("ASC")
-                .build();
 
-        Page<User> page = new PageImpl<>(List.of(user));
+        UserSearchRequest request =
+                UserSearchRequest.builder()
+                        .keyword("test")
+                        .status(UserStatus.ACTIVE)
+                        .page(0)
+                        .size(10)
+                        .sortBy("name")
+                        .sortDir("ASC")
+                        .build();
 
-        UserSearchResponse responseDto = UserSearchResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+        Page<User> page =
+                new PageImpl<>(
+                        List.of(user)
+                );
+
+        UserSearchResponse responseDto =
+                UserSearchResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
         User adminCaller = User.builder()
                 .id(1L)
@@ -230,34 +472,79 @@ class UserServiceImplTest {
                 .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
                 .build();
 
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminCaller));
-        when(userRepository.findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class)))
-                .thenReturn(page);
-        when(userMapper.toUserSearchResponse(user))
-                .thenReturn(responseDto);
+        when(userRepository.findByEmail("admin@test.com"))
+                .thenReturn(Optional.of(adminCaller));
 
-        PageResponse<UserSearchResponse> result = userService.searchUsers(request, "admin@test.com");
+        when(
+                userRepository.findAll(
+                        ArgumentMatchers
+                                .<Specification<User>>any(),
+                        any(Pageable.class)
+                )
+        ).thenReturn(page);
+
+        when(
+                userMapper.toUserSearchResponse(
+                        user
+                )
+        ).thenReturn(responseDto);
+
+        PageResponse<UserSearchResponse> result =
+                userService.searchUsers(
+                        request,
+                        "admin@test.com"
+                );
 
         assertNotNull(result);
-        assertEquals(1, result.getContent().size());
-        assertEquals("Test User", result.getContent().get(0).getName());
-        assertEquals(1, result.getTotalElements());
-        assertEquals(0, result.getPageNumber());
-        assertEquals(1, result.getTotalPages());
+
+        assertEquals(
+                1,
+                result.getContent().size()
+        );
+
+        assertEquals(
+                "Test User",
+                result.getContent()
+                        .get(0)
+                        .getName()
+        );
+
+        assertEquals(
+                1,
+                result.getTotalElements()
+        );
+
+        assertEquals(
+                0,
+                result.getPageNumber()
+        );
+
+        assertEquals(
+                1,
+                result.getTotalPages()
+        );
     }
 
     @Test
     void searchUsers_shouldHandleNullFiltersAndDefaultPagination() {
-        UserSearchRequest request = UserSearchRequest.builder().build();
 
-        Page<User> page = new PageImpl<>(List.of(user));
-        UserSearchResponse responseDto = UserSearchResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+        UserSearchRequest request =
+                UserSearchRequest.builder()
+                        .build();
+
+        Page<User> page =
+                new PageImpl<>(
+                        List.of(user)
+                );
+
+        UserSearchResponse responseDto =
+                UserSearchResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
         User adminCaller = User.builder()
                 .id(1L)
@@ -265,56 +552,144 @@ class UserServiceImplTest {
                 .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
                 .build();
 
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminCaller));
-        when(userRepository.findAll(ArgumentMatchers.<Specification<User>>any(), any(Pageable.class)))
-                .thenReturn(page);
-        when(userMapper.toUserSearchResponse(user))
-                .thenReturn(responseDto);
+        when(userRepository.findByEmail("admin@test.com"))
+                .thenReturn(Optional.of(adminCaller));
 
-        PageResponse<UserSearchResponse> result = userService.searchUsers(request, "admin@test.com");
+        when(
+                userRepository.findAll(
+                        ArgumentMatchers
+                                .<Specification<User>>any(),
+                        any(Pageable.class)
+                )
+        ).thenReturn(page);
+
+        when(
+                userMapper.toUserSearchResponse(
+                        user
+                )
+        ).thenReturn(responseDto);
+
+        PageResponse<UserSearchResponse> result =
+                userService.searchUsers(
+                        request,
+                        "admin@test.com"
+                );
 
         assertNotNull(result);
-        assertEquals(1, result.getContent().size());
+
+        assertEquals(
+                1,
+                result.getContent().size()
+        );
     }
 
     @Test
     void getUserById_shouldReturnMappedUserDetail() {
-        UserSearchResponse expected = UserSearchResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .roles(Set.of("USER"))
-                .build();
-        given(userRepository.findById(3L)).willReturn(Optional.of(user));
-        given(userMapper.toUserSearchResponse(user)).willReturn(expected);
 
-        UserSearchResponse result = userService.getUserById(3L);
+        UserSearchResponse expected =
+                UserSearchResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .roles(Set.of("USER"))
+                        .build();
 
-        assertThat(result).isSameAs(expected);
-        verify(userRepository).findById(3L);
-        verify(userMapper).toUserSearchResponse(user);
+        given(
+                userRepository.findById(3L)
+        ).willReturn(
+                Optional.of(user)
+        );
+
+        given(
+                userMapper.toUserSearchResponse(
+                        user
+                )
+        ).willReturn(expected);
+
+        UserSearchResponse result =
+                userService.getUserById(
+                        3L
+                );
+
+        assertThat(result)
+                .isSameAs(expected);
+
+        verify(userRepository)
+                .findById(3L);
+
+        verify(userMapper)
+                .toUserSearchResponse(user);
     }
 
     @Test
     void getUserById_shouldThrowNotFound_whenUserDoesNotExist() {
-        given(userRepository.findById(99L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.getUserById(99L))
-                .isInstanceOf(AppException.class)
-                .extracting("messageKey")
-                .isEqualTo("user.not.found");
+        given(
+                userRepository.findById(99L)
+        ).willReturn(
+                Optional.empty()
+        );
+
+        assertThatThrownBy(
+                () ->
+                        userService.getUserById(
+                                99L
+                        )
+        )
+                .isInstanceOf(
+                        AppException.class
+                )
+                .extracting(
+                        "messageKey"
+                )
+                .isEqualTo(
+                        "user.not.found"
+                );
     }
 
     @Test
-    void getAvailableRoleNames_shouldReturnNamesSortedByRepositoryQuery() {
-        Role adminRole = Role.builder().id(4L).name("ADMIN").build();
-        given(roleRepository.findAll(any(Sort.class))).willReturn(List.of(adminRole, moderatorRole, userRole));
+    void getAvailableRoleNames_shouldExcludeAdminAndReturnAssignableRoles() {
 
-        List<String> result = userService.getAvailableRoleNames();
+        given(
+                roleRepository.findAll(
+                        any(Sort.class)
+                )
+        ).willReturn(
+                List.of(
+                        adminRole,
+                        hostRole,
+                        moderatorRole,
+                        userRole
+                )
+        );
 
-        assertThat(result).containsExactly("ADMIN", "MODERATOR", "USER");
-        verify(roleRepository).findAll(Sort.by(Sort.Direction.ASC, "name"));
+        List<String> result =
+                userService.getAvailableRoleNames();
+
+        assertThat(result)
+                .containsExactly(
+                        "HOST",
+                        "MODERATOR",
+                        "USER"
+                );
+
+        assertThat(result)
+                .doesNotContain(
+                        "ADMIN"
+                );
+
+        verify(roleRepository)
+                .findAll(
+                        Sort.by(
+                                Sort.Direction.ASC,
+                                "name"
+                        )
+                );
     }
+
+    // =========================================================
+    // UPDATE USER STATUS
+    // =========================================================
 
     @Test
     void searchUsers_shouldExcludeAdminAccounts_whenCallerIsModerator() {
@@ -351,164 +726,438 @@ class UserServiceImplTest {
 
     @Test
     void updateUserStatus_shouldUpdateStatusAndRevokeTokens_whenBlocked() {
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.BLOCKED)
-                .roles(Set.of("USER"))
-                .build();
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
+        UpdateUserStatusResponse expectedResponse =
+                UpdateUserStatusResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.BLOCKED)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        UpdateUserStatusResponse response = userService.updateUserStatus(3L, UserStatus.BLOCKED, "admin@test.com");
+        when(
+                userRepository.findById(3L)
+        ).thenReturn(
+                Optional.of(user)
+        );
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserStatusResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response =
+                userService.updateUserStatus(
+                        3L,
+                        UserStatus.BLOCKED,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertEquals(UserStatus.BLOCKED, response.getStatus());
-        assertEquals("user@test.com", response.getEmail());
 
-        verify(tokenBlacklistService, times(1))
-                .blacklistUserTokens(eq("user@test.com"), any());
-        verify(userRepository, times(1)).save(user);
+        assertEquals(
+                UserStatus.BLOCKED,
+                response.getStatus()
+        );
+
+        assertEquals(
+                "user@test.com",
+                response.getEmail()
+        );
+
+        verify(
+                tokenBlacklistService,
+                times(1)
+        ).blacklistUserTokens(
+                eq("user@test.com"),
+                any()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateUserStatus_shouldUpdateStatusAndRevokeTokens_whenInactive() {
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.INACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
+        UpdateUserStatusResponse expectedResponse =
+                UpdateUserStatusResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.INACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        UpdateUserStatusResponse response = userService.updateUserStatus(3L, UserStatus.INACTIVE, "admin@test.com");
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserStatusResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response =
+                userService.updateUserStatus(
+                        3L,
+                        UserStatus.INACTIVE,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertEquals(UserStatus.INACTIVE, response.getStatus());
-        verify(tokenBlacklistService, times(1))
-                .blacklistUserTokens(eq("user@test.com"), any());
-        verify(userRepository, times(1)).save(user);
+
+        assertEquals(
+                UserStatus.INACTIVE,
+                response.getStatus()
+        );
+
+        verify(
+                tokenBlacklistService,
+                times(1)
+        ).blacklistUserTokens(
+                eq("user@test.com"),
+                any()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateUserStatus_shouldUpdateStatusWithoutRevokingTokens_whenActive() {
-        user.setStatus(UserStatus.BLOCKED);
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+        user.setStatus(
+                UserStatus.BLOCKED
+        );
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        UpdateUserStatusResponse response = userService.updateUserStatus(3L, UserStatus.ACTIVE, "admin@test.com");
+        UpdateUserStatusResponse expectedResponse =
+                UpdateUserStatusResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserStatusResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response =
+                userService.updateUserStatus(
+                        3L,
+                        UserStatus.ACTIVE,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertEquals(UserStatus.ACTIVE, response.getStatus());
-        verify(tokenBlacklistService, never()).blacklistUserTokens(anyString(), any());
-        verify(userRepository, times(1)).save(user);
+
+        assertEquals(
+                UserStatus.ACTIVE,
+                response.getStatus()
+        );
+
+        verify(
+                tokenBlacklistService,
+                never()
+        ).blacklistUserTokens(
+                anyString(),
+                any()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateUserStatus_shouldReturnDirectlyWithoutDbSaveOrTokenRevoke_whenStatusUnchanged() {
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("USER"))
-                .build();
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userMapper.toUpdateUserStatusResponse(user)).thenReturn(expectedResponse);
+        UpdateUserStatusResponse expectedResponse =
+                UpdateUserStatusResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of("USER"))
+                        .build();
 
-        UpdateUserStatusResponse response = userService.updateUserStatus(3L, UserStatus.ACTIVE, "admin@test.com");
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userMapper.toUpdateUserStatusResponse(
+                        user
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserStatusResponse response =
+                userService.updateUserStatus(
+                        3L,
+                        UserStatus.ACTIVE,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertEquals(UserStatus.ACTIVE, response.getStatus());
-        verify(tokenBlacklistService, never()).blacklistUserTokens(anyString(), any());
-        verify(userRepository, never()).save(any());
+
+        assertEquals(
+                UserStatus.ACTIVE,
+                response.getStatus()
+        );
+
+        verify(
+                tokenBlacklistService,
+                never()
+        ).blacklistUserTokens(
+                anyString(),
+                any()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateUserStatus_shouldThrowBadRequest_whenSelfBlocking() {
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateUserStatus(3L, UserStatus.BLOCKED, "user@test.com")
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "user@test.com"
+                )
+        ).thenReturn(
+                Optional.of(user)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("user.cannot.block.self", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateUserStatus(
+                                        3L,
+                                        UserStatus.BLOCKED,
+                                        "user@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.block.self",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateUserStatus_shouldThrowForbidden_whenModeratorModifyingAdmin() {
-        User adminTarget = User.builder()
-                .id(10L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        User moderatorActor = User.builder()
-                .id(2L)
-                .email("moderator@test.com")
-                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
-                .build();
+        User adminTarget =
+                User.builder()
+                        .id(10L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
-        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+        User moderatorActor =
+                User.builder()
+                        .id(2L)
+                        .email("moderator@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(3L)
+                                                .name("MODERATOR")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateUserStatus(10L, UserStatus.BLOCKED, "moderator@test.com")
+        when(
+                userRepository.findById(10L)
+        ).thenReturn(
+                Optional.of(adminTarget)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        assertEquals("user.cannot.modify.admin", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        when(
+                userRepository.findByEmail(
+                        "moderator@test.com"
+                )
+        ).thenReturn(
+                Optional.of(moderatorActor)
+        );
+
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateUserStatus(
+                                        10L,
+                                        UserStatus.BLOCKED,
+                                        "moderator@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.FORBIDDEN,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.modify.admin",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
@@ -630,467 +1279,1783 @@ class UserServiceImplTest {
 
     @Test
     void updateUserStatus_shouldThrowNotFound_whenUserNotFound() {
-        when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateUserStatus(999L, UserStatus.ACTIVE, "admin@test.com")
+        when(
+                userRepository.findById(999L)
+        ).thenReturn(
+                Optional.empty()
         );
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
-        assertEquals("user.not.found", ex.getMessageKey());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateUserStatus(
+                                        999L,
+                                        UserStatus.ACTIVE,
+                                        "admin@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.not.found",
+                ex.getMessageKey()
+        );
     }
+
+    // =========================================================
+    // KYC VERIFICATION
+    // =========================================================
 
     @Test
     void updateIdentityVerification_shouldUpdateVerification_whenValid() {
-        user.setCccdUrl("https://example.com/cccd.jpg");
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserVerificationResponse expectedResponse = UpdateUserVerificationResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .isIdentityVerified(true)
-                .build();
+        user.setCccdUrl(
+                "https://example.com/cccd.jpg"
+        );
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserVerificationResponse(any(User.class))).thenReturn(expectedResponse);
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        UpdateUserVerificationResponse response = userService.updateIdentityVerification(3L, true, "admin@test.com");
+        UpdateUserVerificationResponse expectedResponse =
+                UpdateUserVerificationResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .isIdentityVerified(true)
+                        .build();
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserVerificationResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserVerificationResponse response =
+                userService.updateIdentityVerification(
+                        3L,
+                        true,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertTrue(response.getIsIdentityVerified());
-        verify(userRepository, times(1)).save(user);
+
+        assertTrue(
+                response.getIsIdentityVerified()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateIdentityVerification_shouldThrowBadRequest_whenDocumentMissing() {
+
         user.setCccdUrl(null);
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateIdentityVerification(3L, true, "admin@test.com")
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("user.identity.document.missing", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateIdentityVerification(
+                                        3L,
+                                        true,
+                                        "admin@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.identity.document.missing",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateIdentityVerification_shouldReturnDirectly_whenUnchanged() {
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        user.setIsIdentityVerified(true);
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        UpdateUserVerificationResponse expectedResponse = UpdateUserVerificationResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .isIdentityVerified(true)
-                .build();
+        user.setIsIdentityVerified(
+                true
+        );
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userMapper.toUpdateUserVerificationResponse(user)).thenReturn(expectedResponse);
+        UpdateUserVerificationResponse expectedResponse =
+                UpdateUserVerificationResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .isIdentityVerified(true)
+                        .build();
 
-        UpdateUserVerificationResponse response = userService.updateIdentityVerification(3L, true, "admin@test.com");
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userMapper.toUpdateUserVerificationResponse(
+                        user
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserVerificationResponse response =
+                userService.updateIdentityVerification(
+                        3L,
+                        true,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertTrue(response.getIsIdentityVerified());
-        verify(userRepository, never()).save(any());
+
+        assertTrue(
+                response.getIsIdentityVerified()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateIdentityVerification_shouldAllowUnverifyingWithoutDocumentCheck() {
-        user.setIsIdentityVerified(true);
+
+        user.setIsIdentityVerified(
+                true
+        );
+
         user.setCccdUrl(null);
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserVerificationResponse expectedResponse = UpdateUserVerificationResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .isIdentityVerified(false)
-                .build();
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserVerificationResponse(any(User.class))).thenReturn(expectedResponse);
+        UpdateUserVerificationResponse expectedResponse =
+                UpdateUserVerificationResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .isIdentityVerified(false)
+                        .build();
 
-        UpdateUserVerificationResponse response = userService.updateIdentityVerification(3L, false, "admin@test.com");
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserVerificationResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserVerificationResponse response =
+                userService.updateIdentityVerification(
+                        3L,
+                        false,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertFalse(response.getIsIdentityVerified());
-        verify(userRepository, times(1)).save(user);
+
+        assertFalse(
+                response.getIsIdentityVerified()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateBusinessVerification_shouldUpdateVerification_whenValid() {
-        user.setBusinessLicenseUrl("https://example.com/license.pdf");
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        UpdateUserVerificationResponse expectedResponse = UpdateUserVerificationResponse.builder()
-                .id(3L)
-                .name("Test User")
-                .email("user@test.com")
-                .isBusinessVerified(true)
-                .build();
+        user.setBusinessLicenseUrl(
+                "https://example.com/license.pdf"
+        );
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserVerificationResponse(any(User.class))).thenReturn(expectedResponse);
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        UpdateUserVerificationResponse response = userService.updateBusinessVerification(3L, true, "admin@test.com");
+        UpdateUserVerificationResponse expectedResponse =
+                UpdateUserVerificationResponse.builder()
+                        .id(3L)
+                        .name("Test User")
+                        .email("user@test.com")
+                        .isBusinessVerified(true)
+                        .build();
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
+        );
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        when(
+                userMapper.toUpdateUserVerificationResponse(
+                        any(User.class)
+                )
+        ).thenReturn(expectedResponse);
+
+        UpdateUserVerificationResponse response =
+                userService.updateBusinessVerification(
+                        3L,
+                        true,
+                        "admin@test.com"
+                );
 
         assertNotNull(response);
-        assertTrue(response.getIsBusinessVerified());
-        verify(userRepository, times(1)).save(user);
+
+        assertTrue(
+                response.getIsBusinessVerified()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 
     @Test
     void updateBusinessVerification_shouldThrowBadRequest_whenDocumentMissing() {
+
         user.setBusinessLicenseUrl(null);
-        User adminUser = User.builder()
-                .id(1L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminUser));
+        User adminUser =
+                User.builder()
+                        .id(1L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateBusinessVerification(3L, true, "admin@test.com")
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "admin@test.com"
+                )
+        ).thenReturn(
+                Optional.of(adminUser)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("user.business.document.missing", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateBusinessVerification(
+                                        3L,
+                                        true,
+                                        "admin@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.business.document.missing",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateBusinessVerification_shouldThrowForbidden_whenModeratorModifyingAdmin() {
-        User adminTarget = User.builder()
-                .id(10L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        User moderatorActor = User.builder()
-                .id(2L)
-                .email("moderator@test.com")
-                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
-                .build();
+        User adminTarget =
+                User.builder()
+                        .id(10L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
-        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+        User moderatorActor =
+                User.builder()
+                        .id(2L)
+                        .email("moderator@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(3L)
+                                                .name("MODERATOR")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateBusinessVerification(10L, true, "moderator@test.com")
+        when(
+                userRepository.findById(
+                        10L
+                )
+        ).thenReturn(
+                Optional.of(adminTarget)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        assertEquals("user.cannot.modify.admin", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        when(
+                userRepository.findByEmail(
+                        "moderator@test.com"
+                )
+        ).thenReturn(
+                Optional.of(moderatorActor)
+        );
+
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateBusinessVerification(
+                                        10L,
+                                        true,
+                                        "moderator@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.FORBIDDEN,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.modify.admin",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateIdentityVerification_shouldThrowForbidden_whenModeratorModifyingAdmin() {
-        User adminTarget = User.builder()
-                .id(10L)
-                .email("admin@test.com")
-                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
-                .build();
 
-        User moderatorActor = User.builder()
-                .id(2L)
-                .email("moderator@test.com")
-                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
-                .build();
+        User adminTarget =
+                User.builder()
+                        .id(10L)
+                        .email("admin@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(4L)
+                                                .name("ADMIN")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
-        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+        User moderatorActor =
+                User.builder()
+                        .id(2L)
+                        .email("moderator@test.com")
+                        .roles(
+                                Set.of(
+                                        Role.builder()
+                                                .id(3L)
+                                                .name("MODERATOR")
+                                                .build()
+                                )
+                        )
+                        .build();
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateIdentityVerification(10L, true, "moderator@test.com")
+        when(
+                userRepository.findById(
+                        10L
+                )
+        ).thenReturn(
+                Optional.of(adminTarget)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        assertEquals("user.cannot.modify.admin", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        when(
+                userRepository.findByEmail(
+                        "moderator@test.com"
+                )
+        ).thenReturn(
+                Optional.of(moderatorActor)
+        );
+
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateIdentityVerification(
+                                        10L,
+                                        true,
+                                        "moderator@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.FORBIDDEN,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.modify.admin",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateIdentityVerification_shouldThrowBadRequest_whenSelfVerifying() {
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateIdentityVerification(3L, true, "user@test.com")
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "user@test.com"
+                )
+        ).thenReturn(
+                Optional.of(user)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("user.cannot.verify.self", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateIdentityVerification(
+                                        3L,
+                                        true,
+                                        "user@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.verify.self",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
 
     @Test
     void updateBusinessVerification_shouldThrowBadRequest_whenSelfVerifying() {
-        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
 
-        AppException ex = assertThrows(
-                AppException.class,
-                () -> userService.updateBusinessVerification(3L, true, "user@test.com")
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(
+                userRepository.findByEmail(
+                        "user@test.com"
+                )
+        ).thenReturn(
+                Optional.of(user)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
-        assertEquals("user.cannot.verify.self", ex.getMessageKey());
-        verify(userRepository, never()).save(any());
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                userService.updateBusinessVerification(
+                                        3L,
+                                        true,
+                                        "user@test.com"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                ex.getStatus()
+        );
+
+        assertEquals(
+                "user.cannot.verify.self",
+                ex.getMessageKey()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(any());
     }
+
+    // =========================================================
+    // BECOME HOST
+    // =========================================================
 
     @Nested
     @DisplayName("becomeHost")
     class BecomeHostTests {
 
         private final MultipartFile validLicense =
-                new MockMultipartFile("businessLicense", "license.jpg", "image/jpeg", "license-bytes".getBytes());
+                new MockMultipartFile(
+                        "businessLicense",
+                        "license.jpg",
+                        "image/jpeg",
+                        "license-bytes".getBytes()
+                );
 
         @Test
-        @DisplayName("Account status is not ACTIVE -> not upgraded to HOST, regardless of verification flags")
+        @DisplayName(
+                "Account status is not ACTIVE -> not upgraded to HOST, regardless of verification flags"
+        )
         void becomeHost_StatusNotActive_ThrowsForbidden() {
-            user.setStatus(UserStatus.INACTIVE);
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(true);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            user.setStatus(
+                    UserStatus.INACTIVE
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, null))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.status.not.active")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.FORBIDDEN);
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            verify(roleRepository, never()).findByName(anyString());
-            verify(userRepository, never()).save(any(User.class));
+            user.setIsBusinessVerified(
+                    true
+            );
+
+            user.setIsIdentityVerified(
+                    true
+            );
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    null
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.status.not.active"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.FORBIDDEN
+                    );
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
+
+            verify(
+                    userRepository,
+                    never()
+            ).save(
+                    any(User.class)
+            );
         }
 
         @Test
-        @DisplayName("Uploads license successfully but neither is verified yet -> not upgraded to HOST, license URL still persisted")
+        @DisplayName(
+                "Uploads license successfully but neither is verified yet -> not upgraded to HOST, license URL still persisted"
+        )
         void becomeHost_UploadedButNotVerified_ThrowsForbidden() {
-            user.setIsBusinessVerified(false);
-            user.setIsIdentityVerified(false);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
-            given(fileStorageService.storeFile(validLicense, "business-license")).willReturn("business-license/uuid.jpg");
+            user.setIsBusinessVerified(
+                    false
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, validLicense))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.identity.required")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.FORBIDDEN);
+            user.setIsIdentityVerified(
+                    false
+            );
 
-            assertThat(user.getBusinessLicenseUrl()).isEqualTo("business-license/uuid.jpg");
-            assertThat(user.getIsBusinessVerified()).isFalse();
-            verify(userRepository).save(user);
-            verify(roleRepository, never()).findByName(anyString());
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            given(
+                    fileStorageService.storeFile(
+                            validLicense,
+                            "business-license"
+                    )
+            ).willReturn(
+                    "business-license/uuid.jpg"
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    validLicense
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.identity.required"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.FORBIDDEN
+                    );
+
+            assertThat(
+                    user.getBusinessLicenseUrl()
+            ).isEqualTo(
+                    "business-license/uuid.jpg"
+            );
+
+            assertThat(
+                    user.getIsBusinessVerified()
+            ).isFalse();
+
+            verify(userRepository)
+                    .save(user);
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
         }
 
         @Test
-        @DisplayName("Business verified but identity not verified -> not upgraded to HOST")
+        @DisplayName(
+                "Business verified but identity not verified -> not upgraded to HOST"
+        )
         void becomeHost_BusinessVerifiedIdentityNot_ThrowsForbidden() {
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(false);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, null))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.identity.required")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.FORBIDDEN);
+            user.setIsBusinessVerified(
+                    true
+            );
 
-            verify(roleRepository, never()).findByName(anyString());
-            verify(userRepository, never()).save(any(User.class));
+            user.setIsIdentityVerified(
+                    false
+            );
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    null
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.identity.required"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.FORBIDDEN
+                    );
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
+
+            verify(
+                    userRepository,
+                    never()
+            ).save(
+                    any(User.class)
+            );
         }
 
         @Test
-        @DisplayName("Identity verified but business not verified -> not upgraded to HOST")
+        @DisplayName(
+                "Identity verified but business not verified -> not upgraded to HOST"
+        )
         void becomeHost_IdentityVerifiedBusinessNot_ThrowsForbidden() {
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setIsBusinessVerified(false);
-            user.setIsIdentityVerified(true);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, null))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.business.pending")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.FORBIDDEN);
+            user.setIsBusinessVerified(
+                    false
+            );
 
-            verify(roleRepository, never()).findByName(anyString());
-            verify(userRepository, never()).save(any(User.class));
+            user.setIsIdentityVerified(
+                    true
+            );
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    null
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.business.pending"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.FORBIDDEN
+                    );
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
+
+            verify(
+                    userRepository,
+                    never()
+            ).save(
+                    any(User.class)
+            );
         }
 
         @Test
-        @DisplayName("No business license at all -> Business license is required")
+        @DisplayName(
+                "No business license at all -> Business license is required"
+        )
         void becomeHost_NoLicense_ThrowsBadRequest() {
-            user.setBusinessLicenseUrl(null);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            user.setBusinessLicenseUrl(
+                    null
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, null))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.license.required")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.BAD_REQUEST);
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    null
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.license.required"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.BAD_REQUEST
+                    );
         }
 
         @Test
-        @DisplayName("Both verified=true but business_license_url is NULL -> still Business license is required")
+        @DisplayName(
+                "Both verified=true but business_license_url is NULL -> still Business license is required"
+        )
         void becomeHost_BothVerifiedButNoLicenseUrl_ThrowsBadRequest() {
-            user.setBusinessLicenseUrl(null);
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(true);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            user.setBusinessLicenseUrl(
+                    null
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, null))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.license.required")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.BAD_REQUEST);
+            user.setIsBusinessVerified(
+                    true
+            );
 
-            verify(roleRepository, never()).findByName(anyString());
-            verify(userRepository, never()).save(any(User.class));
+            user.setIsIdentityVerified(
+                    true
+            );
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    null
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.license.required"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.BAD_REQUEST
+                    );
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
+
+            verify(
+                    userRepository,
+                    never()
+            ).save(
+                    any(User.class)
+            );
         }
 
         @Test
-        @DisplayName("ACTIVE + identity verified + business verified + license URL present -> upgraded to HOST successfully")
+        @DisplayName(
+                "ACTIVE + identity verified + business verified + license URL present -> upgraded to HOST successfully"
+        )
         void becomeHost_BothVerified_UpgradesToHost() {
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(true);
 
-            Role hostRole = Role.builder().id(4L).name("HOST").build();
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
-            given(roleRepository.findByName("HOST")).willReturn(Optional.of(hostRole));
-            given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            user.setIsBusinessVerified(
+                    true
+            );
 
-            HostUpgradeResponse response = userService.becomeHost(HOST_EMAIL, null);
+            user.setIsIdentityVerified(
+                    true
+            );
 
-            assertThat(response.isAlreadyHost()).isFalse();
-            assertThat(response.getProfile().getRoles()).contains("HOST", "USER");
-            assertThat(user.getRoles()).contains(hostRole);
-            verify(userRepository).save(user);
+            Role newHostRole =
+                    Role.builder()
+                            .id(4L)
+                            .name("HOST")
+                            .build();
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            given(
+                    roleRepository.findByName(
+                            "HOST"
+                    )
+            ).willReturn(
+                    Optional.of(newHostRole)
+            );
+
+            given(
+                    userRepository.save(
+                            any(User.class)
+                    )
+            ).willAnswer(
+                    invocation ->
+                            invocation.getArgument(0)
+            );
+
+            HostUpgradeResponse response =
+                    userService.becomeHost(
+                            HOST_EMAIL,
+                            null
+                    );
+
+            assertThat(
+                    response.isAlreadyHost()
+            ).isFalse();
+
+            assertThat(
+                    response.getProfile()
+                            .getRoles()
+            ).contains(
+                    "HOST",
+                    "USER"
+            );
+
+            assertThat(
+                    user.getRoles()
+            ).contains(
+                    newHostRole
+            );
+
+            verify(userRepository)
+                    .save(user);
         }
 
         @Test
-        @DisplayName("User already HOST -> not duplicated, returns already-host response without touching storage")
+        @DisplayName(
+                "User already HOST -> not duplicated, returns already-host response without touching storage"
+        )
         void becomeHost_AlreadyHost_DoesNotDuplicateRole() {
-            Role hostRole = Role.builder().id(4L).name("HOST").build();
-            user.getRoles().add(hostRole);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
+            Role newHostRole =
+                    Role.builder()
+                            .id(4L)
+                            .name("HOST")
+                            .build();
 
-            HostUpgradeResponse response = userService.becomeHost(HOST_EMAIL, validLicense);
+            user.getRoles()
+                    .add(newHostRole);
 
-            assertThat(response.isAlreadyHost()).isTrue();
-            assertThat(user.getRoles()).hasSize(2);
-            verifyNoInteractions(fileStorageService);
-            verify(userRepository, never()).save(any(User.class));
-            verify(roleRepository, never()).findByName(anyString());
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            HostUpgradeResponse response =
+                    userService.becomeHost(
+                            HOST_EMAIL,
+                            validLicense
+                    );
+
+            assertThat(
+                    response.isAlreadyHost()
+            ).isTrue();
+
+            assertThat(
+                    user.getRoles()
+            ).hasSize(2);
+
+            verifyNoInteractions(
+                    fileStorageService
+            );
+
+            verify(
+                    userRepository,
+                    never()
+            ).save(
+                    any(User.class)
+            );
+
+            verify(
+                    roleRepository,
+                    never()
+            ).findByName(
+                    anyString()
+            );
         }
 
         @Test
-        @DisplayName("Resubmitting the exact same already-verified file does NOT reset verification -> still upgrades to HOST")
+        @DisplayName(
+                "Resubmitting the exact same already-verified file does NOT reset verification -> still upgrades to HOST"
+        )
         void becomeHost_ResubmitSameFileAfterVerification_StillUpgradesToHost() {
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setBusinessLicenseHash(sha256Hex(validLicense));
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(true);
 
-            Role hostRole = Role.builder().id(4L).name("HOST").build();
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
-            given(roleRepository.findByName("HOST")).willReturn(Optional.of(hostRole));
-            given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+            user.setBusinessLicenseHash(
+                    sha256Hex(
+                            validLicense
+                    )
+            );
 
-            HostUpgradeResponse response = userService.becomeHost(HOST_EMAIL, validLicense);
+            user.setIsBusinessVerified(
+                    true
+            );
 
-            assertThat(response.isAlreadyHost()).isFalse();
-            assertThat(response.getProfile().getRoles()).contains("HOST");
-            assertThat(user.getIsBusinessVerified()).isTrue();
-            verify(fileStorageService, never()).storeFile(any(), anyString());
+            user.setIsIdentityVerified(
+                    true
+            );
+
+            Role newHostRole =
+                    Role.builder()
+                            .id(4L)
+                            .name("HOST")
+                            .build();
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            given(
+                    roleRepository.findByName(
+                            "HOST"
+                    )
+            ).willReturn(
+                    Optional.of(newHostRole)
+            );
+
+            given(
+                    userRepository.save(
+                            any(User.class)
+                    )
+            ).willAnswer(
+                    invocation ->
+                            invocation.getArgument(0)
+            );
+
+            HostUpgradeResponse response =
+                    userService.becomeHost(
+                            HOST_EMAIL,
+                            validLicense
+                    );
+
+            assertThat(
+                    response.isAlreadyHost()
+            ).isFalse();
+
+            assertThat(
+                    response.getProfile()
+                            .getRoles()
+            ).contains(
+                    "HOST"
+            );
+
+            assertThat(
+                    user.getIsBusinessVerified()
+            ).isTrue();
+
+            verify(
+                    fileStorageService,
+                    never()
+            ).storeFile(
+                    any(),
+                    anyString()
+            );
         }
 
         @Test
-        @DisplayName("Uploading a genuinely different file after verification resets isBusinessVerified again")
+        @DisplayName(
+                "Uploading a genuinely different file after verification resets isBusinessVerified again"
+        )
         void becomeHost_UploadDifferentFileAfterVerification_ResetsVerification() {
-            user.setBusinessLicenseUrl("business-license/existing.jpg");
-            user.setBusinessLicenseHash("different-hash-value");
-            user.setIsBusinessVerified(true);
-            user.setIsIdentityVerified(true);
 
-            given(userRepository.findByEmail(HOST_EMAIL)).willReturn(Optional.of(user));
-            given(fileStorageService.storeFile(validLicense, "business-license"))
-                    .willReturn("business-license/new-uuid.jpg");
+            user.setBusinessLicenseUrl(
+                    "business-license/existing.jpg"
+            );
 
-            assertThatThrownBy(() -> userService.becomeHost(HOST_EMAIL, validLicense))
-                    .isInstanceOf(AppException.class)
-                    .hasMessage("host.business.pending")
-                    .extracting("status")
-                    .isEqualTo(HttpStatus.FORBIDDEN);
+            user.setBusinessLicenseHash(
+                    "different-hash-value"
+            );
 
-            assertThat(user.getBusinessLicenseUrl()).isEqualTo("business-license/new-uuid.jpg");
-            assertThat(user.getIsBusinessVerified()).isFalse();
+            user.setIsBusinessVerified(
+                    true
+            );
+
+            user.setIsIdentityVerified(
+                    true
+            );
+
+            given(
+                    userRepository.findByEmail(
+                            HOST_EMAIL
+                    )
+            ).willReturn(
+                    Optional.of(user)
+            );
+
+            given(
+                    fileStorageService.storeFile(
+                            validLicense,
+                            "business-license"
+                    )
+            ).willReturn(
+                    "business-license/new-uuid.jpg"
+            );
+
+            assertThatThrownBy(
+                    () ->
+                            userService.becomeHost(
+                                    HOST_EMAIL,
+                                    validLicense
+                            )
+            )
+                    .isInstanceOf(
+                            AppException.class
+                    )
+                    .hasMessage(
+                            "host.business.pending"
+                    )
+                    .extracting(
+                            "status"
+                    )
+                    .isEqualTo(
+                            HttpStatus.FORBIDDEN
+                    );
+
+            assertThat(
+                    user.getBusinessLicenseUrl()
+            ).isEqualTo(
+                    "business-license/new-uuid.jpg"
+            );
+
+            assertThat(
+                    user.getIsBusinessVerified()
+            ).isFalse();
         }
 
-        private String sha256Hex(MultipartFile file) {
+        private String sha256Hex(
+                MultipartFile file
+        ) {
+
             try {
-                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(file.getBytes());
-                return java.util.HexFormat.of().formatHex(hash);
+
+                java.security.MessageDigest digest =
+                        java.security.MessageDigest
+                                .getInstance(
+                                        "SHA-256"
+                                );
+
+                byte[] hash =
+                        digest.digest(
+                                file.getBytes()
+                        );
+
+                return java.util.HexFormat
+                        .of()
+                        .formatHex(hash);
+
             } catch (Exception ex) {
-                throw new RuntimeException(ex);
+
+                throw new RuntimeException(
+                        ex
+                );
             }
         }
+    }
+
+    // =========================================================
+    // REMOVE ROLE TESTS
+    // =========================================================
+
+    @Test
+    void removeRole_shouldRemoveHostAndKeepUserRole() {
+
+        user.getRoles()
+                .add(hostRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(
+                        invocation ->
+                                invocation.getArgument(0)
+                );
+
+        UpdateUserRoleResponse response =
+                userService.removeRole(
+                        3L,
+                        "HOST"
+                );
+
+        assertNotNull(response);
+
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertFalse(
+                response.getRoles()
+                        .contains("HOST")
+        );
+
+        assertEquals(
+                1,
+                response.getRoles()
+                        .size()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).findById(3L);
+
+        verify(
+                roleRepository,
+                times(1)
+        ).findByName("HOST");
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
+    }
+
+    @Test
+    void removeRole_shouldRejectRemovingUserRole() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("USER"))
+                .thenReturn(Optional.of(userRole));
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                userService.removeRole(
+                                        3L,
+                                        "USER"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains(
+                                "base role"
+                        )
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).findById(3L);
+
+        verify(
+                roleRepository,
+                times(1)
+        ).findByName("USER");
+
+        verify(
+                userRepository,
+                never()
+        ).save(
+                any(User.class)
+        );
+    }
+
+    @Test
+    void removeRole_shouldThrowNotFound_whenUserNotFound() {
+
+        when(
+                userRepository.findById(
+                        999L
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                userService.removeRole(
+                                        999L,
+                                        "HOST"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains(
+                                "User not found"
+                        )
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).findById(
+                999L
+        );
+
+        verify(
+                roleRepository,
+                never()
+        ).findByName(
+                anyString()
+        );
+
+        verify(
+                userRepository,
+                never()
+        ).save(
+                any(User.class)
+        );
+    }
+
+    @Test
+    void removeRole_shouldThrowNotFound_whenRoleNotFound() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ABC"))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                userService.removeRole(
+                                        3L,
+                                        "ABC"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.NOT_FOUND,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains(
+                                "Role not found"
+                        )
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).findById(3L);
+
+        verify(
+                roleRepository,
+                times(1)
+        ).findByName("ABC");
+
+        verify(
+                userRepository,
+                never()
+        ).save(
+                any(User.class)
+        );
+    }
+
+    @Test
+    void removeRole_shouldRejectWhenUserDoesNotHaveRole() {
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                userService.removeRole(
+                                        3L,
+                                        "HOST"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains(
+                                "does not have role"
+                        )
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).findById(3L);
+
+        verify(
+                roleRepository,
+                times(1)
+        ).findByName("HOST");
+
+        verify(
+                userRepository,
+                never()
+        ).save(
+                any(User.class)
+        );
+    }
+
+    @Test
+    void removeRole_shouldRejectRemovingLastAdmin() {
+
+        user.getRoles()
+                .add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ADMIN"))
+                .thenReturn(Optional.of(adminRole));
+
+        when(
+                userRepository.countAdminUsers()
+        ).thenReturn(1L);
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                userService.removeRole(
+                                        3L,
+                                        "ADMIN"
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                exception.getStatusCode()
+        );
+
+        assertTrue(
+                exception.getReason()
+                        .contains(
+                                "last ADMIN"
+                        )
+        );
+
+        assertTrue(
+                user.getRoles()
+                        .contains(
+                                adminRole
+                        )
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).countAdminUsers();
+
+        verify(
+                userRepository,
+                never()
+        ).save(
+                any(User.class)
+        );
+    }
+
+    @Test
+    void removeRole_shouldRemoveAdminWhenAnotherAdminExists() {
+
+        user.getRoles()
+                .add(adminRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("ADMIN"))
+                .thenReturn(Optional.of(adminRole));
+
+        when(
+                userRepository.countAdminUsers()
+        ).thenReturn(2L);
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        UpdateUserRoleResponse response =
+                userService.removeRole(
+                        3L,
+                        "ADMIN"
+                );
+
+        assertNotNull(response);
+
+        assertTrue(
+                response.getRoles()
+                        .contains("USER")
+        );
+
+        assertFalse(
+                response.getRoles()
+                        .contains("ADMIN")
+        );
+
+        assertEquals(
+                1,
+                response.getRoles()
+                        .size()
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).countAdminUsers();
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
+    }
+
+    @Test
+    void removeRole_shouldNormalizeRoleNameToUpperCase() {
+
+        user.getRoles()
+                .add(hostRole);
+
+        when(userRepository.findById(3L))
+                .thenReturn(Optional.of(user));
+
+        when(roleRepository.findByName("HOST"))
+                .thenReturn(Optional.of(hostRole));
+
+        when(
+                userRepository.save(
+                        any(User.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        userService.removeRole(
+                3L,
+                "host"
+        );
+
+        verify(
+                roleRepository,
+                times(1)
+        ).findByName(
+                "HOST"
+        );
+
+        verify(
+                userRepository,
+                times(1)
+        ).save(user);
     }
 }

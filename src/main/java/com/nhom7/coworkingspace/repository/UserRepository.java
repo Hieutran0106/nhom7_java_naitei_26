@@ -7,10 +7,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+public interface UserRepository
+        extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
     @Override
     @EntityGraph(attributePaths = {"roles"})
@@ -21,9 +23,23 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     @Override
     @EntityGraph(attributePaths = {"roles"})
-    Page<User> findAll(Specification<User> spec, Pageable pageable);
+    Page<User> findAll(
+            Specification<User> spec,
+            Pageable pageable
+    );
 
     boolean existsByEmail(String email);
 
-    boolean existsByPhoneAndIdNot(String phone, Long id);
+    boolean existsByPhoneAndIdNot(
+            String phone,
+            Long id
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT u)
+            FROM User u
+            JOIN u.roles r
+            WHERE UPPER(r.name) = 'ADMIN'
+            """)
+    long countAdminUsers();
 }
