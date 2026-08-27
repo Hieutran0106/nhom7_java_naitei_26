@@ -1,5 +1,8 @@
 package com.nhom7.coworkingspace.enums;
 
 public enum PaymentStatus {
-    COMPLETED
+    COMPLETED,
+    PENDING,
+    FAILED,
+    REFUNDED
 }

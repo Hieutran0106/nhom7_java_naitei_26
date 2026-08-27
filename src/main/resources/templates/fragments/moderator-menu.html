@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav th:fragment="moderatorMenu"
+     sec:authorize="hasAnyRole('MODERATOR', 'ADMIN')"
+     aria-label="Menu quản trị"
+     data-menu="moderator">
+    <ul>
+        <li>
+            <a th:href="@{/moderator/users}"
+               data-menu-item="users">Quản lý người dùng</a>
+        </li>
+        <li>
+            <a th:href="@{/moderator/venues}"
+               data-menu-item="venues">Quản lý địa điểm</a>
+        </li>
+        <li>
+            <a th:href="@{/moderator/bookings}"
+               data-menu-item="bookings">Xem tất cả booking</a>
+        </li>
+    </ul>
+</nav>
+</body>
+</html>
