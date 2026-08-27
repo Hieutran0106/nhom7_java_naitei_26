@@ -8,6 +8,32 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-27 - Moderator Booking Management UI (#99325, #99326, #99327)
+
+**Người thực hiện:** Trần Trung Hiếu
+
+**Added**
+
+- Tạo trang danh sách Booking dành cho `MODERATOR` và `ADMIN` tại `GET /moderator/bookings`.
+- Hiển thị thông tin Booking gồm người đặt, Venue, Space, thời gian bắt đầu/kết thúc, tổng tiền, trạng thái và thời gian tạo.
+- Bổ sung bộ lọc theo `venueId`, khoảng thời gian (`fromDate`, `toDate`) và `status`, kèm phân trang.
+- Bổ sung `venueId` vào `BookingSearchRequest` và hỗ trợ lọc Booking theo quan hệ `Booking -> Space -> Venue`.
+- Bổ sung `venueId`, `venueName` vào `BookingResponse` để phục vụ giao diện danh sách.
+- Tạo modal xem chi tiết Booking (#99327), mở từ nút **Xem chi tiết** trên từng dòng.
+- Tích hợp API `GET /api/moderator/bookings/{bookingId}` để lấy dữ liệu chi tiết Booking.
+- Hiển thị trong modal: người đặt, Venue, Space, thời gian Booking, tổng tiền, trạng thái và phương thức thanh toán.
+- Bổ sung `paymentMethod` vào `BookingResponse` và lấy thông tin Payment theo `bookingId`.
+- Hỗ trợ trường hợp Booking chưa có Payment với `paymentMethod = null`.
+- Bổ sung trạng thái loading/error, đóng modal bằng nút đóng, backdrop hoặc phím `Escape`.
+- Bổ sung unit test và UI contract test cho Booking list, Venue filter, Payment Method, Booking detail API và Booking detail modal.
+### 2026-08-26 - Payment History UI (#99362, #99365)
+
+#### Added
+
+- Trang `GET /admin/payments` dành riêng cho Admin để xem lịch sử thanh toán.
+- Phân trang và lọc theo mã giao dịch, trạng thái, phương thức thanh toán và khoảng ngày.
+- Trạng thái rỗng, lỗi tải dữ liệu, kiểm tra khoảng ngày và giao diện responsive.
+
 ### 2026-08-26 - Statistics Dashboard UI (#99357, #99359)
 
 #### Added

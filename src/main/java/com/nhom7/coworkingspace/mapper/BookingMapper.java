@@ -11,7 +11,13 @@ public interface BookingMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "userEmail", source = "user.email")
     @Mapping(target = "userName", source = "user.name")
+
+    @Mapping(target = "venueId", source = "space.venue.id")
+    @Mapping(target = "venueName", source = "space.venue.name")
+
     @Mapping(target = "spaceId", source = "space.id")
     @Mapping(target = "spaceName", source = "space.name")
+
+    @Mapping(target = "paymentMethod", ignore = true)
     BookingResponse toBookingResponse(Booking booking);
 }

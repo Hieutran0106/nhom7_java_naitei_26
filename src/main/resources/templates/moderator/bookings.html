@@ -7,7 +7,13 @@
           ~{::section}
       )}">
 
-<section>
+<section class="booking-page">
+
+    <!-- Page-specific styles for booking status + detail modal.
+         Kept separate from moderator-layout.css to avoid changing shared layout. -->
+    <link rel="stylesheet"
+          th:href="@{/css/moderator-bookings.css}">
+
 
     <!-- =====================================================
          PAGE DESCRIPTION
@@ -73,6 +79,21 @@
 
             <div class="filter-group">
 
+                <label for="venueId">
+                    Venue ID
+                </label>
+
+                <input id="venueId"
+                       type="number"
+                       min="1"
+                       th:field="*{venueId}"
+                       placeholder="Venue ID">
+
+            </div>
+
+
+            <div class="filter-group">
+
                 <label for="userId">
                     User ID
                 </label>
@@ -86,13 +107,37 @@
             </div>
 
 
+            <div class="filter-group">
+
+                <label for="bookingFromDate">
+                    Từ thời gian
+                </label>
+
+                <input id="bookingFromDate"
+                       type="datetime-local"
+                       th:field="*{fromDate}">
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label for="bookingToDate">
+                    Đến thời gian
+                </label>
+
+                <input id="bookingToDate"
+                       type="datetime-local"
+                       th:field="*{toDate}">
+
+            </div>
+
+
             <div class="filter-action">
 
                 <button type="submit"
                         class="btn-primary">
-
-                    Tìm kiếm
-
+                    Lọc Booking
                 </button>
 
             </div>
@@ -114,12 +159,15 @@
 
                 <tr>
                     <th>ID</th>
-                    <th>Người dùng</th>
+                    <th>Người đặt</th>
+                    <th>Venue</th>
                     <th>Không gian</th>
                     <th>Bắt đầu</th>
                     <th>Kết thúc</th>
-                    <th>Giá</th>
+                    <th>Tổng tiền</th>
                     <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Chi tiết</th>
                 </tr>
 
                 </thead>
@@ -127,10 +175,10 @@
 
                 <tbody>
 
-                <tr th:each="booking : ${bookings.content}">
+                <tr th:each="item : ${bookings.content}">
 
                     <!-- ID -->
-                    <td th:text="${booking.id}">
+                    <td th:text="${item.id}">
                         1
                     </td>
 
@@ -138,14 +186,42 @@
                     <!-- USER -->
                     <td>
 
-                        <strong th:text="${booking.userName}">
-                            Nguyễn Văn A
-                        </strong>
+                        <div class="user-info">
 
-                        <div class="page-description"
-                             th:text="${booking.userEmail}">
+                            <strong th:text="${item.userName != null
+                                ? item.userName
+                                : '—'}">
+                                Nguyễn Văn A
+                            </strong>
 
-                            email@example.com
+                            <div class="page-description"
+                                 th:text="${item.userEmail != null
+                                    ? item.userEmail
+                                    : '—'}">
+                                user@example.com
+                            </div>
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- VENUE -->
+                    <td>
+
+                        <div class="venue-info">
+
+                            <strong th:text="${item.venueName != null
+                                ? item.venueName
+                                : '—'}">
+                                Hanoi Central Workspace
+                            </strong>
+
+                            <div class="page-description"
+                                 th:if="${item.venueId != null}"
+                                 th:text="'ID: ' + ${item.venueId}">
+                                ID: 15
+                            </div>
 
                         </div>
 
@@ -153,36 +229,59 @@
 
 
                     <!-- SPACE -->
-                    <td th:text="${booking.spaceName}">
-                        Meeting Room
+                    <td>
+
+                        <div class="space-info">
+
+                            <strong th:text="${item.spaceName != null
+                                ? item.spaceName
+                                : '—'}">
+                                Meeting Room 1
+                            </strong>
+
+                            <div class="page-description"
+                                 th:if="${item.spaceId != null}"
+                                 th:text="'ID: ' + ${item.spaceId}">
+                                ID: 5
+                            </div>
+
+                        </div>
+
                     </td>
 
 
                     <!-- START TIME -->
-                    <td th:text="${#temporals.format(
-                        booking.startTime,
-                        'dd/MM/yyyy HH:mm'
-                    )}">
-
-                        25/08/2026 08:00
-
+                    <td th:text="${item.startTime != null
+                        ? #temporals.format(
+                            item.startTime,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        01/09/2026 09:00
                     </td>
 
 
                     <!-- END TIME -->
-                    <td th:text="${#temporals.format(
-                        booking.endTime,
-                        'dd/MM/yyyy HH:mm'
-                    )}">
-
-                        25/08/2026 10:00
-
+                    <td th:text="${item.endTime != null
+                        ? #temporals.format(
+                            item.endTime,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        01/09/2026 11:00
                     </td>
 
 
                     <!-- TOTAL PRICE -->
-                    <td th:text="${booking.totalPrice}">
-                        500000
+                    <td>
+
+                        <span class="price"
+                              th:text="${item.totalPrice != null
+                                  ? item.totalPrice
+                                  : '—'}">
+                            200000
+                        </span>
+
                     </td>
 
 
@@ -190,11 +289,37 @@
                     <td>
 
                         <span class="status-badge"
-                              th:text="${booking.status}">
-
+                              th:classappend="${item.status != null
+                                  ? ' status-' + #strings.toLowerCase(item.status.name())
+                                  : ''}"
+                              th:text="${item.status != null
+                                  ? item.status
+                                  : 'UNKNOWN'}">
                             PENDING
-
                         </span>
+
+                    </td>
+
+
+                    <!-- CREATED AT -->
+                    <td th:text="${item.createdAt != null
+                        ? #temporals.format(
+                            item.createdAt,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        20/08/2026 10:00
+                    </td>
+
+
+                    <!-- DETAIL -->
+                    <td>
+
+                        <button type="button"
+                                class="detail-button"
+                                th:attr="data-booking-id=${item.id}">
+                            Xem chi tiết
+                        </button>
 
                     </td>
 
@@ -216,11 +341,11 @@
                  or bookings.content.isEmpty()}">
 
             <h3>
-                Không tìm thấy Booking
+                Không tìm thấy booking phù hợp
             </h3>
 
             <p>
-                Không có Booking nào phù hợp với điều kiện tìm kiếm.
+                Hãy thử thay đổi điều kiện lọc hoặc từ khóa tìm kiếm.
             </p>
 
         </div>
@@ -233,7 +358,6 @@
              th:if="${bookings != null
                  and bookings.totalPages > 1}">
 
-            <!-- PREVIOUS -->
             <div>
 
                 <a class="pagination-button"
@@ -244,29 +368,26 @@
                        keyword=${searchRequest.keyword},
                        status=${searchRequest.status},
                        userId=${searchRequest.userId},
-                       spaceId=${searchRequest.spaceId}
+                       spaceId=${searchRequest.spaceId},
+                       venueId=${searchRequest.venueId},
+                       fromDate=${searchRequest.fromDate},
+                       toDate=${searchRequest.toDate}
                    )}">
-
                     ← Trang trước
-
                 </a>
 
             </div>
 
 
-            <!-- CURRENT PAGE -->
             <span class="pagination-info"
                   th:text="'Trang '
-                         + ${bookings.pageNumber + 1}
-                         + ' / '
-                         + ${bookings.totalPages}">
-
+                      + ${bookings.pageNumber + 1}
+                      + ' / '
+                      + ${bookings.totalPages}">
                 Trang 1 / 1
-
             </span>
 
 
-            <!-- NEXT -->
             <div>
 
                 <a class="pagination-button"
@@ -277,11 +398,12 @@
                        keyword=${searchRequest.keyword},
                        status=${searchRequest.status},
                        userId=${searchRequest.userId},
-                       spaceId=${searchRequest.spaceId}
+                       spaceId=${searchRequest.spaceId},
+                       venueId=${searchRequest.venueId},
+                       fromDate=${searchRequest.fromDate},
+                       toDate=${searchRequest.toDate}
                    )}">
-
                     Trang sau →
-
                 </a>
 
             </div>
@@ -289,6 +411,430 @@
         </div>
 
     </div>
+
+
+    <!-- =====================================================
+         BOOKING DETAIL MODAL
+
+         Đặt modal và script bên trong <section> vì moderator-layout
+         chỉ render fragment ~{::section}.
+    ====================================================== -->
+    <div id="booking-detail-modal"
+         class="modal"
+         hidden>
+
+        <div class="modal-backdrop"></div>
+
+        <div class="modal-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="booking-detail-title">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2 id="booking-detail-title">
+                        Chi tiết Booking
+                    </h2>
+
+                    <p id="detail-booking-id">
+                        Booking
+                    </p>
+
+                </div>
+
+
+                <button type="button"
+                        class="modal-close"
+                        aria-label="Đóng">
+                    ×
+                </button>
+
+            </div>
+
+
+            <div id="detail-loading"
+                 class="modal-message">
+                Đang tải thông tin booking...
+            </div>
+
+
+            <div id="detail-error"
+                 class="modal-message modal-error"
+                 hidden>
+                Không thể tải thông tin booking.
+            </div>
+
+
+            <div id="detail-content"
+                 class="detail-grid"
+                 hidden>
+
+                <div class="detail-item">
+
+                    <span>Người đặt</span>
+
+                    <strong id="detail-user-name">
+                        —
+                    </strong>
+
+                    <small id="detail-user-email">
+                        —
+                    </small>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Venue</span>
+
+                    <strong id="detail-venue-name">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Space</span>
+
+                    <strong id="detail-space-name">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Thời gian bắt đầu</span>
+
+                    <strong id="detail-start-time">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Thời gian kết thúc</span>
+
+                    <strong id="detail-end-time">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Thời gian tạo Booking</span>
+
+                    <strong id="detail-created-at">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Tổng tiền</span>
+
+                    <strong id="detail-total-price">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Phương thức thanh toán</span>
+
+                    <strong id="detail-payment-method">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="detail-item">
+
+                    <span>Trạng thái</span>
+
+                    <strong id="detail-status">
+                        —
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+        document.addEventListener(
+            "DOMContentLoaded",
+            () => {
+                const modal =
+                    document.getElementById(
+                        "booking-detail-modal"
+                    );
+
+                if (!modal) {
+                    return;
+                }
+
+                const closeButton =
+                    modal.querySelector(
+                        ".modal-close"
+                    );
+
+                const backdrop =
+                    modal.querySelector(
+                        ".modal-backdrop"
+                    );
+
+                const loading =
+                    document.getElementById(
+                        "detail-loading"
+                    );
+
+                const error =
+                    document.getElementById(
+                        "detail-error"
+                    );
+
+                const content =
+                    document.getElementById(
+                        "detail-content"
+                    );
+
+
+                const getAccessToken =
+                    () => (
+                        sessionStorage.getItem(
+                            "accessToken"
+                        )
+                        ||
+                        localStorage.getItem(
+                            "accessToken"
+                        )
+                    );
+
+
+                const valueOrDash =
+                    (value) => {
+                        if (
+                            value === null
+                            || value === undefined
+                            || value === ""
+                        ) {
+                            return "—";
+                        }
+
+                        return value;
+                    };
+
+
+                const setText =
+                    (id, value) => {
+                        const element =
+                            document.getElementById(id);
+
+                        if (!element) {
+                            return;
+                        }
+
+                        element.textContent =
+                            valueOrDash(value);
+                    };
+
+
+                const closeModal =
+                    () => {
+                        modal.hidden = true;
+                    };
+
+
+                const openModal =
+                    async (bookingId) => {
+
+                        modal.hidden = false;
+
+                        loading.hidden = false;
+                        error.hidden = true;
+                        content.hidden = true;
+
+                        setText(
+                            "detail-booking-id",
+                            `Booking #${bookingId}`
+                        );
+
+                        try {
+                            const token =
+                                getAccessToken();
+
+                            if (!token) {
+                                throw new Error(
+                                    "Không tìm thấy access token."
+                                );
+                            }
+
+                            const response =
+                                await fetch(
+                                    `/api/moderator/bookings/${bookingId}`,
+                                    {
+                                        method: "GET",
+                                        headers: {
+                                            "Accept":
+                                                "application/json",
+                                            "Authorization":
+                                                `Bearer ${token}`
+                                        }
+                                    }
+                                );
+
+                            if (!response.ok) {
+                                throw new Error(
+                                    `HTTP ${response.status}`
+                                );
+                            }
+
+                            const payload =
+                                await response.json();
+
+                            const booking =
+                                payload.data;
+
+                            if (!booking) {
+                                throw new Error(
+                                    "Booking data is missing"
+                                );
+                            }
+
+                            setText(
+                                "detail-user-name",
+                                booking.userName
+                            );
+
+                            setText(
+                                "detail-user-email",
+                                booking.userEmail
+                            );
+
+                            setText(
+                                "detail-venue-name",
+                                booking.venueName
+                            );
+
+                            setText(
+                                "detail-space-name",
+                                booking.spaceName
+                            );
+
+                            setText(
+                                "detail-start-time",
+                                booking.startTime
+                            );
+
+                            setText(
+                                "detail-end-time",
+                                booking.endTime
+                            );
+
+                            setText(
+                                "detail-created-at",
+                                booking.createdAt
+                            );
+
+                            setText(
+                                "detail-total-price",
+                                booking.totalPrice
+                            );
+
+                            setText(
+                                "detail-payment-method",
+                                booking.paymentMethod
+                            );
+
+                            setText(
+                                "detail-status",
+                                booking.status
+                            );
+
+                            loading.hidden = true;
+                            content.hidden = false;
+
+                        } catch (fetchError) {
+
+                            console.error(
+                                "Cannot load booking detail",
+                                fetchError
+                            );
+
+                            loading.hidden = true;
+                            error.hidden = false;
+                        }
+                    };
+
+
+                document
+                    .querySelectorAll(
+                        ".detail-button"
+                    )
+                    .forEach(
+                        (button) => {
+                            button.addEventListener(
+                                "click",
+                                () => {
+                                    openModal(
+                                        button.dataset.bookingId
+                                    );
+                                }
+                            );
+                        }
+                    );
+
+
+                if (closeButton) {
+                    closeButton.addEventListener(
+                        "click",
+                        closeModal
+                    );
+                }
+
+
+                if (backdrop) {
+                    backdrop.addEventListener(
+                        "click",
+                        closeModal
+                    );
+                }
+
+
+                document.addEventListener(
+                    "keydown",
+                    (event) => {
+                        if (
+                            event.key === "Escape"
+                            && !modal.hidden
+                        ) {
+                            closeModal();
+                        }
+                    }
+                );
+            }
+        );
+    </script>
 
 </section>
 
