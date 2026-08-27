@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
@@ -40,6 +41,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal findTotalRevenueByYear(
             @Param("year") int year
     );
+
+    Optional<Payment> findByBookingId(Long bookingId);
 
     List<Payment> findAllByOrderByPaidAtDesc();
 

@@ -1,0 +1,248 @@
+/* =========================================================
+   MODERATOR BOOKING PAGE
+
+   This stylesheet is intentionally page-specific.
+   Shared layout, filters, tables and pagination are styled by
+   moderator-layout.css. Avoid global selectors such as body,
+   main, button, input, table, th or td here because they would
+   override the shared Moderator layout.
+========================================================= */
+
+
+/* =========================================================
+   BOOKING CELL HELPERS
+========================================================= */
+
+.booking-page .user-info,
+.booking-page .venue-info,
+.booking-page .space-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.booking-page .price {
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   BOOKING STATUS
+========================================================= */
+
+.booking-page .status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.booking-page .status-approved {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.booking-page .status-paid {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.booking-page .status-confirmed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.booking-page .status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.booking-page .status-cancelled {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.booking-page .status-completed {
+    background: #cffafe;
+    color: #155e75;
+}
+
+
+/* =========================================================
+   DETAIL BUTTON
+========================================================= */
+
+.detail-button {
+    width: auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.detail-button:hover {
+    background: #dbeafe;
+}
+
+.detail-button:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+
+/* =========================================================
+   BOOKING DETAIL MODAL
+========================================================= */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 24, 39, .55);
+}
+
+.modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(720px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: white;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
+}
+
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
+}
+
+.modal-header p {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.modal-close {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    color: #4b5563;
+    cursor: pointer;
+    font: inherit;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.modal-close:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.modal-message {
+    padding: 32px 24px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.modal-error {
+    color: #b91c1c;
+    background: #fef2f2;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.detail-item {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.detail-item span {
+    display: block;
+    margin-bottom: 7px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.detail-item strong {
+    display: block;
+    color: #111827;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.detail-item small {
+    display: block;
+    margin-top: 5px;
+    color: #6b7280;
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 640px) {
+    .modal {
+        padding: 12px;
+    }
+
+    .modal-dialog {
+        max-height: calc(100vh - 24px);
+    }
+
+    .modal-header {
+        padding: 18px;
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+        padding: 18px;
+    }
+}
