@@ -1,6 +1,7 @@
 package com.nhom7.coworkingspace.repository;
 
 import com.nhom7.coworkingspace.entity.Payment;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -48,7 +49,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             FROM Payment payment
             WHERE (:keyword IS NULL
                    OR LOWER(payment.transactionId) LIKE LOWER(CONCAT('%', :keyword, '%')))
-              AND (:status IS NULL OR UPPER(payment.status) = UPPER(:status))
+              AND (:status IS NULL OR payment.status = :status)
               AND (:paymentMethod IS NULL
                    OR UPPER(payment.paymentMethod) = UPPER(:paymentMethod))
               AND (:fromPaidAt IS NULL OR payment.paidAt >= :fromPaidAt)
@@ -56,7 +57,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     Page<Payment> searchPayments(
             @Param("keyword") String keyword,
-            @Param("status") String status,
+            @Param("status") PaymentStatus status,
             @Param("paymentMethod") String paymentMethod,
             @Param("fromPaidAt") LocalDateTime fromPaidAt,
             @Param("toPaidAtExclusive") LocalDateTime toPaidAtExclusive,

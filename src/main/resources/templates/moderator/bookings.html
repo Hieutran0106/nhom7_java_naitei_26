@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/moderator-layout :: layout(
+          'Quản lý Booking',
+          'bookings',
+          ~{::section}
+      )}">
+
+<section>
+
+    <!-- =====================================================
+         PAGE DESCRIPTION
+    ====================================================== -->
+    <div class="page-header">
+
+        <p class="page-description">
+            Tìm kiếm, theo dõi và quản lý các booking trong hệ thống.
+        </p>
+
+    </div>
+
+
+    <!-- =====================================================
+         MAIN CARD
+    ====================================================== -->
+    <div class="content-card">
+
+        <!-- =================================================
+             FILTER
+        ================================================== -->
+        <form method="get"
+              th:action="@{/moderator/bookings}"
+              th:object="${searchRequest}"
+              class="filter-form">
+
+            <div class="filter-group">
+
+                <label for="bookingKeyword">
+                    Từ khóa
+                </label>
+
+                <input id="bookingKeyword"
+                       type="search"
+                       th:field="*{keyword}"
+                       placeholder="Tên, email hoặc không gian">
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label for="bookingStatus">
+                    Trạng thái
+                </label>
+
+                <select id="bookingStatus"
+                        th:field="*{status}">
+
+                    <option value="">
+                        Tất cả trạng thái
+                    </option>
+
+                    <option th:each="statusItem : ${statuses}"
+                            th:value="${statusItem}"
+                            th:text="${statusItem}">
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label for="userId">
+                    User ID
+                </label>
+
+                <input id="userId"
+                       type="number"
+                       min="1"
+                       th:field="*{userId}"
+                       placeholder="User ID">
+
+            </div>
+
+
+            <div class="filter-action">
+
+                <button type="submit"
+                        class="btn-primary">
+
+                    Tìm kiếm
+
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <!-- =================================================
+             BOOKING TABLE
+        ================================================== -->
+        <div class="table-wrapper"
+             th:if="${bookings != null
+                 and bookings.content != null
+                 and !bookings.content.isEmpty()}">
+
+            <table class="data-table">
+
+                <thead>
+
+                <tr>
+                    <th>ID</th>
+                    <th>Người dùng</th>
+                    <th>Không gian</th>
+                    <th>Bắt đầu</th>
+                    <th>Kết thúc</th>
+                    <th>Giá</th>
+                    <th>Trạng thái</th>
+                </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                <tr th:each="booking : ${bookings.content}">
+
+                    <!-- ID -->
+                    <td th:text="${booking.id}">
+                        1
+                    </td>
+
+
+                    <!-- USER -->
+                    <td>
+
+                        <strong th:text="${booking.userName}">
+                            Nguyễn Văn A
+                        </strong>
+
+                        <div class="page-description"
+                             th:text="${booking.userEmail}">
+
+                            email@example.com
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- SPACE -->
+                    <td th:text="${booking.spaceName}">
+                        Meeting Room
+                    </td>
+
+
+                    <!-- START TIME -->
+                    <td th:text="${#temporals.format(
+                        booking.startTime,
+                        'dd/MM/yyyy HH:mm'
+                    )}">
+
+                        25/08/2026 08:00
+
+                    </td>
+
+
+                    <!-- END TIME -->
+                    <td th:text="${#temporals.format(
+                        booking.endTime,
+                        'dd/MM/yyyy HH:mm'
+                    )}">
+
+                        25/08/2026 10:00
+
+                    </td>
+
+
+                    <!-- TOTAL PRICE -->
+                    <td th:text="${booking.totalPrice}">
+                        500000
+                    </td>
+
+
+                    <!-- STATUS -->
+                    <td>
+
+                        <span class="status-badge"
+                              th:text="${booking.status}">
+
+                            PENDING
+
+                        </span>
+
+                    </td>
+
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPTY STATE
+        ================================================== -->
+        <div class="empty-state"
+             th:if="${bookings == null
+                 or bookings.content == null
+                 or bookings.content.isEmpty()}">
+
+            <h3>
+                Không tìm thấy Booking
+            </h3>
+
+            <p>
+                Không có Booking nào phù hợp với điều kiện tìm kiếm.
+            </p>
+
+        </div>
+
+
+        <!-- =================================================
+             PAGINATION
+        ================================================== -->
+        <div class="pagination"
+             th:if="${bookings != null
+                 and bookings.totalPages > 1}">
+
+            <!-- PREVIOUS -->
+            <div>
+
+                <a class="pagination-button"
+                   th:if="${bookings.pageNumber > 0}"
+                   th:href="@{/moderator/bookings(
+                       page=${bookings.pageNumber - 1},
+                       size=${bookings.pageSize},
+                       keyword=${searchRequest.keyword},
+                       status=${searchRequest.status},
+                       userId=${searchRequest.userId},
+                       spaceId=${searchRequest.spaceId}
+                   )}">
+
+                    ← Trang trước
+
+                </a>
+
+            </div>
+
+
+            <!-- CURRENT PAGE -->
+            <span class="pagination-info"
+                  th:text="'Trang '
+                         + ${bookings.pageNumber + 1}
+                         + ' / '
+                         + ${bookings.totalPages}">
+
+                Trang 1 / 1
+
+            </span>
+
+
+            <!-- NEXT -->
+            <div>
+
+                <a class="pagination-button"
+                   th:if="${!bookings.last}"
+                   th:href="@{/moderator/bookings(
+                       page=${bookings.pageNumber + 1},
+                       size=${bookings.pageSize},
+                       keyword=${searchRequest.keyword},
+                       status=${searchRequest.status},
+                       userId=${searchRequest.userId},
+                       spaceId=${searchRequest.spaceId}
+                   )}">
+
+                    Trang sau →
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+</html>

@@ -5,6 +5,7 @@ import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.PaymentResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Payment;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
@@ -45,13 +46,13 @@ class PaymentSearchServiceTest {
                 .id(4L)
                 .booking(Booking.builder().id(8L).build())
                 .amount(new BigDecimal("125000"))
-                .status("COMPLETED")
+                .status(PaymentStatus.COMPLETED)
                 .paymentMethod("MOMO")
                 .transactionId("TXN-004")
                 .paidAt(LocalDateTime.of(2026, 8, 20, 9, 0))
                 .build();
         given(paymentRepository.searchPayments(
-                eq("TXN"), eq("COMPLETED"), eq("MOMO"),
+                eq("TXN"), eq(PaymentStatus.COMPLETED), eq("MOMO"),
                 eq(LocalDateTime.of(2026, 8, 1, 0, 0)),
                 eq(LocalDateTime.of(2026, 9, 1, 0, 0)), any(Pageable.class)))
                 .willReturn(new PageImpl<>(List.of(payment)));
@@ -72,7 +73,7 @@ class PaymentSearchServiceTest {
         });
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(paymentRepository).searchPayments(
-                eq("TXN"), eq("COMPLETED"), eq("MOMO"),
+                eq("TXN"), eq(PaymentStatus.COMPLETED), eq("MOMO"),
                 eq(LocalDateTime.of(2026, 8, 1, 0, 0)),
                 eq(LocalDateTime.of(2026, 9, 1, 0, 0)), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <title>Đăng nhập | Coworking Space</title>
+
+    <link rel="icon"
+          type="image/x-icon"
+          th:href="@{/favicon.ico}">
+
+    <link rel="stylesheet"
+          th:href="@{/css/moderator-login.css}">
+
+</head>
+
+<body>
+
+<main class="login-page">
+
+    <section class="login-card">
+
+        <div class="login-brand">
+
+            <div class="login-logo"
+                 aria-hidden="true">
+                C
+            </div>
+
+            <div>
+
+                <h1>
+                    Coworking Space
+                </h1>
+
+                <p>
+                    Không gian làm việc của bạn
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="login-header">
+
+            <h2>
+                Đăng nhập
+            </h2>
+
+            <p>
+                Chào mừng bạn quay trở lại.
+            </p>
+
+        </div>
+
+
+        <div id="loginError"
+             class="login-alert"
+             role="alert"
+             hidden>
+        </div>
+
+
+        <form id="loginForm"
+              class="login-form">
+
+            <div class="form-group">
+
+                <label for="email">
+                    Email
+                </label>
+
+                <input id="email"
+                       name="email"
+                       type="email"
+                       autocomplete="username"
+                       placeholder="Nhập email"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="password">
+                    Mật khẩu
+                </label>
+
+                <input id="password"
+                       name="password"
+                       type="password"
+                       autocomplete="current-password"
+                       placeholder="Nhập mật khẩu"
+                       required>
+
+            </div>
+
+
+            <button id="loginButton"
+                    class="login-button"
+                    type="submit">
+
+                Đăng nhập
+
+            </button>
+
+        </form>
+
+
+        <div class="login-register">
+
+            <span>
+                Chưa có tài khoản?
+            </span>
+
+            <a th:href="@{/register}">
+                Đăng ký ngay
+            </a>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+
+    const loginForm =
+        document.getElementById("loginForm");
+
+    const loginButton =
+        document.getElementById("loginButton");
+
+    const loginError =
+        document.getElementById("loginError");
+
+
+    function showLoginError(message) {
+
+        loginError.textContent =
+            message;
+
+        loginError.hidden =
+            false;
+    }
+
+
+    function hideLoginError() {
+
+        loginError.textContent =
+            "";
+
+        loginError.hidden =
+            true;
+    }
+
+
+    function clearClientAuthentication() {
+
+        sessionStorage.removeItem(
+            "accessToken"
+        );
+
+        sessionStorage.removeItem(
+            "refreshToken"
+        );
+
+        sessionStorage.removeItem(
+            "currentUser"
+        );
+    }
+
+
+    function saveLoginInformation(
+        loginData
+    ) {
+
+        sessionStorage.setItem(
+            "accessToken",
+            loginData.accessToken
+        );
+
+
+        if (loginData.refreshToken) {
+
+            sessionStorage.setItem(
+                "refreshToken",
+                loginData.refreshToken
+            );
+        }
+
+
+        sessionStorage.setItem(
+            "currentUser",
+            JSON.stringify({
+                id: loginData.id,
+                name: loginData.name,
+                email: loginData.email,
+                phone: loginData.phone,
+                status: loginData.status,
+                isIdentityVerified:
+                    loginData.isIdentityVerified,
+                language:
+                    loginData.language,
+                roles:
+                    loginData.roles || []
+            })
+        );
+    }
+
+
+    function ensureManagementAccess(
+        loginData
+    ) {
+
+        const roles =
+            Array.isArray(loginData.roles)
+                ? loginData.roles
+                : [];
+
+
+        /*
+         * Trang login này chỉ phục vụ khu vực quản trị
+         * (Moderator Web UI).
+         *
+         * ADMIN kế thừa quyền Moderator.
+         *
+         * USER / HOST không được phép đăng nhập tại đây,
+         * kể cả khi email/mật khẩu đúng.
+         */
+        if (
+            !roles.includes("ADMIN")
+            &&
+            !roles.includes("MODERATOR")
+        ) {
+
+            throw new Error(
+                "Tài khoản này không có quyền truy cập trang quản trị. "
+                + "Chỉ Admin hoặc Moderator được phép đăng nhập tại đây."
+            );
+        }
+    }
+
+
+    loginForm.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            hideLoginError();
+
+
+            const email =
+                document
+                    .getElementById("email")
+                    .value
+                    .trim();
+
+            const password =
+                document
+                    .getElementById("password")
+                    .value;
+
+
+            if (!email || !password) {
+
+                showLoginError(
+                    "Vui lòng nhập đầy đủ email và mật khẩu."
+                );
+
+                return;
+            }
+
+
+            loginButton.disabled =
+                true;
+
+            loginButton.textContent =
+                "Đang đăng nhập...";
+
+
+            clearClientAuthentication();
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/auth/login",
+                        {
+                            method: "POST",
+
+                            credentials:
+                                "same-origin",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body:
+                                JSON.stringify({
+                                    email: email,
+                                    password: password
+                                })
+                        }
+                    );
+
+
+                let responseBody =
+                    null;
+
+
+                try {
+
+                    responseBody =
+                        await response.json();
+
+                } catch (ignored) {
+
+                    responseBody =
+                        null;
+                }
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        responseBody?.message
+                        ||
+                        "Email hoặc mật khẩu không chính xác."
+                    );
+                }
+
+
+                const loginData =
+                    responseBody?.data;
+
+
+                if (
+                    !loginData
+                    ||
+                    !loginData.accessToken
+                ) {
+
+                    throw new Error(
+                        "Phản hồi đăng nhập không hợp lệ."
+                    );
+                }
+
+
+                ensureManagementAccess(
+                    loginData
+                );
+
+
+                saveLoginInformation(
+                    loginData
+                );
+
+
+                window.location.replace(
+                    "/moderator/users"
+                );
+
+
+            } catch (error) {
+
+                clearClientAuthentication();
+
+                showLoginError(
+                    error.message
+                    ||
+                    "Không thể đăng nhập."
+                );
+
+
+                loginButton.disabled =
+                    false;
+
+                loginButton.textContent =
+                    "Đăng nhập";
+            }
+        }
+    );
+
+</script>
+
+</body>
+
+</html>

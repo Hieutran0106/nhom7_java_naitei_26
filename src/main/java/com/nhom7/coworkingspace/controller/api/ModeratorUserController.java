@@ -40,8 +40,9 @@ public class ModeratorUserController {
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     @Operation(summary = "Search & Filter Users (Moderator/Admin)", description = "Allows Moderator or Admin to search users by keyword (name, email, phone), filter by status, and paginate results.")
     public ResponseEntity<ApiResponse<PageResponse<UserSearchResponse>>> searchUsers(
-            @ParameterObject @ModelAttribute UserSearchRequest request) {
-        PageResponse<UserSearchResponse> result = userService.searchUsers(request);
+            @ParameterObject @ModelAttribute UserSearchRequest request,
+            Authentication authentication) {
+        PageResponse<UserSearchResponse> result = userService.searchUsers(request, authentication.getName());
         Locale locale = LocaleContextHolder.getLocale();
         String message = messageSource.getMessage("user.list.fetched", null, locale);
         return ResponseEntity.ok(ApiResponse.success(result, message));

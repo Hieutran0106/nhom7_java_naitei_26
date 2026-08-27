@@ -6,6 +6,7 @@ import com.nhom7.coworkingspace.dto.response.PaymentResponse;
 import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
 import com.nhom7.coworkingspace.entity.Payment;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
@@ -142,7 +143,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         Page<PaymentResponse> payments = paymentRepository.searchPayments(
                         normalize(request.getKeyword()),
-                        normalize(request.getStatus()),
+                        parsePaymentStatus(request.getStatus()),
                         normalize(request.getPaymentMethod()),
                         request.getFromDate() == null ? null : request.getFromDate().atStartOfDay(),
                         request.getToDate() == null ? null : request.getToDate().plusDays(1).atStartOfDay(),
@@ -158,7 +159,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .bookingId(payment.getBooking() == null ? null : payment.getBooking().getId())
                 .amount(payment.getAmount())
                 .paymentMethod(payment.getPaymentMethod())
-                .status(payment.getStatus())
+                .status(payment.getStatus() == null ? null : payment.getStatus().name())
                 .paidAt(payment.getPaidAt())
                 .transactionId(payment.getTransactionId())
                 .build();
@@ -169,5 +170,10 @@ public class StatisticsServiceImpl implements StatisticsService {
             return null;
         }
         return value.trim();
+    }
+
+    private PaymentStatus parsePaymentStatus(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : PaymentStatus.valueOf(normalized.toUpperCase());
     }
 }

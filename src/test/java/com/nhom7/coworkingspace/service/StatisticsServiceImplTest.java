@@ -5,6 +5,7 @@ import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
 import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Payment;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.repository.BookingRepository;
 import com.nhom7.coworkingspace.repository.PaymentRepository;
@@ -232,7 +233,7 @@ class StatisticsServiceImplTest {
                         new BigDecimal("500000")
                 )
                 .paymentMethod("BANK_TRANSFER")
-                .status("COMPLETED")
+                .status(PaymentStatus.COMPLETED)
                 .paidAt(
                         LocalDateTime.of(
                                 2026,
