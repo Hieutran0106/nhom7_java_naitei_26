@@ -80,6 +80,19 @@ public class VenueServiceImpl implements VenueService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<VenueResponse> getAllVenues(int page, int size, VenueStatus status) {
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.min(Math.max(1, size), 100),
+                Sort.by(Sort.Direction.DESC, "id"));
+        Page<Venue> venuePage = status == null
+                ? venueRepository.findByDeletedFalse(pageable)
+                : venueRepository.findByStatusAndDeletedFalse(status, pageable);
+        return PageResponse.fromPage(venuePage.map(venueMapper::toVenueResponse));
+    }
+
+    @Override
     @Transactional
     public VenueResponse updateVenue(Long venueId, VenueRequest request, String hostEmail) {
         User host = resolveHostUser(hostEmail);

@@ -261,6 +261,27 @@ class VenueServiceImplTest {
     }
 
     @Nested
+    @DisplayName("getAllVenues")
+    class GetAllVenuesTests {
+
+        @Test
+        @DisplayName("Moderator listing can filter non-deleted venues by status")
+        void getAllVenues_WithStatus_ReturnsFilteredPage() {
+            Venue venue = Venue.builder().id(100L).name("Innovation Hub").status(VenueStatus.PENDING).build();
+            VenueResponse response = VenueResponse.builder().id(100L).name("Innovation Hub")
+                    .status(VenueStatus.PENDING).build();
+            given(venueRepository.findByStatusAndDeletedFalse(eq(VenueStatus.PENDING), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(List.of(venue)));
+            given(venueMapper.toVenueResponse(venue)).willReturn(response);
+
+            PageResponse<VenueResponse> result = venueService.getAllVenues(0, 10, VenueStatus.PENDING);
+
+            assertThat(result.getContent()).containsExactly(response);
+            verify(venueRepository).findByStatusAndDeletedFalse(eq(VenueStatus.PENDING), any(Pageable.class));
+        }
+    }
+
+    @Nested
     @DisplayName("updateVenueStatus")
     class UpdateVenueStatusTests {
 
