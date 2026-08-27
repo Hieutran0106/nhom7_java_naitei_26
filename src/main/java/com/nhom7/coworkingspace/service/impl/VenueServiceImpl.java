@@ -131,6 +131,10 @@ public class VenueServiceImpl implements VenueService {
             return venueMapper.toVenueResponse(venue);
         }
 
+        if (!isAllowedStatusTransition(venue.getStatus(), newStatus)) {
+            throw new AppException("venue.status.transition.invalid", HttpStatus.BAD_REQUEST);
+        }
+
         venue.setStatus(newStatus);
         Venue savedVenue = venueRepository.save(venue);
 
@@ -142,6 +146,16 @@ public class VenueServiceImpl implements VenueService {
         }
 
         return venueMapper.toVenueResponse(savedVenue);
+    }
+
+    /**
+     * A venue is approved exactly once after its initial review. It can subsequently be
+     * blocked and re-approved, but must never return to the review queue.
+     */
+    private boolean isAllowedStatusTransition(VenueStatus currentStatus, VenueStatus newStatus) {
+        return (currentStatus == VenueStatus.PENDING && newStatus == VenueStatus.APPROVE)
+                || (currentStatus == VenueStatus.APPROVE && newStatus == VenueStatus.BLOCKED)
+                || (currentStatus == VenueStatus.BLOCKED && newStatus == VenueStatus.APPROVE);
     }
 
     @Override

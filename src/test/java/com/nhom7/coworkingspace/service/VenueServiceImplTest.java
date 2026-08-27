@@ -342,6 +342,48 @@ class VenueServiceImplTest {
         }
 
         @Test
+        @DisplayName("PENDING venue can only be approved, not blocked")
+        void updateVenueStatus_PendingToBlocked_BadRequest() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.PENDING).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(100L, VenueStatus.BLOCKED, MODERATOR_EMAIL))
+                    .isInstanceOf(AppException.class)
+                    .hasMessage("venue.status.transition.invalid")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+
+            assertThat(existingVenue.getStatus()).isEqualTo(VenueStatus.PENDING);
+            verify(venueRepository, never()).save(any(Venue.class));
+        }
+
+        @Test
+        @DisplayName("An approved or blocked venue cannot return to PENDING")
+        void updateVenueStatus_ApprovedToPending_BadRequest() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.APPROVE).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(100L, VenueStatus.PENDING, MODERATOR_EMAIL))
+                    .isInstanceOf(AppException.class)
+                    .hasMessage("venue.status.transition.invalid")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+
+            assertThat(existingVenue.getStatus()).isEqualTo(VenueStatus.APPROVE);
+            verify(venueRepository, never()).save(any(Venue.class));
+        }
+
+        @Test
         @DisplayName("Setting the same status again is a no-op (idempotent, no save)")
         void updateVenueStatus_SameStatus_NoOp() {
             User owner = hostUser(1L);

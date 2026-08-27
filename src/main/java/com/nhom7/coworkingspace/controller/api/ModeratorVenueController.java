@@ -47,7 +47,7 @@ public class ModeratorVenueController {
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     @Operation(
             summary = "Update Venue Status (Approve/Block)",
-            description = "Allows Moderator or Admin to change a venue's moderation status (PENDING, APPROVE, BLOCKED)."
+            description = "Allows Moderator or Admin to approve a PENDING venue, then switch it between APPROVE and BLOCKED."
     )
     public ResponseEntity<ApiResponse<VenueResponse>> updateVenueStatus(
             @PathVariable Long id,
