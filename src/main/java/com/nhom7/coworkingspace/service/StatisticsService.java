@@ -1,5 +1,7 @@
 package com.nhom7.coworkingspace.service;
 
+import com.nhom7.coworkingspace.dto.request.PaymentSearchRequest;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.PaymentResponse;
 import com.nhom7.coworkingspace.dto.response.RevenueStatisticsResponse;
 import com.nhom7.coworkingspace.dto.response.StatisticsOverviewResponse;
@@ -13,4 +15,6 @@ public interface StatisticsService {
     RevenueStatisticsResponse getRevenueByYear(int year);
 
     List<PaymentResponse> getAllPayments();
+
+    PageResponse<PaymentResponse> searchPayments(PaymentSearchRequest request);
 }
