@@ -1,250 +1,248 @@
-:root {
-    color-scheme: light;
-    font-family: Arial, sans-serif;
-    color: #1f2937;
-    background: #f3f4f6;
-}
+/* =========================================================
+   MODERATOR BOOKING PAGE
 
-body {
-    margin: 0;
-}
+   This stylesheet is intentionally page-specific.
+   Shared layout, filters, tables and pagination are styled by
+   moderator-layout.css. Avoid global selectors such as body,
+   main, button, input, table, th or td here because they would
+   override the shared Moderator layout.
+========================================================= */
 
-main {
-    width: min(1280px, calc(100% - 32px));
-    margin: 40px auto;
-}
 
-.page-header h1 {
-    margin-bottom: 8px;
-}
+/* =========================================================
+   BOOKING CELL HELPERS
+========================================================= */
 
-.page-header p {
-    margin: 0;
-    color: #6b7280;
-}
-
-.card {
-    margin-top: 20px;
-    padding: 24px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: white;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .05);
-}
-
-.filters {
-    display: grid;
-    grid-template-columns:
-        minmax(150px, 1fr)
-        minmax(190px, 1.2fr)
-        minmax(190px, 1.2fr)
-        minmax(150px, 1fr)
-        auto;
-    gap: 12px;
-    align-items: end;
-}
-
-label span {
-    display: block;
-    margin-bottom: 6px;
-    color: #6b7280;
-    font-size: 13px;
-}
-
-input,
-select,
-button {
-    box-sizing: border-box;
-    width: 100%;
-    min-height: 42px;
-    border-radius: 8px;
-    font: inherit;
-}
-
-input,
-select {
-    padding: 0 12px;
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #1f2937;
-}
-
-input:focus,
-select:focus {
-    outline: 2px solid #bfdbfe;
-    border-color: #2563eb;
-}
-
-button {
-    padding: 0 18px;
-    border: 0;
-    background: #2563eb;
-    color: white;
-    cursor: pointer;
-    font-weight: 700;
-}
-
-button:hover {
-    background: #1d4ed8;
-}
-
-.table-wrap {
-    margin-top: 24px;
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th,
-td {
-    padding: 14px 12px;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-th {
-    color: #6b7280;
-    font-size: 13px;
-    font-weight: 700;
-    background: #f9fafb;
-}
-
-tbody tr:hover {
-    background: #f9fafb;
-}
-
-.user-info,
-.venue-info,
-.space-info {
+.booking-page .user-info,
+.booking-page .venue-info,
+.booking-page .space-info {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.user-info span,
-.venue-info span,
-.space-info span {
-    color: #6b7280;
-    font-size: 12px;
-}
-
-.price {
+.booking-page .price {
     font-weight: 700;
 }
 
-.badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #e5e7eb;
-    color: #374151;
-    font-size: 12px;
-    font-weight: 700;
-}
 
-.status-pending {
+/* =========================================================
+   BOOKING STATUS
+========================================================= */
+
+.booking-page .status-pending {
     background: #fef3c7;
     color: #92400e;
 }
 
-.status-approved {
+.booking-page .status-approved {
     background: #dbeafe;
     color: #1d4ed8;
 }
 
-.status-paid {
+.booking-page .status-paid {
     background: #ede9fe;
     color: #6d28d9;
 }
 
-.status-confirmed {
+.booking-page .status-confirmed {
     background: #dcfce7;
     color: #166534;
 }
 
-.status-rejected {
+.booking-page .status-rejected {
     background: #fee2e2;
     color: #991b1b;
 }
 
-.status-cancelled {
+.booking-page .status-cancelled {
     background: #f3f4f6;
     color: #4b5563;
 }
 
-.status-completed {
+.booking-page .status-completed {
     background: #cffafe;
     color: #155e75;
 }
 
-.empty {
-    padding: 40px 20px;
-    color: #6b7280;
-    text-align: center;
-}
 
-.pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-top: 20px;
-}
+/* =========================================================
+   DETAIL BUTTON
+========================================================= */
 
-.pagination a {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
+.detail-button {
+    width: auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid #bfdbfe;
     border-radius: 8px;
-    background: white;
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.pagination a:hover {
     background: #eff6ff;
+    color: #1d4ed8;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
-.pagination span {
+.detail-button:hover {
+    background: #dbeafe;
+}
+
+.detail-button:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+
+/* =========================================================
+   BOOKING DETAIL MODAL
+========================================================= */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 24, 39, .55);
+}
+
+.modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(720px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: white;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
+}
+
+.modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
+}
+
+.modal-header p {
+    margin: 6px 0 0;
     color: #6b7280;
     font-size: 14px;
 }
 
-@media (max-width: 960px) {
-    .filters {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .filters button {
-        grid-column: span 2;
-    }
+.modal-close {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    color: #4b5563;
+    cursor: pointer;
+    font: inherit;
+    font-size: 24px;
+    line-height: 1;
 }
 
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.modal-close:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.modal-message {
+    padding: 32px 24px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.modal-error {
+    color: #b91c1c;
+    background: #fef2f2;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.detail-item {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.detail-item span {
+    display: block;
+    margin-bottom: 7px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.detail-item strong {
+    display: block;
+    color: #111827;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.detail-item small {
+    display: block;
+    margin-top: 5px;
+    color: #6b7280;
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
 @media (max-width: 640px) {
-    main {
-        width: min(100% - 20px, 1280px);
-        margin: 20px auto;
+    .modal {
+        padding: 12px;
     }
 
-    .card {
-        padding: 16px;
+    .modal-dialog {
+        max-height: calc(100vh - 24px);
     }
 
-    .filters {
+    .modal-header {
+        padding: 18px;
+    }
+
+    .detail-grid {
         grid-template-columns: 1fr;
-    }
-
-    .filters button {
-        grid-column: auto;
-    }
-
-    .pagination {
-        flex-wrap: wrap;
+        padding: 18px;
     }
 }

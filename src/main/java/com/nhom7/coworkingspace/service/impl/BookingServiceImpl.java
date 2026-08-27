@@ -104,9 +104,21 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long bookingId) {
         log.debug("[BookingService] Getting booking details for id={}", bookingId);
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
-        return bookingMapper.toBookingResponse(booking);
+
+        BookingResponse response =
+                bookingMapper.toBookingResponse(booking);
+
+        paymentRepository.findByBookingId(bookingId)
+                .ifPresent(payment ->
+                        response.setPaymentMethod(
+                                payment.getPaymentMethod()
+                        )
+                );
+
+        return response;
     }
 
     @Override
@@ -115,9 +127,11 @@ public class BookingServiceImpl implements BookingService {
         if (request.getStartTime() == null || request.getEndTime() == null) {
             throw new AppException("booking.time.required", HttpStatus.BAD_REQUEST);
         }
+
         if (!request.getStartTime().isBefore(request.getEndTime())) {
             throw new AppException("booking.time.invalid", HttpStatus.BAD_REQUEST);
         }
+
         if (request.getStartTime().isBefore(LocalDateTime.now(clock))) {
             throw new AppException("booking.time.past", HttpStatus.BAD_REQUEST);
         }
@@ -144,19 +158,31 @@ public class BookingServiceImpl implements BookingService {
             LocalTime startLocalTime = request.getStartTime().toLocalTime();
             LocalTime endLocalTime = request.getEndTime().toLocalTime();
 
-            if (startLocalTime.isBefore(space.getOpenTime()) || endLocalTime.isAfter(space.getCloseTime())) {
-                throw new AppException("booking.operating.hours.invalid", HttpStatus.BAD_REQUEST);
+            if (startLocalTime.isBefore(space.getOpenTime())
+                    || endLocalTime.isAfter(space.getCloseTime())) {
+                throw new AppException(
+                        "booking.operating.hours.invalid",
+                        HttpStatus.BAD_REQUEST
+                );
             }
         }
 
         // Check for active overlapping bookings (PENDING, APPROVED, etc.)
         boolean hasOverlap = bookingRepository.existsActiveOverlap(
-                space.getId(), request.getStartTime(), request.getEndTime());
+                space.getId(),
+                request.getStartTime(),
+                request.getEndTime()
+        );
+
         if (hasOverlap) {
             throw new AppException("booking.overlap.error", HttpStatus.BAD_REQUEST);
         }
 
-        BigDecimal totalPrice = calculateTotalPrice(space, request.getStartTime(), request.getEndTime());
+        BigDecimal totalPrice = calculateTotalPrice(
+                space,
+                request.getStartTime(),
+                request.getEndTime()
+        );
 
         Booking booking = Booking.builder()
                 .user(user)
@@ -169,6 +195,7 @@ public class BookingServiceImpl implements BookingService {
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
+
         return bookingMapper.toBookingResponse(savedBooking);
     }
 
@@ -182,39 +209,74 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
 
         if (!booking.getUser().getId().equals(user.getId())) {
-            throw new AppException("booking.cannot.cancel.not.owner", HttpStatus.FORBIDDEN);
+            throw new AppException(
+                    "booking.cannot.cancel.not.owner",
+                    HttpStatus.FORBIDDEN
+            );
         }
 
         BookingStatus currentStatus = booking.getStatus();
-        if (currentStatus == null ||
-                (currentStatus != BookingStatus.PENDING
-                        && currentStatus != BookingStatus.APPROVED)) {
-            throw new AppException("booking.cannot.cancel.invalid.status", HttpStatus.BAD_REQUEST);
+
+        if (currentStatus == null
+                || (currentStatus != BookingStatus.PENDING
+                && currentStatus != BookingStatus.APPROVED)) {
+            throw new AppException(
+                    "booking.cannot.cancel.invalid.status",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        Booking savedBooking = bookingRepository.save(booking);
+
+        Booking savedBooking =
+                bookingRepository.save(booking);
 
         return bookingMapper.toBookingResponse(savedBooking);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<BookingResponse> getBookingsForHost(String hostEmail, int page, int size) {
+    public PageResponse<BookingResponse> getBookingsForHost(
+            String hostEmail,
+            int page,
+            int size
+    ) {
         User host = userRepository.findByEmail(hostEmail)
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
 
         Pageable pageable = PageRequest.of(
-                Math.max(0, page), Math.min(Math.max(1, size), 100), Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Booking> bookingPage = bookingRepository.findByHostId(host.getId(), pageable);
+                Math.max(0, page),
+                Math.min(Math.max(1, size), 100),
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "createdAt"
+                )
+        );
 
-        return PageResponse.fromPage(bookingPage.map(bookingMapper::toBookingResponse));
+        Page<Booking> bookingPage =
+                bookingRepository.findByHostId(
+                        host.getId(),
+                        pageable
+                );
+
+        return PageResponse.fromPage(
+                bookingPage.map(
+                        bookingMapper::toBookingResponse
+                )
+        );
     }
 
     @Override
     @Transactional
-    public PaymentResponse payBooking(Long bookingId, String userEmail) {
-        log.debug("[BookingService] Processing payment for bookingId={}, userEmail={}", bookingId, userEmail);
+    public PaymentResponse payBooking(
+            Long bookingId,
+            String userEmail
+    ) {
+        log.debug(
+                "[BookingService] Processing payment for bookingId={}, userEmail={}",
+                bookingId,
+                userEmail
+        );
 
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
@@ -223,20 +285,35 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
 
         if (!booking.getUser().getId().equals(user.getId())) {
-            throw new AppException("booking.payment.not.owner", HttpStatus.FORBIDDEN);
+            throw new AppException(
+                    "booking.payment.not.owner",
+                    HttpStatus.FORBIDDEN
+            );
         }
 
-        BookingStatus currentStatus = booking.getStatus();
+        BookingStatus currentStatus =
+                booking.getStatus();
+
         if (currentStatus == BookingStatus.PAID) {
-            throw new AppException("booking.already.paid", HttpStatus.BAD_REQUEST);
+            throw new AppException(
+                    "booking.already.paid",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         if (currentStatus != BookingStatus.APPROVED) {
-            throw new AppException("booking.payment.not.approved", HttpStatus.BAD_REQUEST);
+            throw new AppException(
+                    "booking.payment.not.approved",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        booking.setStatus(BookingStatus.PAID);
-        Booking savedBooking = bookingRepository.save(booking);
+        booking.setStatus(
+                BookingStatus.PAID
+        );
+
+        Booking savedBooking =
+                bookingRepository.save(booking);
 
         Payment payment = Payment.builder()
                 .booking(savedBooking)
@@ -244,17 +321,32 @@ public class BookingServiceImpl implements BookingService {
                 .paymentMethod("MOCK")
                 .status(PaymentStatus.COMPLETED)
                 .paidAt(LocalDateTime.now(clock))
-                .transactionId("MOCK-" + System.currentTimeMillis() + "-" + savedBooking.getId())
+                .transactionId(
+                        "MOCK-"
+                        + System.currentTimeMillis()
+                        + "-"
+                        + savedBooking.getId()
+                )
                 .build();
 
-        Payment savedPayment = paymentRepository.save(payment);
-        return paymentMapper.toPaymentResponse(savedPayment);
+        Payment savedPayment =
+                paymentRepository.save(payment);
+
+        return paymentMapper.toPaymentResponse(
+                savedPayment
+        );
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<BookingResponse> getMyBookingHistory(BookingSearchRequest request, String userEmail) {
-        log.debug("[BookingService] Getting booking history for userEmail={}", userEmail);
+    public PageResponse<BookingResponse> getMyBookingHistory(
+            BookingSearchRequest request,
+            String userEmail
+    ) {
+        log.debug(
+                "[BookingService] Getting booking history for userEmail={}",
+                userEmail
+        );
 
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
@@ -263,86 +355,215 @@ public class BookingServiceImpl implements BookingService {
             request = BookingSearchRequest.builder().build();
         }
 
-        request.setUserId(user.getId());
+        request.setUserId(
+                user.getId()
+        );
 
         return searchBookings(request);
     }
 
     @Override
     @Transactional
-    public Booking changeStatus(Long bookingId, String newStatus) {
-        BookingStatus normalizedStatus = normalizeStatus(newStatus);
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException(bookingId));
-        BookingStatus previousStatus = booking.getStatus();
+    public Booking changeStatus(
+            Long bookingId,
+            String newStatus
+    ) {
+        BookingStatus normalizedStatus =
+                normalizeStatus(newStatus);
+
+        Booking booking =
+                bookingRepository.findById(bookingId)
+                        .orElseThrow(
+                                () -> new BookingNotFoundException(
+                                        bookingId
+                                )
+                        );
+
+        BookingStatus previousStatus =
+                booking.getStatus();
 
         if (normalizedStatus == previousStatus) {
             return booking;
         }
 
-        booking.setStatus(normalizedStatus);
-        Booking savedBooking = bookingRepository.saveAndFlush(booking);
+        booking.setStatus(
+                normalizedStatus
+        );
 
-        Locale locale = toLocale(savedBooking.getUser().getLanguage());
-        String html = emailTemplateService.renderBookingStatusChanged(
-                savedBooking, previousStatus != null ? previousStatus.name() : null, locale);
-        String subject = messageSource.getMessage(
-                "email.booking.status.subject",
-                new Object[] { savedBooking.getId() },
-                locale);
+        Booking savedBooking =
+                bookingRepository.saveAndFlush(
+                        booking
+                );
+
+        Locale locale =
+                toLocale(
+                        savedBooking
+                                .getUser()
+                                .getLanguage()
+                );
+
+        String html =
+                emailTemplateService.renderBookingStatusChanged(
+                        savedBooking,
+                        previousStatus != null
+                                ? previousStatus.name()
+                                : null,
+                        locale
+                );
+
+        String subject =
+                messageSource.getMessage(
+                        "email.booking.status.subject",
+                        new Object[]{
+                                savedBooking.getId()
+                        },
+                        locale
+                );
+
         emailService.sendHtmlEmail(
-                savedBooking.getUser().getEmail(),
+                savedBooking
+                        .getUser()
+                        .getEmail(),
                 subject,
-                html);
+                html
+        );
+
         return savedBooking;
     }
 
+    public BigDecimal calculateTotalPrice(
+            Space space,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) {
+        BigDecimal price =
+                space.getPrice() != null
+                        ? space.getPrice()
+                        : BigDecimal.ZERO;
 
+        PriceUnit priceUnit =
+                PriceUnit.fromString(
+                        space.getPriceUnit()
+                );
 
-    public BigDecimal calculateTotalPrice(Space space, LocalDateTime startTime, LocalDateTime endTime) {
-        BigDecimal price = space.getPrice() != null ? space.getPrice() : BigDecimal.ZERO;
-        PriceUnit priceUnit = PriceUnit.fromString(space.getPriceUnit());
-
-        long minutes = Duration.between(startTime, endTime).toMinutes();
+        long minutes =
+                Duration.between(
+                        startTime,
+                        endTime
+                ).toMinutes();
 
         switch (priceUnit) {
             case HOUR:
-                BigDecimal hours = BigDecimal.valueOf(minutes)
-                        .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-                return price.multiply(hours).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal hours =
+                        BigDecimal.valueOf(minutes)
+                                .divide(
+                                        BigDecimal.valueOf(60),
+                                        4,
+                                        RoundingMode.HALF_UP
+                                );
+
+                return price.multiply(hours)
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
             case DAY:
-                long days = (long) Math.ceil(minutes / (24.0 * 60.0));
-                days = Math.max(1, days);
-                return price.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP);
+                long days =
+                        (long) Math.ceil(
+                                minutes
+                                / (24.0 * 60.0)
+                        );
+
+                days = Math.max(
+                        1,
+                        days
+                );
+
+                return price.multiply(
+                                BigDecimal.valueOf(days)
+                        )
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
             case MONTH:
-                long months = (long) Math.ceil(minutes / (30.0 * 24.0 * 60.0));
-                months = Math.max(1, months);
-                return price.multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP);
+                long months =
+                        (long) Math.ceil(
+                                minutes
+                                / (30.0 * 24.0 * 60.0)
+                        );
+
+                months = Math.max(
+                        1,
+                        months
+                );
+
+                return price.multiply(
+                                BigDecimal.valueOf(months)
+                        )
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
             default:
-                BigDecimal defaultHours = BigDecimal.valueOf(minutes)
-                        .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-                return price.multiply(defaultHours).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal defaultHours =
+                        BigDecimal.valueOf(minutes)
+                                .divide(
+                                        BigDecimal.valueOf(60),
+                                        4,
+                                        RoundingMode.HALF_UP
+                                );
+
+                return price.multiply(
+                                defaultHours
+                        )
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        );
         }
     }
 
-    private BookingStatus normalizeStatus(String status) {
+    private BookingStatus normalizeStatus(
+            String status
+    ) {
         if (status == null || status.isBlank()) {
-            throw new AppException("booking.status.required", HttpStatus.BAD_REQUEST);
+            throw new AppException(
+                    "booking.status.required",
+                    HttpStatus.BAD_REQUEST
+            );
         }
+
         try {
-            return BookingStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+            return BookingStatus.valueOf(
+                    status.trim()
+                            .toUpperCase(
+                                    Locale.ROOT
+                            )
+            );
         } catch (IllegalArgumentException ex) {
-            throw new AppException("booking.status.invalid", HttpStatus.BAD_REQUEST);
+            throw new AppException(
+                    "booking.status.invalid",
+                    HttpStatus.BAD_REQUEST
+            );
         }
     }
 
-    private Locale toLocale(String language) {
+    private Locale toLocale(
+            String language
+    ) {
         if (!StringUtils.hasText(language)) {
             return Locale.ENGLISH;
         }
-        return Locale.forLanguageTag(language.replace('_', '-'));
+
+        return Locale.forLanguageTag(
+                language.replace(
+                        '_',
+                        '-'
+                )
+        );
     }
 }
