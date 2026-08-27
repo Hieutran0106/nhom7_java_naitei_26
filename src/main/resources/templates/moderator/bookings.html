@@ -32,7 +32,7 @@
         <form method="get"
               th:action="@{/moderator/bookings}"
               th:object="${searchRequest}"
-              class="filter-form">
+              class="filter-form filters">
 
             <div class="filter-group">
 
@@ -73,6 +73,21 @@
 
             <div class="filter-group">
 
+                <label for="venueId">
+                    Venue ID
+                </label>
+
+                <input id="venueId"
+                       type="number"
+                       min="1"
+                       th:field="*{venueId}"
+                       placeholder="Venue ID">
+
+            </div>
+
+
+            <div class="filter-group">
+
                 <label for="userId">
                     User ID
                 </label>
@@ -86,13 +101,37 @@
             </div>
 
 
+            <div class="filter-group">
+
+                <label for="bookingFromDate">
+                    Từ thời gian
+                </label>
+
+                <input id="bookingFromDate"
+                       type="datetime-local"
+                       th:field="*{fromDate}">
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label for="bookingToDate">
+                    Đến thời gian
+                </label>
+
+                <input id="bookingToDate"
+                       type="datetime-local"
+                       th:field="*{toDate}">
+
+            </div>
+
+
             <div class="filter-action">
 
                 <button type="submit"
                         class="btn-primary">
-
-                    Tìm kiếm
-
+                    Lọc Booking
                 </button>
 
             </div>
@@ -114,12 +153,14 @@
 
                 <tr>
                     <th>ID</th>
-                    <th>Người dùng</th>
+                    <th>Người đặt</th>
+                    <th>Venue</th>
                     <th>Không gian</th>
                     <th>Bắt đầu</th>
                     <th>Kết thúc</th>
-                    <th>Giá</th>
+                    <th>Tổng tiền</th>
                     <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
                 </tr>
 
                 </thead>
@@ -127,10 +168,10 @@
 
                 <tbody>
 
-                <tr th:each="booking : ${bookings.content}">
+                <tr th:each="item : ${bookings.content}">
 
                     <!-- ID -->
-                    <td th:text="${booking.id}">
+                    <td th:text="${item.id}">
                         1
                     </td>
 
@@ -138,14 +179,42 @@
                     <!-- USER -->
                     <td>
 
-                        <strong th:text="${booking.userName}">
-                            Nguyễn Văn A
-                        </strong>
+                        <div class="user-info">
 
-                        <div class="page-description"
-                             th:text="${booking.userEmail}">
+                            <strong th:text="${item.userName != null
+                                ? item.userName
+                                : '—'}">
+                                Nguyễn Văn A
+                            </strong>
 
-                            email@example.com
+                            <div class="page-description"
+                                 th:text="${item.userEmail != null
+                                    ? item.userEmail
+                                    : '—'}">
+                                user@example.com
+                            </div>
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- VENUE -->
+                    <td>
+
+                        <div class="venue-info">
+
+                            <strong th:text="${item.venueName != null
+                                ? item.venueName
+                                : '—'}">
+                                Hanoi Central Workspace
+                            </strong>
+
+                            <div class="page-description"
+                                 th:if="${item.venueId != null}"
+                                 th:text="'ID: ' + ${item.venueId}">
+                                ID: 15
+                            </div>
 
                         </div>
 
@@ -153,36 +222,59 @@
 
 
                     <!-- SPACE -->
-                    <td th:text="${booking.spaceName}">
-                        Meeting Room
+                    <td>
+
+                        <div class="space-info">
+
+                            <strong th:text="${item.spaceName != null
+                                ? item.spaceName
+                                : '—'}">
+                                Meeting Room 1
+                            </strong>
+
+                            <div class="page-description"
+                                 th:if="${item.spaceId != null}"
+                                 th:text="'ID: ' + ${item.spaceId}">
+                                ID: 5
+                            </div>
+
+                        </div>
+
                     </td>
 
 
                     <!-- START TIME -->
-                    <td th:text="${#temporals.format(
-                        booking.startTime,
-                        'dd/MM/yyyy HH:mm'
-                    )}">
-
-                        25/08/2026 08:00
-
+                    <td th:text="${item.startTime != null
+                        ? #temporals.format(
+                            item.startTime,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        01/09/2026 09:00
                     </td>
 
 
                     <!-- END TIME -->
-                    <td th:text="${#temporals.format(
-                        booking.endTime,
-                        'dd/MM/yyyy HH:mm'
-                    )}">
-
-                        25/08/2026 10:00
-
+                    <td th:text="${item.endTime != null
+                        ? #temporals.format(
+                            item.endTime,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        01/09/2026 11:00
                     </td>
 
 
                     <!-- TOTAL PRICE -->
-                    <td th:text="${booking.totalPrice}">
-                        500000
+                    <td>
+
+                        <span class="price"
+                              th:text="${item.totalPrice != null
+                                  ? item.totalPrice
+                                  : '—'}">
+                            200000
+                        </span>
+
                     </td>
 
 
@@ -190,12 +282,26 @@
                     <td>
 
                         <span class="status-badge"
-                              th:text="${booking.status}">
-
+                              th:classappend="${item.status != null
+                                  ? ' status-' + #strings.toLowerCase(item.status.name())
+                                  : ''}"
+                              th:text="${item.status != null
+                                  ? item.status
+                                  : 'UNKNOWN'}">
                             PENDING
-
                         </span>
 
+                    </td>
+
+
+                    <!-- CREATED AT -->
+                    <td th:text="${item.createdAt != null
+                        ? #temporals.format(
+                            item.createdAt,
+                            'dd/MM/yyyy HH:mm'
+                        )
+                        : '—'}">
+                        20/08/2026 10:00
                     </td>
 
                 </tr>
@@ -244,7 +350,10 @@
                        keyword=${searchRequest.keyword},
                        status=${searchRequest.status},
                        userId=${searchRequest.userId},
-                       spaceId=${searchRequest.spaceId}
+                       spaceId=${searchRequest.spaceId},
+                       venueId=${searchRequest.venueId},
+                       fromDate=${searchRequest.fromDate},
+                       toDate=${searchRequest.toDate}
                    )}">
 
                     ← Trang trước
@@ -257,12 +366,10 @@
             <!-- CURRENT PAGE -->
             <span class="pagination-info"
                   th:text="'Trang '
-                         + ${bookings.pageNumber + 1}
-                         + ' / '
-                         + ${bookings.totalPages}">
-
+                      + ${bookings.pageNumber + 1}
+                      + ' / '
+                      + ${bookings.totalPages}">
                 Trang 1 / 1
-
             </span>
 
 
@@ -277,7 +384,10 @@
                        keyword=${searchRequest.keyword},
                        status=${searchRequest.status},
                        userId=${searchRequest.userId},
-                       spaceId=${searchRequest.spaceId}
+                       spaceId=${searchRequest.spaceId},
+                       venueId=${searchRequest.venueId},
+                       fromDate=${searchRequest.fromDate},
+                       toDate=${searchRequest.toDate}
                    )}">
 
                     Trang sau →
