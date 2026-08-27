@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -131,13 +132,28 @@ class ModeratorVenueControllerTest {
 
     @Test
     @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
-    @DisplayName("Invalid status in body -> PUT /api/moderator/venues/{id}/status returns 400 Bad Request")
-    void givenInvalidStatus_whenUpdateVenueStatus_thenReturn400() throws Exception {
+    @DisplayName("Null status -> PUT /api/moderator/venues/{id}/status returns 400 Bad Request")
+    void givenNullStatus_whenUpdateVenueStatus_thenReturn400() throws Exception {
         mockMvc.perform(put("/api/moderator/venues/1/status")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": null}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
+    @DisplayName("Unknown status returns 400 with the list of accepted values")
+    void givenUnknownStatus_whenUpdateVenueStatus_thenReturnHelpfulBadRequest() throws Exception {
+        mockMvc.perform(put("/api/moderator/venues/1/status")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"REJECTED\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(containsString("PENDING, APPROVE, BLOCKED")));
+
+        verifyNoInteractions(venueService);
     }
 
     @Test
