@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.controller.api;
 
+import com.nhom7.coworkingspace.dto.request.BlockVenueRequest;
 import com.nhom7.coworkingspace.dto.request.UpdateVenueStatusRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
@@ -131,6 +132,76 @@ public class ModeratorVenueController {
                 venueService.updateVenueStatus(
                         id,
                         request.getStatus(),
+                        authentication.getName()
+                );
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
+        String message =
+                messageSource.getMessage(
+                        "venue.status.updated",
+                        null,
+                        locale
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        message
+                )
+        );
+    }
+
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Approve Venue",
+            description = "Approves a venue and clears any previous block reason."
+    )
+    public ResponseEntity<ApiResponse<VenueResponse>> approveVenue(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        VenueResponse response =
+                venueService.approveVenue(
+                        id,
+                        authentication.getName()
+                );
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
+        String message =
+                messageSource.getMessage(
+                        "venue.status.updated",
+                        null,
+                        locale
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        message
+                )
+        );
+    }
+
+    @PutMapping("/{id}/block")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Block Venue",
+            description = "Blocks a venue and stores the moderator's reason."
+    )
+    public ResponseEntity<ApiResponse<VenueResponse>> blockVenue(
+            @PathVariable Long id,
+            @Valid @RequestBody BlockVenueRequest request,
+            Authentication authentication
+    ) {
+        VenueResponse response =
+                venueService.blockVenue(
+                        id,
+                        request.getReason(),
                         authentication.getName()
                 );
 

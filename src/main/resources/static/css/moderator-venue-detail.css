@@ -16,8 +16,17 @@ body {
     background: #f4f6f8;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 a {
     color: inherit;
+}
+
+button,
+textarea {
+    font: inherit;
 }
 
 .page-container {
@@ -139,6 +148,80 @@ h1 {
     color: #334155;
     font-size: 13px;
     font-weight: 700;
+}
+
+.moderation-card {
+    border-color: #dbe4ee;
+}
+
+.moderation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.action-button {
+    min-height: 42px;
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        opacity 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.action-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.action-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.action-button-approve {
+    background: #047857;
+    color: #ffffff;
+    box-shadow: 0 5px 14px rgba(4, 120, 87, 0.18);
+}
+
+.action-button-block {
+    background: #b91c1c;
+    color: #ffffff;
+    box-shadow: 0 5px 14px rgba(185, 28, 28, 0.16);
+}
+
+.action-button-secondary {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+}
+
+.blocked-reason {
+    padding: 16px 18px;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    background: #fef2f2;
+}
+
+.blocked-reason-label {
+    display: block;
+    margin-bottom: 7px;
+    color: #991b1b;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.blocked-reason p {
+    margin: 0;
+    color: #7f1d1d;
+    line-height: 1.6;
+    white-space: pre-line;
 }
 
 .image-placeholder {
@@ -350,6 +433,109 @@ tbody tr:hover {
     font-size: 13px;
 }
 
+.modal-overlay {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.modal-overlay[hidden] {
+    display: none;
+}
+
+.modal-dialog {
+    width: min(520px, 100%);
+    overflow: hidden;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+}
+
+.modal-close-button {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #64748b;
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.modal-close-button:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.modal-body {
+    padding: 22px 24px;
+}
+
+.modal-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.modal-body textarea {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    outline: none;
+    color: #0f172a;
+    line-height: 1.5;
+}
+
+.modal-body textarea:focus {
+    border-color: #64748b;
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.12);
+}
+
+.field-error {
+    margin: 8px 0 0;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px 22px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
 @media (max-width: 720px) {
 
     .page-container {
@@ -374,4 +560,19 @@ tbody tr:hover {
         border-radius: 14px;
     }
 
+    .moderation-actions {
+        flex-direction: column;
+    }
+
+    .moderation-actions .action-button {
+        width: 100%;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .modal-actions .action-button {
+        width: 100%;
+    }
 }

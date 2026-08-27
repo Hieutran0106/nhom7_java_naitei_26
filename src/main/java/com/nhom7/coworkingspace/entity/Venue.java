@@ -28,7 +28,10 @@ public class Venue {
     @Column(name = "name", length = 200, nullable = false)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(
+            name = "description",
+            columnDefinition = "TEXT"
+    )
     private String description;
 
     @Column(name = "address", length = 255)
@@ -40,15 +43,29 @@ public class Venue {
     @Column(name = "street", length = 150)
     private String street;
 
-    @Column(name = "latitude", precision = 10, scale = 8)
+    @Column(
+            name = "latitude",
+            precision = 10,
+            scale = 8
+    )
     private BigDecimal latitude;
 
-    @Column(name = "longitude", precision = 11, scale = 8)
+    @Column(
+            name = "longitude",
+            precision = 11,
+            scale = 8
+    )
     private BigDecimal longitude;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30)
     private VenueStatus status;
+
+    @Column(
+            name = "block_reason",
+            columnDefinition = "TEXT"
+    )
+    private String blockReason;
 
     @Column(name = "deleted", nullable = false)
     @Builder.Default
@@ -56,10 +73,11 @@ public class Venue {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-        name = "venue_amenities",
-        joinColumns = @JoinColumn(name = "venue_id"),
-        inverseJoinColumns = @JoinColumn(name = "amenity_id")
+            name = "venue_amenities",
+            joinColumns = @JoinColumn(name = "venue_id"),
+            inverseJoinColumns = @JoinColumn(name = "amenity_id")
     )
     @Builder.Default
-    private Set<Amenity> amenities = new HashSet<>();
+    private Set<Amenity> amenities =
+            new HashSet<>();
 }

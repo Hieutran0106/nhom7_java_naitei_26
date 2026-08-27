@@ -86,6 +86,32 @@ public interface VenueService {
     );
 
     /**
+     * Approve a venue and clear any previous block reason.
+     *
+     * @param venueId        id of the venue
+     * @param moderatorEmail email of authenticated moderator/admin
+     * @return updated venue details
+     */
+    VenueResponse approveVenue(
+            Long venueId,
+            String moderatorEmail
+    );
+
+    /**
+     * Block a venue and save the moderator's reason.
+     *
+     * @param venueId        id of the venue
+     * @param reason         reason for blocking
+     * @param moderatorEmail email of authenticated moderator/admin
+     * @return updated venue details
+     */
+    VenueResponse blockVenue(
+            Long venueId,
+            String reason,
+            String moderatorEmail
+    );
+
+    /**
      * Soft delete a venue owned by the currently authenticated HOST.
      *
      * @param venueId   venue id

@@ -34,7 +34,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class VenueServiceImpl implements VenueService {
 
-    private static final String HOST_ROLE = "HOST";
+    private static final String HOST_ROLE =
+            "HOST";
 
     private final VenueRepository venueRepository;
     private final AmenityRepository amenityRepository;
@@ -61,16 +62,36 @@ public class VenueServiceImpl implements VenueService {
         Venue venue =
                 Venue.builder()
                         .owner(host)
-                        .name(request.getName())
-                        .description(request.getDescription())
-                        .address(request.getAddress())
-                        .city(request.getCity())
-                        .street(request.getStreet())
-                        .latitude(request.getLatitude())
-                        .longitude(request.getLongitude())
-                        .status(VenueStatus.PENDING)
-                        .amenities(amenities)
-                        .deleted(false)
+                        .name(
+                                request.getName()
+                        )
+                        .description(
+                                request.getDescription()
+                        )
+                        .address(
+                                request.getAddress()
+                        )
+                        .city(
+                                request.getCity()
+                        )
+                        .street(
+                                request.getStreet()
+                        )
+                        .latitude(
+                                request.getLatitude()
+                        )
+                        .longitude(
+                                request.getLongitude()
+                        )
+                        .status(
+                                VenueStatus.PENDING
+                        )
+                        .amenities(
+                                amenities
+                        )
+                        .deleted(
+                                false
+                        )
                         .build();
 
         Venue savedVenue =
@@ -102,10 +123,11 @@ public class VenueServiceImpl implements VenueService {
                 );
 
         Page<Venue> venuePage =
-                venueRepository.findByOwnerIdAndDeletedFalse(
-                        host.getId(),
-                        pageable
-                );
+                venueRepository
+                        .findByOwnerIdAndDeletedFalse(
+                                host.getId(),
+                                pageable
+                        );
 
         return PageResponse.fromPage(
                 venuePage.map(
@@ -132,17 +154,19 @@ public class VenueServiceImpl implements VenueService {
         if (status == null) {
 
             venuePage =
-                    venueRepository.findByDeletedFalse(
-                            pageable
-                    );
+                    venueRepository
+                            .findByDeletedFalse(
+                                    pageable
+                            );
 
         } else {
 
             venuePage =
-                    venueRepository.findByStatusAndDeletedFalse(
-                            status,
-                            pageable
-                    );
+                    venueRepository
+                            .findByStatusAndDeletedFalse(
+                                    status,
+                                    pageable
+                            );
         }
 
         return PageResponse.fromPage(
@@ -249,30 +273,14 @@ public class VenueServiceImpl implements VenueService {
                 );
 
         User moderator =
-                userRepository.findByEmail(
-                                moderatorEmail
-                        )
-                        .orElseThrow(
-                                () ->
-                                        new AppException(
-                                                "user.not.found",
-                                                HttpStatus.NOT_FOUND
-                                        )
-                        );
+                resolveModeratorUser(
+                        moderatorEmail
+                );
 
-        if (
-                venue.getOwner()
-                        .getId()
-                        .equals(
-                                moderator.getId()
-                        )
-        ) {
-
-            throw new AppException(
-                    "venue.cannot.moderate.self",
-                    HttpStatus.FORBIDDEN
-            );
-        }
+        assertModeratorIsNotOwner(
+                venue,
+                moderator
+        );
 
         if (
                 venue.getStatus()
@@ -302,6 +310,89 @@ public class VenueServiceImpl implements VenueService {
                     venueId
             );
         }
+
+        return venueMapper.toVenueResponse(
+                savedVenue
+        );
+    }
+
+    @Override
+    @Transactional
+    public VenueResponse approveVenue(
+            Long venueId,
+            String moderatorEmail
+    ) {
+        Venue venue =
+                getActiveVenueOrThrow(
+                        venueId
+                );
+
+        User moderator =
+                resolveModeratorUser(
+                        moderatorEmail
+                );
+
+        assertModeratorIsNotOwner(
+                venue,
+                moderator
+        );
+
+        venue.setStatus(
+                VenueStatus.APPROVE
+        );
+
+        venue.setBlockReason(
+                null
+        );
+
+        Venue savedVenue =
+                venueRepository.save(
+                        venue
+                );
+
+        return venueMapper.toVenueResponse(
+                savedVenue
+        );
+    }
+
+    @Override
+    @Transactional
+    public VenueResponse blockVenue(
+            Long venueId,
+            String reason,
+            String moderatorEmail
+    ) {
+        Venue venue =
+                getActiveVenueOrThrow(
+                        venueId
+                );
+
+        User moderator =
+                resolveModeratorUser(
+                        moderatorEmail
+                );
+
+        assertModeratorIsNotOwner(
+                venue,
+                moderator
+        );
+
+        venue.setStatus(
+                VenueStatus.BLOCKED
+        );
+
+        venue.setBlockReason(
+                reason
+        );
+
+        Venue savedVenue =
+                venueRepository.save(
+                        venue
+                );
+
+        deactivateSpaces(
+                venueId
+        );
 
         return venueMapper.toVenueResponse(
                 savedVenue
@@ -386,7 +477,8 @@ public class VenueServiceImpl implements VenueService {
             String email
     ) {
         User user =
-                userRepository.findByEmail(
+                userRepository
+                        .findByEmail(
                                 email
                         )
                         .orElseThrow(
@@ -418,6 +510,22 @@ public class VenueServiceImpl implements VenueService {
         return user;
     }
 
+    private User resolveModeratorUser(
+            String moderatorEmail
+    ) {
+        return userRepository
+                .findByEmail(
+                        moderatorEmail
+                )
+                .orElseThrow(
+                        () ->
+                                new AppException(
+                                        "user.not.found",
+                                        HttpStatus.NOT_FOUND
+                                )
+                );
+    }
+
     private Venue getActiveVenueOrThrow(
             Long venueId
     ) {
@@ -444,6 +552,25 @@ public class VenueServiceImpl implements VenueService {
 
             throw new AppException(
                     "venue.access.denied",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+    }
+
+    private void assertModeratorIsNotOwner(
+            Venue venue,
+            User moderator
+    ) {
+        if (
+                venue.getOwner()
+                        .getId()
+                        .equals(
+                                moderator.getId()
+                        )
+        ) {
+
+            throw new AppException(
+                    "venue.cannot.moderate.self",
                     HttpStatus.FORBIDDEN
             );
         }
