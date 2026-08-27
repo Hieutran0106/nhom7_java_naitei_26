@@ -2,7 +2,7 @@ package com.nhom7.coworkingspace.controller;
 
 import com.nhom7.coworkingspace.config.JwtProperties;
 import com.nhom7.coworkingspace.config.SecurityConfig;
-import com.nhom7.coworkingspace.controller.web.WebAuthController;
+import com.nhom7.coworkingspace.controller.web.AuthWebController;
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthErrorHandler;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
@@ -29,9 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@WebMvcTest(WebAuthController.class)
+@WebMvcTest(AuthWebController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtProperties.class})
-@DisplayName("WebAuthController - Session Login Tests")
+@DisplayName("AuthWebController - Session Login Tests")
 class WebAuthControllerTest {
 
     @Autowired
