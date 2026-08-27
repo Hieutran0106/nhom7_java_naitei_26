@@ -44,49 +44,106 @@ public class VenueServiceImpl implements VenueService {
 
     @Override
     @Transactional
-    public VenueResponse createVenue(VenueRequest request, String hostEmail) {
+    public VenueResponse createVenue(
+            VenueRequest request,
+            String hostEmail
+    ) {
         User host = resolveHostUser(hostEmail);
-        Set<Amenity> amenities = resolveAmenities(request.getAmenityIds());
+        Set<Amenity> amenities =
+                resolveAmenities(request.getAmenityIds());
 
-        // A newly created venue always starts PENDING moderator review - never taken from the
-        // client - so a HOST cannot self-approve (or self-block) their own venue on creation.
-        Venue venue = Venue.builder()
-                .owner(host)
-                .name(request.getName())
-                .description(request.getDescription())
-                .address(request.getAddress())
-                .city(request.getCity())
-                .street(request.getStreet())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
-                .status(VenueStatus.PENDING)
-                .amenities(amenities)
-                .deleted(false)
-                .build();
+        Venue venue =
+                Venue.builder()
+                        .owner(host)
+                        .name(request.getName())
+                        .description(request.getDescription())
+                        .address(request.getAddress())
+                        .city(request.getCity())
+                        .street(request.getStreet())
+                        .latitude(request.getLatitude())
+                        .longitude(request.getLongitude())
+                        .status(VenueStatus.PENDING)
+                        .amenities(amenities)
+                        .deleted(false)
+                        .build();
 
-        Venue savedVenue = venueRepository.save(venue);
+        Venue savedVenue =
+                venueRepository.save(venue);
+
         return venueMapper.toVenueResponse(savedVenue);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<VenueResponse> getMyVenues(String hostEmail, int page, int size) {
-        User host = resolveHostUser(hostEmail);
+    public PageResponse<VenueResponse> getMyVenues(
+            String hostEmail,
+            int page,
+            int size
+    ) {
+        User host =
+                resolveHostUser(hostEmail);
 
-        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "id"));
-        Page<Venue> venuePage = venueRepository.findByOwnerIdAndDeletedFalse(host.getId(), pageable);
+        Pageable pageable =
+                createPageable(page, size);
 
-        return PageResponse.fromPage(venuePage.map(venueMapper::toVenueResponse));
+        Page<Venue> venuePage =
+                venueRepository.findByOwnerIdAndDeletedFalse(
+                        host.getId(),
+                        pageable
+                );
+
+        return PageResponse.fromPage(
+                venuePage.map(venueMapper::toVenueResponse)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<VenueResponse> getVenuesForModerator(
+            VenueStatus status,
+            int page,
+            int size
+    ) {
+        Pageable pageable =
+                createPageable(page, size);
+
+        Page<Venue> venuePage;
+
+        if (status == null) {
+            venuePage =
+                    venueRepository.findByDeletedFalse(
+                            pageable
+                    );
+        } else {
+            venuePage =
+                    venueRepository.findByStatusAndDeletedFalse(
+                            status,
+                            pageable
+                    );
+        }
+
+        return PageResponse.fromPage(
+                venuePage.map(venueMapper::toVenueResponse)
+        );
     }
 
     @Override
     @Transactional
-    public VenueResponse updateVenue(Long venueId, VenueRequest request, String hostEmail) {
-        User host = resolveHostUser(hostEmail);
-        Venue venue = getActiveVenueOrThrow(venueId);
+    public VenueResponse updateVenue(
+            Long venueId,
+            VenueRequest request,
+            String hostEmail
+    ) {
+        User host =
+                resolveHostUser(hostEmail);
+
+        Venue venue =
+                getActiveVenueOrThrow(venueId);
+
         assertOwnership(venue, host);
 
-        Set<Amenity> amenities = resolveAmenities(request.getAmenityIds());
+        Set<Amenity> amenities =
+                resolveAmenities(request.getAmenityIds());
 
         venue.setName(request.getName());
         venue.setDescription(request.getDescription());
@@ -97,21 +154,39 @@ public class VenueServiceImpl implements VenueService {
         venue.setLongitude(request.getLongitude());
         venue.setAmenities(amenities);
 
-        Venue savedVenue = venueRepository.save(venue);
+        Venue savedVenue =
+                venueRepository.save(venue);
+
         return venueMapper.toVenueResponse(savedVenue);
     }
 
-    // Status is moderation-only: a HOST can never set it via createVenue/updateVenue, only
-    // Moderator/Admin can, through this method (see ModeratorVenueController).
     @Override
     @Transactional
-    public VenueResponse updateVenueStatus(Long venueId, VenueStatus newStatus, String moderatorEmail) {
-        Venue venue = getActiveVenueOrThrow(venueId);
-        User moderator = userRepository.findByEmail(moderatorEmail)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+    public VenueResponse updateVenueStatus(
+            Long venueId,
+            VenueStatus newStatus,
+            String moderatorEmail
+    ) {
+        Venue venue =
+                getActiveVenueOrThrow(venueId);
 
-        if (venue.getOwner().getId().equals(moderator.getId())) {
-            throw new AppException("venue.cannot.moderate.self", HttpStatus.FORBIDDEN);
+        User moderator =
+                userRepository.findByEmail(moderatorEmail)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        "user.not.found",
+                                        HttpStatus.NOT_FOUND
+                                )
+                        );
+
+        if (venue.getOwner()
+                .getId()
+                .equals(moderator.getId())) {
+
+            throw new AppException(
+                    "venue.cannot.moderate.self",
+                    HttpStatus.FORBIDDEN
+            );
         }
 
         if (venue.getStatus() == newStatus) {
@@ -119,11 +194,10 @@ public class VenueServiceImpl implements VenueService {
         }
 
         venue.setStatus(newStatus);
-        Venue savedVenue = venueRepository.save(venue);
 
-        // Blocking a venue also takes its Spaces off the booking market, same as a soft delete;
-        // unblocking (APPROVE) does NOT auto-reactivate them - a HOST/moderator may have had
-        // other reasons for a given Space being inactive before the block.
+        Venue savedVenue =
+                venueRepository.save(venue);
+
         if (newStatus == VenueStatus.BLOCKED) {
             deactivateSpaces(venueId);
         }
@@ -133,59 +207,135 @@ public class VenueServiceImpl implements VenueService {
 
     @Override
     @Transactional
-    public void deleteVenue(Long venueId, String hostEmail) {
-        User host = resolveHostUser(hostEmail);
-        Venue venue = getActiveVenueOrThrow(venueId);
+    public void deleteVenue(
+            Long venueId,
+            String hostEmail
+    ) {
+        User host =
+                resolveHostUser(hostEmail);
+
+        Venue venue =
+                getActiveVenueOrThrow(venueId);
+
         assertOwnership(venue, host);
 
         venue.setDeleted(true);
+
         venueRepository.save(venue);
 
         deactivateSpaces(venueId);
     }
 
-    // Spaces are kept (not deleted) so existing bookings/history stay intact; they are just
-    // marked INACTIVE so the space's own booking-eligibility check (see BookingServiceImpl)
-    // rejects new bookings once the parent venue is gone.
-    private void deactivateSpaces(Long venueId) {
-        List<Space> spaces = spaceRepository.findByVenueId(venueId);
-        spaces.forEach(space -> space.setStatus(SpaceStatus.INACTIVE));
+    private Pageable createPageable(
+            int page,
+            int size
+    ) {
+        return PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, size),
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "id"
+                )
+        );
+    }
+
+    private void deactivateSpaces(
+            Long venueId
+    ) {
+        List<Space> spaces =
+                spaceRepository.findByVenueId(venueId);
+
+        spaces.forEach(
+                space -> space.setStatus(
+                        SpaceStatus.INACTIVE
+                )
+        );
+
         spaceRepository.saveAll(spaces);
     }
 
-    private User resolveHostUser(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+    private User resolveHostUser(
+            String email
+    ) {
+        User user =
+                userRepository.findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        "user.not.found",
+                                        HttpStatus.NOT_FOUND
+                                )
+                        );
 
-        boolean isHost = user.getRoles().stream()
-                .anyMatch(role -> HOST_ROLE.equalsIgnoreCase(role.getName()));
+        boolean isHost =
+                user.getRoles()
+                        .stream()
+                        .anyMatch(
+                                role -> HOST_ROLE.equalsIgnoreCase(
+                                        role.getName()
+                                )
+                        );
+
         if (!isHost) {
-            throw new AppException("venue.host.required", HttpStatus.FORBIDDEN);
+            throw new AppException(
+                    "venue.host.required",
+                    HttpStatus.FORBIDDEN
+            );
         }
+
         return user;
     }
 
-    private Venue getActiveVenueOrThrow(Long venueId) {
-        return venueRepository.findByIdAndDeletedFalse(venueId)
-                .orElseThrow(VenueNotFoundException::new);
+    private Venue getActiveVenueOrThrow(
+            Long venueId
+    ) {
+        return venueRepository
+                .findByIdAndDeletedFalse(venueId)
+                .orElseThrow(
+                        VenueNotFoundException::new
+                );
     }
 
-    private void assertOwnership(Venue venue, User host) {
-        if (!venue.getOwner().getId().equals(host.getId())) {
-            throw new AppException("venue.access.denied", HttpStatus.FORBIDDEN);
+    private void assertOwnership(
+            Venue venue,
+            User host
+    ) {
+        if (!venue.getOwner()
+                .getId()
+                .equals(host.getId())) {
+
+            throw new AppException(
+                    "venue.access.denied",
+                    HttpStatus.FORBIDDEN
+            );
         }
     }
 
-    private Set<Amenity> resolveAmenities(Set<Long> amenityIds) {
-        if (amenityIds == null || amenityIds.isEmpty()) {
+    private Set<Amenity> resolveAmenities(
+            Set<Long> amenityIds
+    ) {
+        if (amenityIds == null
+                || amenityIds.isEmpty()) {
+
             return new HashSet<>();
         }
 
-        List<Amenity> foundAmenities = amenityRepository.findAllById(amenityIds);
-        if (foundAmenities.size() != amenityIds.size()) {
-            throw new AppException("amenity.not.found", HttpStatus.BAD_REQUEST);
+        List<Amenity> foundAmenities =
+                amenityRepository.findAllById(
+                        amenityIds
+                );
+
+        if (foundAmenities.size()
+                != amenityIds.size()) {
+
+            throw new AppException(
+                    "amenity.not.found",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        return new HashSet<>(foundAmenities);
+        return new HashSet<>(
+                foundAmenities
+        );
     }
 }

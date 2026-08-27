@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Quản lý Venue</title>
+
+    <link
+            rel="stylesheet"
+            th:href="@{/css/moderator-venues.css}"
+            href="/css/moderator-venues.css">
+</head>
+
+<body>
+
+<main>
+
+    <div class="page-header">
+        <div>
+            <h1>Quản lý Venue</h1>
+
+            <p>
+                Xem và phân loại các Venue theo trạng thái duyệt.
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+
+        <!-- FILTER -->
+        <form
+                method="get"
+                th:action="@{/moderator/venues}"
+                class="filters">
+
+            <label>
+                <span>Trạng thái</span>
+
+                <select name="status">
+
+                    <option
+                            value=""
+                            th:selected="${selectedStatus == null}">
+                        Tất cả
+                    </option>
+
+                    <option
+                            th:each="status : ${statuses}"
+                            th:value="${status}"
+                            th:selected="${selectedStatus == status}"
+                            th:text="${
+                                status.name() == 'PENDING'
+                                    ? 'Pending'
+                                    : status.name() == 'APPROVE'
+                                        ? 'Approved'
+                                        : 'Blocked'
+                            }">
+                        Status
+                    </option>
+
+                </select>
+            </label>
+
+            <label>
+                <span>Số Venue mỗi trang</span>
+
+                <select name="size">
+
+                    <option
+                            value="5"
+                            th:selected="${venues != null and venues.pageSize == 5}">
+                        5
+                    </option>
+
+                    <option
+                            value="10"
+                            th:selected="${venues == null or venues.pageSize == 10}">
+                        10
+                    </option>
+
+                    <option
+                            value="20"
+                            th:selected="${venues != null and venues.pageSize == 20}">
+                        20
+                    </option>
+
+                    <option
+                            value="50"
+                            th:selected="${venues != null and venues.pageSize == 50}">
+                        50
+                    </option>
+
+                </select>
+            </label>
+
+            <div class="filter-actions">
+
+                <button
+                        type="submit"
+                        class="button-primary">
+                    Lọc
+                </button>
+
+                <a
+                        th:href="@{/moderator/venues}"
+                        class="button-secondary">
+                    Xóa bộ lọc
+                </a>
+
+            </div>
+
+        </form>
+
+
+        <!-- SUMMARY -->
+        <div
+                class="summary"
+                th:if="${venues != null}">
+
+            <span>
+                Tổng số Venue:
+            </span>
+
+            <strong
+                    th:text="${venues.totalElements}">
+                0
+            </strong>
+
+        </div>
+
+
+        <!-- TABLE -->
+        <div
+                class="table-wrap"
+                th:if="${venues != null
+                    and venues.content != null
+                    and !venues.content.isEmpty()}">
+
+            <table>
+
+                <thead>
+
+                <tr>
+                    <th>ID</th>
+                    <th>Venue</th>
+                    <th>Chủ sở hữu</th>
+                    <th>Địa chỉ</th>
+                    <th>Thành phố</th>
+                    <th>Trạng thái</th>
+                </tr>
+
+                </thead>
+
+                <tbody>
+
+                <tr th:each="venue : ${venues.content}">
+
+                    <!-- ID -->
+                    <td
+                            th:text="${venue.id}">
+                        1
+                    </td>
+
+
+                    <!-- VENUE -->
+                    <td>
+
+                        <div class="venue-info">
+
+                            <strong
+                                    th:text="${venue.name != null
+                                        and !#strings.isEmpty(venue.name)
+                                        ? venue.name
+                                        : 'Chưa cập nhật'}">
+                                Coworking Space
+                            </strong>
+
+                            <span
+                                    th:if="${venue.street != null
+                                        and !#strings.isEmpty(venue.street)}"
+                                    th:text="${venue.street}">
+                                Street
+                            </span>
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- OWNER -->
+                    <td>
+
+                        <div class="owner-info">
+
+                            <strong
+                                    th:text="${venue.ownerName != null
+                                        and !#strings.isEmpty(venue.ownerName)
+                                        ? venue.ownerName
+                                        : 'Chưa cập nhật'}">
+                                Host
+                            </strong>
+
+                            <span
+                                    th:if="${venue.ownerId != null}"
+                                    th:text="'ID: ' + ${venue.ownerId}">
+                                ID: 1
+                            </span>
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- ADDRESS -->
+                    <td>
+
+                        <span
+                                th:text="${venue.address != null
+                                    and !#strings.isEmpty(venue.address)
+                                    ? venue.address
+                                    : 'Chưa cập nhật'}">
+                            123 Nguyễn Trãi
+                        </span>
+
+                    </td>
+
+
+                    <!-- CITY -->
+                    <td>
+
+                        <span
+                                th:text="${venue.city != null
+                                    and !#strings.isEmpty(venue.city)
+                                    ? venue.city
+                                    : 'Chưa cập nhật'}">
+                            Hà Nội
+                        </span>
+
+                    </td>
+
+
+                    <!-- STATUS -->
+                    <td>
+
+                        <span
+                                th:if="${venue.status != null}"
+                                class="status-badge"
+                                th:classappend="${
+                                    venue.status.name() == 'PENDING'
+                                        ? ' status-pending'
+                                        : venue.status.name() == 'APPROVE'
+                                            ? ' status-approved'
+                                            : ' status-blocked'
+                                }"
+                                th:text="${
+                                    venue.status.name() == 'PENDING'
+                                        ? 'Pending'
+                                        : venue.status.name() == 'APPROVE'
+                                            ? 'Approved'
+                                            : 'Blocked'
+                                }">
+                            Pending
+                        </span>
+
+                        <span
+                                th:if="${venue.status == null}"
+                                class="status-badge status-unknown">
+                            Unknown
+                        </span>
+
+                    </td>
+
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- EMPTY STATE -->
+        <div
+                class="empty"
+                th:if="${venues == null
+                    or venues.content == null
+                    or venues.content.isEmpty()}">
+
+            <h3>Không tìm thấy Venue</h3>
+
+            <p>
+                Không có Venue phù hợp với trạng thái đã chọn.
+            </p>
+
+            <a
+                    th:href="@{/moderator/venues}"
+                    class="button-secondary">
+                Xóa bộ lọc
+            </a>
+
+        </div>
+
+
+        <!-- PAGINATION -->
+        <div
+                class="pagination"
+                th:if="${venues != null
+                    and venues.totalPages > 1}">
+
+            <div>
+
+                <a
+                        th:if="${venues.pageNumber > 0}"
+                        th:href="@{/moderator/venues(
+                            page=${venues.pageNumber - 1},
+                            size=${venues.pageSize},
+                            status=${selectedStatus}
+                        )}">
+                    ← Trang trước
+                </a>
+
+            </div>
+
+
+            <div class="page-info">
+
+                <span
+                        th:text="'Trang '
+                            + ${venues.pageNumber + 1}
+                            + ' / '
+                            + ${venues.totalPages}">
+                    Trang 1 / 1
+                </span>
+
+            </div>
+
+
+            <div>
+
+                <a
+                        th:if="${!venues.last}"
+                        th:href="@{/moderator/venues(
+                            page=${venues.pageNumber + 1},
+                            size=${venues.pageSize},
+                            status=${selectedStatus}
+                        )}">
+                    Trang sau →
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+</body>
+
+</html>

@@ -12,9 +12,25 @@ import java.util.Optional;
 @Repository
 public interface VenueRepository extends JpaRepository<Venue, Long> {
 
-    Page<Venue> findByOwnerIdAndDeletedFalse(Long ownerId, Pageable pageable);
+    Page<Venue> findByOwnerIdAndDeletedFalse(
+            Long ownerId,
+            Pageable pageable
+    );
 
-    Optional<Venue> findByIdAndDeletedFalse(Long id);
+    Page<Venue> findByDeletedFalse(
+            Pageable pageable
+    );
 
-    long countByStatus(VenueStatus status);
+    Page<Venue> findByStatusAndDeletedFalse(
+            VenueStatus status,
+            Pageable pageable
+    );
+
+    Optional<Venue> findByIdAndDeletedFalse(
+            Long id
+    );
+
+    long countByStatus(
+            VenueStatus status
+    );
 }
