@@ -16,6 +16,14 @@ File ghi lại những thay đổi của dự án.
 - Phân trang và lọc theo mã giao dịch, trạng thái, phương thức thanh toán và khoảng ngày.
 - Trạng thái rỗng, lỗi tải dữ liệu, kiểm tra khoảng ngày và giao diện responsive.
 
+### 2026-08-26 - Statistics Dashboard UI (#99357, #99359)
+
+#### Added
+
+- Trang `GET /admin/statistics` dành riêng cho Admin, hiển thị tổng số user, booking thành công, venue hoạt động và tổng doanh thu.
+- Biểu đồ doanh thu 12 tháng, bộ chọn năm, trạng thái không có dữ liệu và trạng thái lỗi.
+- Giao diện responsive cùng kiểm thử MVC và phân quyền cho dashboard.
+
 ### 2026-08-27 - Space Management API & Logic (Create, View, Edit, Delete, Managers) (#99344)
 
 **Người thực hiện:** Nguyễn Minh An
