@@ -927,7 +927,10 @@
 
         let currentBusinessLicenseUrl = null;
 
-        let currentUserCanLock =
+        let currentUserCanChangeStatus =
+            true;
+
+        let currentUserCanVerify =
             true;
 
         let currentTargetIsSelf =
@@ -1531,6 +1534,20 @@
             }
 
 
+            if (!canVerify) {
+
+                button.disabled =
+                    true;
+
+
+                button.textContent =
+                    "Không có quyền duyệt";
+
+
+                return;
+            }
+
+
             if (
                 !hasDocumentUrl(
                     documentUrl
@@ -1550,7 +1567,7 @@
 
 
             button.disabled =
-                !canVerify;
+                false;
 
 
             button.textContent =
@@ -1587,64 +1604,90 @@
         ====================================================== */
 
         /* =====================================================
-           PEER-ROLE LOCK RESTRICTION
+           PRIVILEGED-ROLE ACTION RESTRICTION
 
-           Backend rule (enforced server-side, this is UX only):
-           - A Moderator cannot lock another Moderator.
-           - An Admin cannot lock another Admin.
-           Unlocking (BLOCKED/INACTIVE -> ACTIVE) is always allowed.
+           Backend enforces the same rules. This JavaScript only
+           disables actions early for a clearer user experience.
         ====================================================== */
 
-        function canCurrentUserLockTarget(
+        function targetHasRole(
+            targetRoles,
+            roleName
+        ) {
+
+            return (targetRoles || "")
+                .split(",")
+                .map(role =>
+                    role
+                        .trim()
+                        .toUpperCase()
+                )
+                .includes(roleName);
+        }
+
+
+        function canCurrentUserChangeTargetStatus(
             targetRoles,
             currentUserIsAdmin
         ) {
 
-            const roles =
-                (targetRoles || "")
-                    .toUpperCase();
-
-
             const targetIsAdmin =
-                roles.includes(
+                targetHasRole(
+                    targetRoles,
                     "ADMIN"
                 );
 
 
             const targetIsModerator =
-                roles.includes(
+                targetHasRole(
+                    targetRoles,
                     "MODERATOR"
                 );
 
 
-            if (
-                currentUserIsAdmin
-                &&
-                targetIsAdmin
-            ) {
-
-                return false;
+            if (currentUserIsAdmin) {
+                return !targetIsAdmin;
             }
 
 
-            if (
-                !currentUserIsAdmin
-                &&
-                targetIsModerator
-            ) {
+            return !targetIsAdmin
+                && !targetIsModerator;
+        }
 
-                return false;
+
+        function canCurrentUserVerifyTarget(
+            targetRoles,
+            currentUserIsAdmin
+        ) {
+
+            const targetIsAdmin =
+                targetHasRole(
+                    targetRoles,
+                    "ADMIN"
+                );
+
+
+            const targetIsModerator =
+                targetHasRole(
+                    targetRoles,
+                    "MODERATOR"
+                );
+
+
+            if (currentUserIsAdmin) {
+                return !targetIsAdmin;
             }
 
 
-            return true;
+            return !targetIsAdmin
+                && !targetIsModerator;
         }
 
 
         function configureStatusButton(
             userId,
             status,
-            canLock = true,
+            canChangeStatus = true,
             isSelf = false
         ) {
 
@@ -1687,6 +1730,27 @@
             }
 
 
+            if (!canChangeStatus) {
+
+                button.textContent =
+                    isCurrentlyLocked
+                        ? "Không có quyền mở khóa"
+                        : "Không có quyền khóa";
+
+
+                button.className =
+                    "user-detail-action-button "
+                    + "user-detail-action-danger";
+
+
+                button.disabled =
+                    true;
+
+
+                return;
+            }
+
+
             if (isCurrentlyLocked) {
 
                 button.textContent =
@@ -1704,9 +1768,7 @@
             } else {
 
                 button.textContent =
-                    canLock
-                        ? "Khóa tài khoản"
-                        : "Không có quyền khóa";
+                    "Khóa tài khoản";
 
 
                 button.className =
@@ -1715,7 +1777,7 @@
 
 
                 button.disabled =
-                    !canLock;
+                    false;
             }
         }
 
@@ -1931,6 +1993,26 @@
             );
 
 
+            const currentUserIsAdmin =
+                detailBoolean(
+                    data.currentUserIsAdmin
+                );
+
+
+            currentUserCanVerify =
+                canCurrentUserVerifyTarget(
+                    data.roles,
+                    currentUserIsAdmin
+                );
+
+
+            currentUserCanChangeStatus =
+                canCurrentUserChangeTargetStatus(
+                    data.roles,
+                    currentUserIsAdmin
+                );
+
+
             /* CCCD BUTTON */
             configureVerificationButton(
                 "identityVerificationButton",
@@ -1938,7 +2020,7 @@
                 currentCccdUrl,
                 "Chưa có CCCD",
                 "Duyệt KYC",
-                !isSelf
+                !isSelf && currentUserCanVerify
             );
 
 
@@ -1949,28 +2031,15 @@
                 currentBusinessLicenseUrl,
                 "Chưa có giấy phép",
                 "Duyệt giấy phép",
-                !isSelf
+                !isSelf && currentUserCanVerify
             );
 
 
             /* STATUS BUTTON */
-            const currentUserIsAdmin =
-                detailBoolean(
-                    data.currentUserIsAdmin
-                );
-
-
-            currentUserCanLock =
-                canCurrentUserLockTarget(
-                    data.roles,
-                    currentUserIsAdmin
-                );
-
-
             configureStatusButton(
                 id,
                 status,
-                currentUserCanLock,
+                currentUserCanChangeStatus,
                 isSelf
             );
 
@@ -2079,14 +2148,10 @@
                     : "BLOCKED";
 
 
-            if (
-                nextStatus === "BLOCKED"
-                &&
-                !currentUserCanLock
-            ) {
+            if (!currentUserCanChangeStatus) {
 
                 alert(
-                    "Bạn không có quyền khóa tài khoản này."
+                    "Bạn không có quyền thay đổi trạng thái tài khoản này."
                 );
 
 
@@ -2150,7 +2215,7 @@
                 configureStatusButton(
                     currentUserId,
                     currentUserStatus,
-                    currentUserCanLock,
+                    currentUserCanChangeStatus,
                     currentTargetIsSelf
                 );
 
@@ -2205,6 +2270,7 @@
             if (
                 !currentUserId
                 || currentTargetIsSelf
+                || !currentUserCanVerify
                 || currentIdentityVerified
             ) {
                 return;
@@ -2321,6 +2387,7 @@
             if (
                 !currentUserId
                 || currentTargetIsSelf
+                || !currentUserCanVerify
                 || currentBusinessVerified
             ) {
                 return;

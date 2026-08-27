@@ -1184,7 +1184,7 @@ class UserServiceImplTest {
         );
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        assertEquals("user.cannot.lock.peer.admin", ex.getMessageKey());
+        assertEquals("user.cannot.modify.peer.admin", ex.getMessageKey());
         verify(userRepository, never()).save(any());
     }
 
@@ -1212,12 +1212,44 @@ class UserServiceImplTest {
         );
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        assertEquals("user.cannot.lock.peer.moderator", ex.getMessageKey());
+        assertEquals("user.cannot.modify.peer.moderator", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+
+    @Test
+    void updateUserStatus_shouldThrowForbidden_whenModeratorUnlockingAnotherModerator() {
+        User moderatorTarget = User.builder()
+                .id(11L)
+                .email("other-moderator@test.com")
+                .status(UserStatus.BLOCKED)
+                .roles(Set.of(
+                        Role.builder().id(1L).name("USER").build(),
+                        Role.builder().id(3L).name("MODERATOR").build()
+                ))
+                .build();
+
+        User moderatorActor = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        when(userRepository.findById(11L)).thenReturn(Optional.of(moderatorTarget));
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateUserStatus(11L, UserStatus.ACTIVE, "moderator@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.modify.peer.moderator", ex.getMessageKey());
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void updateUserStatus_shouldAllowAdmin_toUnlockAnotherAdmin() {
+    void updateUserStatus_shouldThrowForbidden_whenAdminUnlockingAnotherAdmin() {
         User adminTarget = User.builder()
                 .id(10L)
                 .email("other-admin@test.com")
@@ -1231,23 +1263,17 @@ class UserServiceImplTest {
                 .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
                 .build();
 
-        UpdateUserStatusResponse expectedResponse = UpdateUserStatusResponse.builder()
-                .id(10L)
-                .email("other-admin@test.com")
-                .status(UserStatus.ACTIVE)
-                .roles(Set.of("ADMIN"))
-                .build();
-
         when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
         when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminActor));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUpdateUserStatusResponse(any(User.class))).thenReturn(expectedResponse);
 
-        UpdateUserStatusResponse response = userService.updateUserStatus(10L, UserStatus.ACTIVE, "admin@test.com");
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateUserStatus(10L, UserStatus.ACTIVE, "admin@test.com")
+        );
 
-        assertNotNull(response);
-        assertEquals(UserStatus.ACTIVE, response.getStatus());
-        verify(userRepository, times(1)).save(adminTarget);
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.modify.peer.admin", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -1779,7 +1805,7 @@ class UserServiceImplTest {
         );
 
         assertEquals(
-                "user.cannot.modify.admin",
+                "user.cannot.verify.privileged",
                 ex.getMessageKey()
         );
 
@@ -1853,7 +1879,7 @@ class UserServiceImplTest {
         );
 
         assertEquals(
-                "user.cannot.modify.admin",
+                "user.cannot.verify.privileged",
                 ex.getMessageKey()
         );
 
@@ -1861,6 +1887,128 @@ class UserServiceImplTest {
                 userRepository,
                 never()
         ).save(any());
+    }
+
+    @Test
+    void updateIdentityVerification_shouldThrowForbidden_whenModeratorVerifyingUserWithModeratorRole() {
+        User moderatorTarget = User.builder()
+                .id(11L)
+                .email("other-moderator@test.com")
+                .cccdUrl("https://example.com/moderator-cccd.jpg")
+                .isIdentityVerified(false)
+                .roles(Set.of(
+                        Role.builder().id(1L).name("USER").build(),
+                        Role.builder().id(3L).name("MODERATOR").build()
+                ))
+                .build();
+
+        User moderatorActor = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        when(userRepository.findById(11L)).thenReturn(Optional.of(moderatorTarget));
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateIdentityVerification(11L, true, "moderator@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.verify.privileged", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateBusinessVerification_shouldThrowForbidden_whenModeratorVerifyingUserWithModeratorRole() {
+        User moderatorTarget = User.builder()
+                .id(11L)
+                .email("other-moderator@test.com")
+                .businessLicenseUrl("https://example.com/moderator-license.jpg")
+                .isBusinessVerified(false)
+                .roles(Set.of(
+                        Role.builder().id(1L).name("USER").build(),
+                        Role.builder().id(3L).name("MODERATOR").build()
+                ))
+                .build();
+
+        User moderatorActor = User.builder()
+                .id(2L)
+                .email("moderator@test.com")
+                .roles(Set.of(Role.builder().id(3L).name("MODERATOR").build()))
+                .build();
+
+        when(userRepository.findById(11L)).thenReturn(Optional.of(moderatorTarget));
+        when(userRepository.findByEmail("moderator@test.com")).thenReturn(Optional.of(moderatorActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateBusinessVerification(11L, true, "moderator@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.verify.privileged", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateIdentityVerification_shouldThrowForbidden_whenAdminVerifyingAnotherAdmin() {
+        User adminTarget = User.builder()
+                .id(10L)
+                .email("other-admin@test.com")
+                .cccdUrl("https://example.com/admin-cccd.jpg")
+                .isIdentityVerified(false)
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        User adminActor = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateIdentityVerification(10L, true, "admin@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.verify.privileged", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateBusinessVerification_shouldThrowForbidden_whenAdminVerifyingAnotherAdmin() {
+        User adminTarget = User.builder()
+                .id(10L)
+                .email("other-admin@test.com")
+                .businessLicenseUrl("https://example.com/admin-license.jpg")
+                .isBusinessVerified(false)
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        User adminActor = User.builder()
+                .id(1L)
+                .email("admin@test.com")
+                .roles(Set.of(Role.builder().id(4L).name("ADMIN").build()))
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(adminTarget));
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(adminActor));
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> userService.updateBusinessVerification(10L, true, "admin@test.com")
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
+        assertEquals("user.cannot.verify.privileged", ex.getMessageKey());
+        verify(userRepository, never()).save(any());
     }
 
     @Test

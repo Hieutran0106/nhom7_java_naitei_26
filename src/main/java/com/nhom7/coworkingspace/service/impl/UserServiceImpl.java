@@ -700,10 +700,10 @@ public class UserServiceImpl implements UserService {
                 targetUser,
                 currentAdminEmail
         );
-        validateCannotLockSamePrivilegedRole(
+
+        validateCannotModifySamePrivilegedRole(
                 currentUser,
                 targetUser,
-                newStatus,
                 currentAdminEmail
         );
 
@@ -785,7 +785,7 @@ public class UserServiceImpl implements UserService {
                 currentAdminEmail
         );
 
-        validateModeratorCannotModifyAdmin(
+        validateCannotVerifyPrivilegedRole(
                 currentUser,
                 targetUser,
                 currentAdminEmail
@@ -870,7 +870,7 @@ public class UserServiceImpl implements UserService {
                 currentAdminEmail
         );
 
-        validateModeratorCannotModifyAdmin(
+        validateCannotVerifyPrivilegedRole(
                 currentUser,
                 targetUser,
                 currentAdminEmail
@@ -1057,39 +1057,61 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    // A Moderator cannot lock another Moderator's account, and an Admin cannot lock another
-    // Admin's account. Unlocking (setting status back to ACTIVE) is still allowed, since that is
-    // a recovery action rather than a peer-vs-peer lockout.
-    private void validateCannotLockSamePrivilegedRole(
+    /**
+     * Prevents peer privileged accounts from changing each other's status.
+     *
+     * <p>Rules:
+     * <ul>
+     *     <li>ADMIN cannot change another ADMIN's status.</li>
+     *     <li>MODERATOR cannot change another MODERATOR's status.</li>
+     *     <li>The restriction applies to BLOCKED, INACTIVE and ACTIVE (unlock).</li>
+     * </ul>
+     */
+    private void validateCannotModifySamePrivilegedRole(
             User currentUser,
             User targetUser,
-            UserStatus newStatus,
             String currentEmail
     ) {
-        boolean isLockingAction =
-                newStatus == UserStatus.BLOCKED
-                        || newStatus == UserStatus.INACTIVE;
-        if (!isLockingAction) {
+
+        // Self-account restrictions are handled separately.
+        if (targetUser.getId().equals(currentUser.getId())) {
             return;
         }
 
         boolean isCurrentAdmin =
-                hasRole(currentUser, ADMIN_ROLE_NAME);
+                hasRole(
+                        currentUser,
+                        ADMIN_ROLE_NAME
+                );
+
         boolean isCurrentModerator =
-                hasRole(currentUser, MODERATOR_ROLE_NAME);
+                hasRole(
+                        currentUser,
+                        MODERATOR_ROLE_NAME
+                );
+
         boolean isTargetAdmin =
-                hasRole(targetUser, ADMIN_ROLE_NAME);
+                hasRole(
+                        targetUser,
+                        ADMIN_ROLE_NAME
+                );
+
         boolean isTargetModerator =
-                hasRole(targetUser, MODERATOR_ROLE_NAME);
+                hasRole(
+                        targetUser,
+                        MODERATOR_ROLE_NAME
+                );
 
         if (isCurrentAdmin && isTargetAdmin) {
+
             log.warn(
-                    "[UserService] Admin {} attempted to lock another Admin (id={})",
+                    "[UserService] Admin {} attempted to change another Admin's status (id={})",
                     currentEmail,
                     targetUser.getId()
             );
+
             throw new AppException(
-                    "user.cannot.lock.peer.admin",
+                    "user.cannot.modify.peer.admin",
                     HttpStatus.FORBIDDEN
             );
         }
@@ -1097,13 +1119,80 @@ public class UserServiceImpl implements UserService {
         if (!isCurrentAdmin
                 && isCurrentModerator
                 && isTargetModerator) {
+
             log.warn(
-                    "[UserService] Moderator {} attempted to lock another Moderator (id={})",
+                    "[UserService] Moderator {} attempted to change another Moderator's status (id={})",
                     currentEmail,
                     targetUser.getId()
             );
+
             throw new AppException(
-                    "user.cannot.lock.peer.moderator",
+                    "user.cannot.modify.peer.moderator",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+    }
+
+    /**
+     * Prevents KYC / business verification across disallowed privileged-role boundaries.
+     *
+     * <p>ADMIN may verify MODERATOR accounts, but not another ADMIN.
+     * MODERATOR may only verify accounts that do not have MODERATOR or ADMIN role.
+     * A USER + MODERATOR account is therefore still treated as MODERATOR.
+     */
+    private void validateCannotVerifyPrivilegedRole(
+            User currentUser,
+            User targetUser,
+            String currentEmail
+    ) {
+
+        boolean isCurrentAdmin =
+                hasRole(
+                        currentUser,
+                        ADMIN_ROLE_NAME
+                );
+
+        boolean isCurrentModerator =
+                hasRole(
+                        currentUser,
+                        MODERATOR_ROLE_NAME
+                );
+
+        boolean isTargetAdmin =
+                hasRole(
+                        targetUser,
+                        ADMIN_ROLE_NAME
+                );
+
+        boolean isTargetModerator =
+                hasRole(
+                        targetUser,
+                        MODERATOR_ROLE_NAME
+                );
+
+        boolean adminVerifyingAdmin =
+                isCurrentAdmin
+                        && isTargetAdmin;
+
+        boolean moderatorVerifyingPrivilegedUser =
+                !isCurrentAdmin
+                        && isCurrentModerator
+                        && (
+                        isTargetModerator
+                                || isTargetAdmin
+                );
+
+        if (adminVerifyingAdmin
+                || moderatorVerifyingPrivilegedUser) {
+
+            log.warn(
+                    "[UserService] User {} attempted to verify privileged account (id={})",
+                    currentEmail,
+                    targetUser.getId()
+            );
+
+            throw new AppException(
+                    "user.cannot.verify.privileged",
                     HttpStatus.FORBIDDEN
             );
         }
