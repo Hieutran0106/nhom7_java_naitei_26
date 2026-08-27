@@ -122,21 +122,21 @@ public List<PaymentResponse> getAllPayments() {
             paymentRepository.findAllByOrderByPaidAtDesc();
 
     return payments.stream()
-            .map(payment ->
-                    PaymentResponse.builder()
-                            .id(payment.getId())
-                            .bookingId(
-                                    payment.getBooking() != null
-                                            ? payment.getBooking().getId()
-                                            : null
-                            )
-                            .amount(payment.getAmount())
-                            .paymentMethod(payment.getPaymentMethod())
-                            .status(payment.getStatus())
-                            .paidAt(payment.getPaidAt())
-                            .transactionId(payment.getTransactionId())
-                            .build()
-            )
+            .map(payment -> {
+                return PaymentResponse.builder()
+                        .id(payment.getId())
+                        .bookingId(
+                                payment.getBooking() != null
+                                        ? payment.getBooking().getId()
+                                        : null
+                        )
+                        .amount(payment.getAmount())
+                        .paymentMethod(payment.getPaymentMethod())
+                        .status(payment.getStatus() != null ? payment.getStatus().name() : null)
+                        .paidAt(payment.getPaidAt())
+                        .transactionId(payment.getTransactionId())
+                        .build();
+            })
             .toList();
 }
 }

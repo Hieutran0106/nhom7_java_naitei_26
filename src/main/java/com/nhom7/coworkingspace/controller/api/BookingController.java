@@ -1,7 +1,7 @@
 package com.nhom7.coworkingspace.controller.api;
 
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
+import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
@@ -57,31 +57,6 @@ public class BookingController {
         String message = messageSource.getMessage("booking.created", null, locale);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), message, response));
-    }
-
-    /**
-     * Get the booking history of the currently authenticated user.
-     *
-     * <p>Requires authenticated user.</p>
-     *
-     * @param request pagination and sorting parameters
-     * @param authentication security context authentication
-     * @return paginated list of the current user's bookings wrapped in ApiResponse
-     */
-    @GetMapping("/my-history")
-    @PreAuthorize("hasAnyRole('USER', 'HOST', 'MODERATOR', 'ADMIN')")
-    @Operation(
-            summary = "Get My Booking History",
-            description = "Allows authenticated users to retrieve the paginated list of bookings they have made."
-    )
-    public ResponseEntity<ApiResponse<PageResponse<BookingResponse>>> getMyBookingHistory(
-            @ParameterObject @ModelAttribute BookingHistoryRequest request,
-            Authentication authentication
-    ) {
-        PageResponse<BookingResponse> result = bookingService.getMyBookingHistory(authentication.getName(), request);
-        Locale locale = LocaleContextHolder.getLocale();
-        String message = messageSource.getMessage("booking.history.fetched", null, locale);
-        return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 
     /**

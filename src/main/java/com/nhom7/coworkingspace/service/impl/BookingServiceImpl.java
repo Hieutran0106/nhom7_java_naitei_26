@@ -1,21 +1,25 @@
 package com.nhom7.coworkingspace.service.impl;
 
-import com.nhom7.coworkingspace.dto.request.BookingHistoryRequest;
 import com.nhom7.coworkingspace.dto.request.BookingRequest;
 import com.nhom7.coworkingspace.dto.request.BookingSearchRequest;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
+import com.nhom7.coworkingspace.dto.response.PaymentResponse;
 import com.nhom7.coworkingspace.entity.Booking;
+import com.nhom7.coworkingspace.entity.Payment;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
 import com.nhom7.coworkingspace.entity.Venue;
 import com.nhom7.coworkingspace.enums.BookingStatus;
+import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
 import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.exception.AppException;
 import com.nhom7.coworkingspace.exception.BookingNotFoundException;
 import com.nhom7.coworkingspace.mapper.BookingMapper;
+import com.nhom7.coworkingspace.mapper.PaymentMapper;
 import com.nhom7.coworkingspace.repository.BookingRepository;
+import com.nhom7.coworkingspace.repository.PaymentRepository;
 import com.nhom7.coworkingspace.repository.SpaceRepository;
 import com.nhom7.coworkingspace.repository.UserRepository;
 import com.nhom7.coworkingspace.service.BookingService;
@@ -55,7 +59,9 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final SpaceRepository spaceRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
     private final BookingMapper bookingMapper;
+    private final PaymentMapper paymentMapper;
     private final EmailService emailService;
     private final EmailTemplateService emailTemplateService;
     private final MessageSource messageSource;
@@ -95,7 +101,6 @@ public class BookingServiceImpl implements BookingService {
         return PageResponse.fromPage(dtoPage);
     }
 
-
     @Override
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long bookingId) {
@@ -104,7 +109,6 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
         return bookingMapper.toBookingResponse(booking);
     }
-
 
     @Override
     @Transactional
@@ -127,6 +131,12 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new AppException("space.not.found", HttpStatus.NOT_FOUND));
 
         if (space.getStatus() != null && space.getStatus() != SpaceStatus.ACTIVE) {
+            throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
+        }
+
+        if (space.getVenue() != null
+                && (Boolean.TRUE.equals(space.getVenue().getDeleted())
+                || space.getVenue().getStatus() != com.nhom7.coworkingspace.enums.VenueStatus.APPROVE)) {
             throw new AppException("space.not.available", HttpStatus.BAD_REQUEST);
         }
 
@@ -204,6 +214,63 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
+    public PaymentResponse payBooking(Long bookingId, String userEmail) {
+        log.debug("[BookingService] Processing payment for bookingId={}, userEmail={}", bookingId, userEmail);
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new AppException("booking.payment.not.owner", HttpStatus.FORBIDDEN);
+        }
+
+        BookingStatus currentStatus = booking.getStatus();
+        if (currentStatus == BookingStatus.PAID) {
+            throw new AppException("booking.already.paid", HttpStatus.BAD_REQUEST);
+        }
+
+        if (currentStatus != BookingStatus.APPROVED) {
+            throw new AppException("booking.payment.not.approved", HttpStatus.BAD_REQUEST);
+        }
+
+        booking.setStatus(BookingStatus.PAID);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        Payment payment = Payment.builder()
+                .booking(savedBooking)
+                .amount(savedBooking.getTotalPrice())
+                .paymentMethod("MOCK")
+                .status(PaymentStatus.COMPLETED)
+                .paidAt(LocalDateTime.now(clock))
+                .transactionId("MOCK-" + System.currentTimeMillis() + "-" + savedBooking.getId())
+                .build();
+
+        Payment savedPayment = paymentRepository.save(payment);
+        return paymentMapper.toPaymentResponse(savedPayment);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookingResponse> getMyBookingHistory(BookingSearchRequest request, String userEmail) {
+        log.debug("[BookingService] Getting booking history for userEmail={}", userEmail);
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        if (request == null) {
+            request = BookingSearchRequest.builder().build();
+        }
+
+        request.setUserId(user.getId());
+
+        return searchBookings(request);
+    }
+
+    @Override
+    @Transactional
     public Booking changeStatus(Long bookingId, String newStatus) {
         BookingStatus normalizedStatus = normalizeStatus(newStatus);
         Booking booking = bookingRepository.findById(bookingId)
@@ -270,7 +337,7 @@ public class BookingServiceImpl implements BookingService {
                 savedBooking, previousStatus != null ? previousStatus.name() : null, locale);
         String subject = messageSource.getMessage(
                 "email.booking.status.subject",
-                new Object[]{savedBooking.getId()},
+                new Object[] { savedBooking.getId() },
                 locale);
         emailService.sendHtmlEmail(
                 savedBooking.getUser().getEmail(),
@@ -279,28 +346,7 @@ public class BookingServiceImpl implements BookingService {
         return savedBooking;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public PageResponse<BookingResponse> getMyBookingHistory(String userEmail, BookingHistoryRequest request) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
 
-        Sort.Direction direction = "ASC".equalsIgnoreCase(request.getSortDir())
-                ? Sort.Direction.ASC
-                : Sort.Direction.DESC;
-
-        String rawSortBy = (request.getSortBy() != null) ? request.getSortBy().trim() : "createdAt";
-        String sortBy = ALLOWED_SORT_FIELDS.contains(rawSortBy) ? rawSortBy : "createdAt";
-
-        int page = Math.max(0, request.getPage());
-        int size = Math.min(Math.max(1, request.getSize()), 100);
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-
-        Page<Booking> bookingPage = bookingRepository.findByUserId(user.getId(), pageable);
-        Page<BookingResponse> dtoPage = bookingPage.map(bookingMapper::toBookingResponse);
-        return PageResponse.fromPage(dtoPage);
-    }
 
     public BigDecimal calculateTotalPrice(Space space, LocalDateTime startTime, LocalDateTime endTime) {
         BigDecimal price = space.getPrice() != null ? space.getPrice() : BigDecimal.ZERO;
@@ -349,4 +395,3 @@ public class BookingServiceImpl implements BookingService {
         return Locale.forLanguageTag(language.replace('_', '-'));
     }
 }
-
