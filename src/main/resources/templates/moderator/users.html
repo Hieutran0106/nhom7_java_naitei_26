@@ -1,69 +1,2503 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quản lý người dùng</title>
-    <link rel="stylesheet" th:href="@{/css/moderator-users.css}">
-</head>
-<body>
-<main>
-    <h1>Quản lý người dùng</h1>
-    <p>Tìm người dùng và mở trang chi tiết để quản lý tài khoản.</p>
-    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
-    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/moderator-layout :: layout(
+          'Quản lý người dùng',
+          'users',
+          ~{::section}
+      )}">
 
-    <section class="card">
-        <form class="filters" method="get" th:action="@{/moderator/users}" th:object="${searchRequest}">
-            <label>
-                <span>Từ khóa</span>
-                <input type="search" th:field="*{keyword}" placeholder="Tên, email hoặc số điện thoại">
-            </label>
-            <label>
-                <span>Trạng thái</span>
-                <select th:field="*{status}">
-                    <option value="">Tất cả</option>
-                    <option th:each="item : ${statuses}" th:value="${item}" th:text="${item}">ACTIVE</option>
+<section>
+
+    <!-- =====================================================
+         PAGE HEADER
+    ====================================================== -->
+    <div class="page-header">
+        <div>
+            
+
+            <p class="page-description">
+                Tìm kiếm, lọc, xem chi tiết và quản lý tài khoản người dùng trong hệ thống.
+            </p>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         FLASH MESSAGES
+    ====================================================== -->
+    <div th:if="${successMessage}"
+         class="alert alert-success"
+         th:text="${successMessage}">
+    </div>
+
+    <div th:if="${errorMessage}"
+         class="alert alert-error"
+         th:text="${errorMessage}">
+    </div>
+
+
+    <!-- =====================================================
+         MAIN CARD
+    ====================================================== -->
+    <div class="content-card">
+
+        <!-- =================================================
+             SEARCH + FILTER - TASK #99297
+        ================================================== -->
+        <form id="userFilterForm"
+              method="get"
+              th:action="@{/moderator/users}"
+              th:object="${searchRequest}"
+              class="user-list-filter">
+
+            <div class="user-list-filter-group">
+
+                <label for="keyword">
+                    Tìm kiếm người dùng
+                </label>
+
+                <input id="keyword"
+                       type="search"
+                       th:field="*{keyword}"
+                       placeholder="Tên, email hoặc số điện thoại"
+                       autocomplete="off">
+
+            </div>
+
+
+            <div class="user-list-filter-group">
+
+                <label for="status">
+                    Trạng thái
+                </label>
+
+                <select id="status"
+                        th:field="*{status}"
+                        onchange="submitUserFilterForm()">
+
+                    <option value="">
+                        Tất cả trạng thái
+                    </option>
+
+                    <option th:each="statusItem : ${statuses}"
+                            th:value="${statusItem}"
+                            th:text="${statusItem}">
+                    </option>
+
                 </select>
-            </label>
-            <label>
-                <span>Vai trò</span>
-                <select th:field="*{role}">
-                    <option value="">Tất cả</option>
+
+            </div>
+
+
+            <div class="user-list-filter-group">
+
+                <label for="role">
+                    Vai trò
+                </label>
+
+                <select id="role"
+                        th:field="*{role}"
+                        onchange="submitUserFilterForm()">
+
+                    <option value="">
+                        Tất cả vai trò
+                    </option>
+
                     <option value="USER">USER</option>
                     <option value="HOST">HOST</option>
                     <option value="MODERATOR">MODERATOR</option>
                     <option value="ADMIN">ADMIN</option>
+
                 </select>
-            </label>
-            <button type="submit">Tìm kiếm</button>
+
+            </div>
+
+
+            <div class="user-list-filter-actions">
+
+                <button type="submit"
+                        class="user-list-button user-list-button-primary">
+
+                    <svg width="17"
+                         height="17"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         aria-hidden="true">
+
+                        <circle cx="11"
+                                cy="11"
+                                r="8"/>
+
+                        <path d="m21 21-4.35-4.35"/>
+
+                    </svg>
+
+                    Tìm kiếm
+
+                </button>
+
+
+                <button type="button"
+                        class="user-list-button user-list-button-secondary"
+                        onclick="resetUserList()">
+
+                    Đặt lại
+
+                </button>
+
+            </div>
+
         </form>
 
-        <div class="table-wrap" th:if="${!users.content.isEmpty()}">
-            <table>
-                <thead><tr><th>ID</th><th>Người dùng</th><th>Email</th><th>Trạng thái</th><th>Vai trò</th><th></th></tr></thead>
-                <tbody>
-                <tr th:each="item : ${users.content}">
-                    <td th:text="${item.id}">1</td>
-                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}" th:text="${item.name}">Tên người dùng</a></td>
-                    <td th:text="${item.email}">email@example.com</td>
-                    <td th:text="${item.status}">ACTIVE</td>
-                    <td><div class="roles"><span class="badge" th:each="role : ${item.roles}" th:text="${role}">USER</span></div></td>
-                    <td><a th:href="@{/moderator/users/{id}(id=${item.id})}">Xem chi tiết</a></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="empty" th:if="${users.content.isEmpty()}">Không tìm thấy người dùng phù hợp.</div>
 
-        <nav class="pagination" th:if="${users.totalPages > 1}">
-            <a th:if="${users.pageNumber > 0}"
-               th:href="@{/moderator/users(page=${users.pageNumber - 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang trước</a>
-            <span th:text="'Trang ' + ${users.pageNumber + 1} + ' / ' + ${users.totalPages}">Trang 1 / 1</span>
-            <a th:if="${!users.last}"
-               th:href="@{/moderator/users(page=${users.pageNumber + 1},size=${users.pageSize},keyword=${searchRequest.keyword},status=${searchRequest.status},role=${searchRequest.role})}">Trang sau</a>
-        </nav>
-    </section>
-</main>
-</body>
+        <div id="userListResults">
+
+        <!-- =================================================
+             TOTAL
+        ================================================== -->
+        <div class="user-list-summary"
+             th:if="${users != null}">
+
+            <span>
+                Tổng cộng
+            </span>
+
+            <strong th:text="${users.totalElements}">
+                0
+            </strong>
+
+            <span>
+                người dùng
+            </span>
+
+        </div>
+
+
+        <!-- =================================================
+             USER TABLE
+        ================================================== -->
+        <div class="user-list-table-wrapper"
+             th:if="${users != null
+                 and users.content != null
+                 and !users.content.isEmpty()}">
+
+            <table class="user-list-table">
+
+                <thead>
+
+                <tr>
+                    <th>ID</th>
+                    <th>Người dùng</th>
+                    <th>Email</th>
+                    <th>Số điện thoại</th>
+                    <th>Trạng thái</th>
+                    <th>Vai trò</th>
+                    <th>Hành động</th>
+                </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                <tr th:each="user : ${users.content}">
+
+                    <!-- ID -->
+                    <td>
+
+                        <span class="user-list-id"
+                              th:text="'#' + ${user.id}">
+
+                            #1
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- USER -->
+                    <td>
+
+                        <div class="user-list-user">
+
+                            <div class="user-list-avatar"
+                                 th:text="${user.name != null
+                                     and !#strings.isEmpty(user.name)
+                                     ? #strings.substring(user.name, 0, 1)
+                                     : '?'}">
+
+                                N
+
+                            </div>
+
+
+                            <div class="user-list-user-info">
+
+                                <strong th:text="${user.name != null
+                                    and !#strings.isEmpty(user.name)
+                                    ? user.name
+                                    : 'Chưa cập nhật'}">
+
+                                    Nguyễn Văn A
+
+                                </strong>
+
+
+                                <span th:text="'User ID: ' + ${user.id}">
+                                    User ID: 1
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- EMAIL -->
+                    <td>
+
+                        <span class="user-list-email"
+                              th:text="${user.email != null
+                                  and !#strings.isEmpty(user.email)
+                                  ? user.email
+                                  : 'Chưa cập nhật'}">
+
+                            user@example.com
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- PHONE -->
+                    <td>
+
+                        <span th:text="${user.phone != null
+                            and !#strings.isEmpty(user.phone)
+                            ? user.phone
+                            : 'Chưa cập nhật'}">
+
+                            0123456789
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- STATUS -->
+                    <td>
+
+                        <span th:if="${user.status != null}"
+                              class="user-list-status"
+                              th:classappend="' user-list-status-' +
+                                  ${#strings.toLowerCase(user.status.toString())}"
+                              th:text="${user.status}">
+
+                            ACTIVE
+
+                        </span>
+
+
+                        <span th:if="${user.status == null}"
+                              class="user-list-status user-list-status-unknown">
+
+                            UNKNOWN
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- ROLES -->
+                    <td>
+
+                        <div class="user-list-roles"
+                             th:if="${user.roles != null
+                                 and !user.roles.isEmpty()}">
+
+                            <span th:each="role : ${user.roles}"
+                                  class="user-list-role"
+                                  th:text="${role}">
+
+                                USER
+
+                            </span>
+
+                        </div>
+
+
+                        <span class="user-list-empty-value"
+                              th:if="${user.roles == null
+                                  or user.roles.isEmpty()}">
+
+                            Không có vai trò
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- =================================================
+                         TASK #99301 - OPEN DETAIL
+                    ================================================== -->
+                    <td>
+
+                        <button type="button"
+                                class="user-detail-open-button"
+
+                                th:data-id="${user.id}"
+                                th:data-detail-url="@{/moderator/users/{id}(id=${user.id})}"
+                                th:data-name="${user.name}"
+                                th:data-email="${user.email}"
+                                th:data-phone="${user.phone}"
+                                th:data-status="${user.status}"
+                                th:data-language="${user.language}"
+
+                                th:data-identity-verified="${user.isIdentityVerified}"
+
+                                th:data-business-verified="${user.isBusinessVerified}"
+
+                                th:data-cccd-url="${user.cccdUrl}"
+
+                                th:data-business-license-url="${user.businessLicenseUrl}"
+
+                                th:data-roles="${user.roles != null
+                                    ? #strings.setJoin(user.roles, ', ')
+                                    : ''}"
+
+                                th:data-current-user-is-admin="${currentUserIsAdmin}"
+
+                                onclick="openUserDetail(this, event)">
+
+                            Xem chi tiết
+
+                        </button>
+
+                    </td>
+
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- =================================================
+             EMPTY STATE
+        ================================================== -->
+        <div class="user-list-empty"
+             th:if="${users == null
+                 or users.content == null
+                 or users.content.isEmpty()}">
+
+            <div class="user-list-empty-icon">
+
+                <svg width="27"
+                     height="27"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.7"
+                     aria-hidden="true">
+
+                    <circle cx="11"
+                            cy="11"
+                            r="8"/>
+
+                    <path d="m21 21-4.35-4.35"/>
+
+                </svg>
+
+            </div>
+
+
+            <h3>
+                Không tìm thấy người dùng
+            </h3>
+
+
+            <p>
+                Không có người dùng nào phù hợp với từ khóa hoặc trạng thái đã chọn.
+            </p>
+
+
+            <button type="button"
+                    class="user-list-button user-list-button-secondary"
+                    onclick="resetUserList()">
+
+                Xóa bộ lọc
+
+            </button>
+
+        </div>
+
+
+        <!-- =================================================
+             PAGINATION
+        ================================================== -->
+        <div class="user-list-pagination"
+             th:if="${users != null
+                 and users.totalPages > 1}">
+
+            <!-- PREVIOUS -->
+            <div class="user-list-pagination-side">
+
+                <button th:if="${users.pageNumber > 0}"
+                        type="button"
+                        class="user-list-page-button"
+
+                        th:data-page="${users.pageNumber - 1}"
+
+                        th:data-size="${users.pageSize}"
+
+                        th:data-keyword="${searchRequest.keyword}"
+
+                        th:data-status="${searchRequest.status}"
+
+                        th:data-role="${searchRequest.role}"
+
+                        onclick="loadUserPage(this)">
+
+                    ← Trang trước
+
+                </button>
+
+            </div>
+
+
+            <!-- CURRENT PAGE -->
+            <div class="user-list-pagination-center">
+
+                <span th:text="'Trang '
+                    + ${users.pageNumber + 1}
+                    + ' / '
+                    + ${users.totalPages}">
+
+                    Trang 1 / 1
+
+                </span>
+
+            </div>
+
+
+            <!-- NEXT -->
+            <div class="user-list-pagination-side
+                        user-list-pagination-right">
+
+                <button th:if="${!users.last}"
+                        type="button"
+                        class="user-list-page-button"
+
+                        th:data-page="${users.pageNumber + 1}"
+
+                        th:data-size="${users.pageSize}"
+
+                        th:data-keyword="${searchRequest.keyword}"
+
+                        th:data-status="${searchRequest.status}"
+
+                        th:data-role="${searchRequest.role}"
+
+                        onclick="loadUserPage(this)">
+
+                    Trang sau →
+
+                </button>
+
+            </div>
+
+        </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         TASK #99301 - DRAWER OVERLAY
+    ====================================================== -->
+    <div id="userDetailOverlay"
+         class="user-detail-overlay"
+         onclick="closeUserDetail()"
+         aria-hidden="true">
+    </div>
+
+
+    <!-- =====================================================
+         TASK #99301 - DETAIL DRAWER
+    ====================================================== -->
+    <aside id="userDetailDrawer"
+           class="user-detail-drawer"
+           aria-hidden="true"
+           aria-labelledby="userDetailTitle">
+
+
+        <!-- DRAWER HEADER -->
+        <div class="user-detail-header">
+
+            <div>
+
+                <span class="user-detail-eyebrow">
+                    Thông tin người dùng
+                </span>
+
+
+                <h3 id="userDetailTitle">
+                    Chi tiết User
+                </h3>
+
+            </div>
+
+
+            <button type="button"
+                    class="user-detail-close"
+                    onclick="closeUserDetail()"
+                    aria-label="Đóng">
+
+                ×
+
+            </button>
+
+        </div>
+
+
+        <!-- DRAWER BODY -->
+        <div class="user-detail-body">
+
+
+            <!-- =================================================
+                 PROFILE SUMMARY
+            ================================================== -->
+            <div class="user-detail-profile">
+
+                <div id="detailAvatar"
+                     class="user-detail-avatar">
+
+                    U
+
+                </div>
+
+
+                <div class="user-detail-profile-info">
+
+                    <h4 id="detailName">
+                        Người dùng
+                    </h4>
+
+
+                    <p id="detailEmail">
+                        user@example.com
+                    </p>
+
+
+                    <div class="user-detail-profile-badges">
+
+                        <span id="detailStatus"
+                              class="user-detail-status status-unknown">
+
+                            UNKNOWN
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 PERSONAL INFORMATION
+            ================================================== -->
+            <section class="user-detail-section">
+
+                <div class="user-detail-section-heading">
+
+                    <div>
+
+                        <h4>
+                            Thông tin cá nhân
+                        </h4>
+
+
+                        <p>
+                            Thông tin tài khoản hiện tại của người dùng.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="user-detail-grid">
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            ID
+                        </span>
+
+                        <strong id="detailId">
+                            -
+                        </strong>
+
+                    </div>
+
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            Họ tên
+                        </span>
+
+                        <strong id="detailFullName">
+                            -
+                        </strong>
+
+                    </div>
+
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            Email
+                        </span>
+
+                        <strong id="detailEmailField">
+                            -
+                        </strong>
+
+                    </div>
+
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            Số điện thoại
+                        </span>
+
+                        <strong id="detailPhone">
+                            -
+                        </strong>
+
+                    </div>
+
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            Ngôn ngữ
+                        </span>
+
+                        <strong id="detailLanguage">
+                            -
+                        </strong>
+
+                    </div>
+
+
+                    <div class="user-detail-field">
+
+                        <span>
+                            Vai trò
+                        </span>
+
+                        <strong id="detailRoles">
+                            -
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 CCCD / IDENTITY KYC
+            ================================================== -->
+            <section class="user-detail-section">
+
+                <div class="user-detail-section-heading">
+
+                    <div>
+
+                        <h4>
+                            CCCD / Giấy tờ tùy thân
+                        </h4>
+
+
+                        <p>
+                            Ảnh giấy tờ dùng để xác minh danh tính.
+                        </p>
+
+                    </div>
+
+
+                    <span id="detailIdentityVerification"
+                          class="user-detail-verification pending">
+
+                        Chưa xác minh
+
+                    </span>
+
+                </div>
+
+
+                <div class="user-detail-document">
+
+                    <img id="detailCccdImage"
+                         alt="Ảnh CCCD">
+
+
+                    <div id="detailCccdEmpty"
+                         class="user-detail-document-empty">
+
+                        Chưa có ảnh CCCD.
+
+                    </div>
+
+                </div>
+
+
+                <div class="user-detail-action-form">
+
+                    <button id="identityVerificationButton"
+                            type="button"
+                            class="user-detail-action-button
+                                   user-detail-action-verify"
+                            onclick="verifyIdentity(event)">
+
+                        Duyệt KYC
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 BUSINESS LICENSE
+            ================================================== -->
+            <section class="user-detail-section">
+
+                <div class="user-detail-section-heading">
+
+                    <div>
+
+                        <h4>
+                            Giấy phép kinh doanh
+                        </h4>
+
+
+                        <p>
+                            Tài liệu xác minh doanh nghiệp / Host.
+                        </p>
+
+                    </div>
+
+
+                    <span id="detailBusinessVerification"
+                          class="user-detail-verification pending">
+
+                        Chưa xác minh
+
+                    </span>
+
+                </div>
+
+
+                <div class="user-detail-document">
+
+                    <img id="detailBusinessImage"
+                         alt="Ảnh giấy phép kinh doanh">
+
+
+                    <div id="detailBusinessEmpty"
+                         class="user-detail-document-empty">
+
+                        Chưa có giấy phép kinh doanh.
+
+                    </div>
+
+                </div>
+
+
+                <div class="user-detail-action-form">
+
+                    <button id="businessVerificationButton"
+                            type="button"
+                            class="user-detail-action-button
+                                   user-detail-action-verify"
+                            onclick="verifyBusiness(event)">
+
+                        Duyệt giấy phép
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 LOCK / UNLOCK ACCOUNT
+            ================================================== -->
+            <section class="user-detail-section
+                            user-detail-danger-section">
+
+                <div class="user-detail-section-heading">
+
+                    <div>
+
+                        <h4>
+                            Trạng thái tài khoản
+                        </h4>
+
+
+                        <p>
+                            Khóa hoặc mở khóa tài khoản người dùng.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="user-detail-action-form">
+
+                    <button id="statusUpdateButton"
+                            type="button"
+                            class="user-detail-action-button
+                                   user-detail-action-danger"
+                            onclick="updateUserStatus(event)">
+
+                        Khóa tài khoản
+
+                    </button>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         SCRIPT
+    ====================================================== -->
+    <script>
+
+        /*
+         * Toàn bộ script của trang được bọc trong 1 IIFE để các biến/hàm
+         * (vd. currentUserId) chỉ tồn tại trong scope riêng của trang này,
+         * không rơi vào Script scope dùng chung của document.
+         * Tránh lỗi "Identifier ... has already been declared" nếu có
+         * script khác (layout, devtools, extension...) cũng chạy trên
+         * cùng trang.
+         */
+        (function () {
+
+        "use strict";
+
+        /* =====================================================
+           CURRENT DRAWER STATE
+        ====================================================== */
+
+        let currentUserId = null;
+
+        let currentUserStatus = null;
+
+        let currentIdentityVerified = false;
+
+        let currentBusinessVerified = false;
+
+        let currentCccdUrl = null;
+
+        let currentBusinessLicenseUrl = null;
+
+        let currentUserCanLock =
+            true;
+
+
+        const userDetailDrawer =
+            document.getElementById(
+                "userDetailDrawer"
+            );
+
+
+        const userDetailOverlay =
+            document.getElementById(
+                "userDetailOverlay"
+            );
+
+
+        /* =====================================================
+           JWT
+        ====================================================== */
+
+        function getAccessToken() {
+
+            return (
+                sessionStorage.getItem(
+                    "accessToken"
+                )
+                ||
+                localStorage.getItem(
+                    "accessToken"
+                )
+            );
+        }
+
+
+        /* =====================================================
+           VALUE HELPERS
+        ====================================================== */
+
+        function normalizeDetailValue(
+            value,
+            fallback = "Chưa cập nhật"
+        ) {
+
+            if (
+                value === null
+                || value === undefined
+                || value === ""
+                || value === "null"
+                || value === "undefined"
+            ) {
+
+                return fallback;
+            }
+
+
+            return value;
+        }
+
+
+        function detailBoolean(
+            value
+        ) {
+
+            return (
+                String(
+                    value
+                ).toLowerCase()
+                === "true"
+            );
+        }
+
+
+        function hasDocumentUrl(
+            value
+        ) {
+
+            return (
+                value !== null
+                && value !== undefined
+                && value !== ""
+                && value !== "null"
+                && value !== "undefined"
+            );
+        }
+
+
+        /* =====================================================
+           API HELPER
+        ====================================================== */
+
+        async function callModeratorApi(
+            url,
+            options = {}
+        ) {
+
+            const token =
+                getAccessToken();
+
+
+            if (!token) {
+
+                throw new Error(
+                    "Không tìm thấy access token. "
+                    + "Vui lòng đăng nhập lại."
+                );
+            }
+
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        ...options,
+
+                        headers: {
+
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`,
+
+                            ...(options.headers || {})
+                        }
+                    }
+                );
+
+
+            let body = null;
+
+
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                );
+
+
+            if (
+                contentType
+                && contentType.includes(
+                    "application/json"
+                )
+            ) {
+
+                try {
+
+                    body =
+                        await response.json();
+
+                } catch (error) {
+
+                    body =
+                        null;
+                }
+            }
+
+
+            if (!response.ok) {
+
+                const message =
+                    body?.message
+                    || body?.error
+                    || `Thao tác thất bại (${response.status}).`;
+
+
+                throw new Error(
+                    message
+                );
+            }
+
+
+            return body;
+        }
+
+
+        /* =====================================================
+           LOAD MODERATOR HTML WITH JWT
+        ====================================================== */
+
+        async function loadModeratorPage(
+            url
+        ) {
+
+            const token =
+                getAccessToken();
+
+
+            if (!token) {
+
+                alert(
+                    "Không tìm thấy access token. "
+                    + "Vui lòng đăng nhập lại."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        url,
+                        {
+                            headers: {
+
+                                Authorization:
+                                    `Bearer ${token}`
+                            }
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Không thể tải trang (${response.status}).`
+                    );
+                }
+
+
+                const html =
+                    await response.text();
+
+
+                const parser =
+                    new DOMParser();
+
+
+                const nextDocument =
+                    parser.parseFromString(
+                        html,
+                        "text/html"
+                    );
+
+
+                const nextResults =
+                    nextDocument.querySelector(
+                        "#userListResults"
+                    );
+
+
+                const currentResults =
+                    document.querySelector(
+                        "#userListResults"
+                    );
+
+
+                if (
+                    !nextResults
+                    || !currentResults
+                ) {
+
+                    throw new Error(
+                        "Không tìm thấy vùng danh sách người dùng để cập nhật."
+                    );
+                }
+
+
+                currentResults.replaceWith(
+                    nextResults
+                );
+
+
+                window.history.replaceState(
+                    {},
+                    "",
+                    url
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "[Moderator Users] Failed to load page:",
+                    error
+                );
+
+
+                alert(
+                    error.message
+                );
+            }
+        }
+
+
+        /* =====================================================
+           SEARCH
+        ====================================================== */
+
+        const userFilterForm =
+            document.getElementById(
+                "userFilterForm"
+            );
+
+
+        userFilterForm.addEventListener(
+            "submit",
+            function (
+                event
+            ) {
+
+                event.preventDefault();
+
+                submitUserFilterForm();
+            }
+        );
+
+
+        function submitUserFilterForm() {
+
+            const keyword =
+                document.getElementById(
+                    "keyword"
+                ).value.trim();
+
+
+            const status =
+                document.getElementById(
+                    "status"
+                ).value;
+
+
+            const role =
+                document.getElementById(
+                    "role"
+                ).value;
+
+
+            const params =
+                new URLSearchParams();
+
+
+            if (keyword !== "") {
+
+                params.set(
+                    "keyword",
+                    keyword
+                );
+            }
+
+
+            if (status !== "") {
+
+                params.set(
+                    "status",
+                    status
+                );
+            }
+
+
+            if (role !== "") {
+
+                params.set(
+                    "role",
+                    role
+                );
+            }
+
+
+            const query =
+                params.toString();
+
+
+            loadModeratorPage(
+                query
+                    ? `/moderator/users?${query}`
+                    : "/moderator/users"
+            );
+        }
+
+
+        /* =====================================================
+           RESET
+        ====================================================== */
+
+        function resetUserList() {
+
+            document.getElementById(
+                "keyword"
+            ).value = "";
+
+
+            document.getElementById(
+                "status"
+            ).value = "";
+
+
+            document.getElementById(
+                "role"
+            ).value = "";
+
+
+            loadModeratorPage(
+                "/moderator/users"
+            );
+        }
+
+
+        /* =====================================================
+           PAGINATION
+        ====================================================== */
+
+        function loadUserPage(
+            button
+        ) {
+
+            const params =
+                new URLSearchParams();
+
+
+            params.set(
+                "page",
+                button.dataset.page
+            );
+
+
+            params.set(
+                "size",
+                button.dataset.size
+            );
+
+
+            if (
+                button.dataset.keyword
+                && button.dataset.keyword !== "null"
+                && button.dataset.keyword !== "undefined"
+            ) {
+
+                params.set(
+                    "keyword",
+                    button.dataset.keyword
+                );
+            }
+
+
+            if (
+                button.dataset.status
+                && button.dataset.status !== "null"
+                && button.dataset.status !== "undefined"
+            ) {
+
+                params.set(
+                    "status",
+                    button.dataset.status
+                );
+            }
+
+
+            if (
+                button.dataset.role
+                && button.dataset.role !== "null"
+                && button.dataset.role !== "undefined"
+            ) {
+
+                params.set(
+                    "role",
+                    button.dataset.role
+                );
+            }
+
+
+            loadModeratorPage(
+                `/moderator/users?${params.toString()}`
+            );
+        }
+
+
+        /* =====================================================
+           DOCUMENT IMAGE
+        ====================================================== */
+
+        function setDetailDocument(
+            imageId,
+            emptyId,
+            url
+        ) {
+
+            const image =
+                document.getElementById(
+                    imageId
+                );
+
+
+            const empty =
+                document.getElementById(
+                    emptyId
+                );
+
+
+            if (
+                hasDocumentUrl(
+                    url
+                )
+            ) {
+
+                image.src =
+                    url;
+
+
+                image.style.display =
+                    "block";
+
+
+                empty.style.display =
+                    "none";
+
+            } else {
+
+                image.removeAttribute(
+                    "src"
+                );
+
+
+                image.style.display =
+                    "none";
+
+
+                empty.style.display =
+                    "flex";
+            }
+        }
+
+
+        /* =====================================================
+           VERIFICATION BADGE
+        ====================================================== */
+
+        function setVerificationState(
+            elementId,
+            verified
+        ) {
+
+            const element =
+                document.getElementById(
+                    elementId
+                );
+
+
+            element.classList.remove(
+                "verified",
+                "pending"
+            );
+
+
+            if (verified) {
+
+                element.textContent =
+                    "Đã xác minh";
+
+
+                element.classList.add(
+                    "verified"
+                );
+
+            } else {
+
+                element.textContent =
+                    "Chưa xác minh";
+
+
+                element.classList.add(
+                    "pending"
+                );
+            }
+        }
+
+
+        /* =====================================================
+           VERIFICATION BUTTON
+        ====================================================== */
+
+        function configureVerificationButton(
+            buttonId,
+            verified,
+            documentUrl,
+            missingText,
+            readyText
+        ) {
+
+            const button =
+                document.getElementById(
+                    buttonId
+                );
+
+
+            if (verified) {
+
+                button.disabled =
+                    true;
+
+
+                button.textContent =
+                    "Đã xác minh";
+
+
+                return;
+            }
+
+
+            if (
+                !hasDocumentUrl(
+                    documentUrl
+                )
+            ) {
+
+                button.disabled =
+                    true;
+
+
+                button.textContent =
+                    missingText;
+
+
+                return;
+            }
+
+
+            button.disabled =
+                false;
+
+
+            button.textContent =
+                readyText;
+        }
+
+
+        /* =====================================================
+           STATUS BADGE
+        ====================================================== */
+
+        function updateDrawerStatusBadge(
+            status
+        ) {
+
+            const badge =
+                document.getElementById(
+                    "detailStatus"
+                );
+
+
+            badge.textContent =
+                status;
+
+
+            badge.className =
+                "user-detail-status status-"
+                + status.toLowerCase();
+        }
+
+
+        /* =====================================================
+           STATUS BUTTON
+        ====================================================== */
+
+        /* =====================================================
+           PEER-ROLE LOCK RESTRICTION
+
+           Backend rule (enforced server-side, this is UX only):
+           - A Moderator cannot lock another Moderator.
+           - An Admin cannot lock another Admin.
+           Unlocking (BLOCKED/INACTIVE -> ACTIVE) is always allowed.
+        ====================================================== */
+
+        function canCurrentUserLockTarget(
+            targetRoles,
+            currentUserIsAdmin
+        ) {
+
+            const roles =
+                (targetRoles || "")
+                    .toUpperCase();
+
+
+            const targetIsAdmin =
+                roles.includes(
+                    "ADMIN"
+                );
+
+
+            const targetIsModerator =
+                roles.includes(
+                    "MODERATOR"
+                );
+
+
+            if (
+                currentUserIsAdmin
+                &&
+                targetIsAdmin
+            ) {
+
+                return false;
+            }
+
+
+            if (
+                !currentUserIsAdmin
+                &&
+                targetIsModerator
+            ) {
+
+                return false;
+            }
+
+
+            return true;
+        }
+
+
+        function configureStatusButton(
+            userId,
+            status,
+            canLock = true
+        ) {
+
+            currentUserId =
+                userId;
+
+
+            currentUserStatus =
+                status;
+
+
+            const button =
+                document.getElementById(
+                    "statusUpdateButton"
+                );
+
+
+            const isCurrentlyLocked =
+                status === "BLOCKED"
+                ||
+                status === "INACTIVE";
+
+
+            if (isCurrentlyLocked) {
+
+                button.textContent =
+                    "Mở khóa tài khoản";
+
+
+                button.className =
+                    "user-detail-action-button "
+                    + "user-detail-action-success";
+
+
+                button.disabled =
+                    false;
+
+            } else {
+
+                button.textContent =
+                    canLock
+                        ? "Khóa tài khoản"
+                        : "Không có quyền khóa";
+
+
+                button.className =
+                    "user-detail-action-button "
+                    + "user-detail-action-danger";
+
+
+                button.disabled =
+                    !canLock;
+            }
+        }
+
+
+        /* =====================================================
+           OPEN DRAWER
+        ====================================================== */
+
+        function openUserDetail(
+            button,
+            event
+        ) {
+
+            /*
+             * Chặn bubbling để nút "Xem chi tiết" không bao giờ bị
+             * một handler cấp cao hơn (row/card/document) bắt lại,
+             * kể cả khi sau này có thêm nút khác (Lock/Edit/Delete...)
+             * trên cùng row.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
+
+            const data =
+                button.dataset;
+
+
+            const id =
+                normalizeDetailValue(
+                    data.id,
+                    "-"
+                );
+
+
+            const name =
+                normalizeDetailValue(
+                    data.name
+                );
+
+
+            const email =
+                normalizeDetailValue(
+                    data.email
+                );
+
+
+            const phone =
+                normalizeDetailValue(
+                    data.phone
+                );
+
+
+            const language =
+                normalizeDetailValue(
+                    data.language
+                );
+
+
+            const roles =
+                normalizeDetailValue(
+                    data.roles,
+                    "Không có vai trò"
+                );
+
+
+            const status =
+                normalizeDetailValue(
+                    data.status,
+                    "UNKNOWN"
+                );
+
+
+            const identityVerified =
+                detailBoolean(
+                    data.identityVerified
+                );
+
+
+            const businessVerified =
+                detailBoolean(
+                    data.businessVerified
+                );
+
+
+            currentUserId =
+                id;
+
+
+            currentUserStatus =
+                status;
+
+
+            currentIdentityVerified =
+                identityVerified;
+
+
+            currentBusinessVerified =
+                businessVerified;
+
+
+            currentCccdUrl =
+                data.cccdUrl;
+
+
+            currentBusinessLicenseUrl =
+                data.businessLicenseUrl;
+
+
+            /* AVATAR */
+            document.getElementById(
+                "detailAvatar"
+            ).textContent =
+                name !== "Chưa cập nhật"
+                    ? name
+                        .trim()
+                        .charAt(0)
+                        .toUpperCase()
+                    : "?";
+
+
+            /* SUMMARY */
+            document.getElementById(
+                "detailName"
+            ).textContent =
+                name;
+
+
+            document.getElementById(
+                "detailEmail"
+            ).textContent =
+                email;
+
+
+            /* PERSONAL INFO */
+            document.getElementById(
+                "detailId"
+            ).textContent =
+                "#" + id;
+
+
+            document.getElementById(
+                "detailFullName"
+            ).textContent =
+                name;
+
+
+            document.getElementById(
+                "detailEmailField"
+            ).textContent =
+                email;
+
+
+            document.getElementById(
+                "detailPhone"
+            ).textContent =
+                phone;
+
+
+            document.getElementById(
+                "detailLanguage"
+            ).textContent =
+                language;
+
+
+            document.getElementById(
+                "detailRoles"
+            ).textContent =
+                roles;
+
+
+            /* STATUS */
+            updateDrawerStatusBadge(
+                status
+            );
+
+
+            /* KYC BADGES */
+            setVerificationState(
+                "detailIdentityVerification",
+                identityVerified
+            );
+
+
+            setVerificationState(
+                "detailBusinessVerification",
+                businessVerified
+            );
+
+
+            /* DOCUMENTS */
+            setDetailDocument(
+                "detailCccdImage",
+                "detailCccdEmpty",
+                currentCccdUrl
+            );
+
+
+            setDetailDocument(
+                "detailBusinessImage",
+                "detailBusinessEmpty",
+                currentBusinessLicenseUrl
+            );
+
+
+            /* CCCD BUTTON */
+            configureVerificationButton(
+                "identityVerificationButton",
+                identityVerified,
+                currentCccdUrl,
+                "Chưa có CCCD",
+                "Duyệt KYC"
+            );
+
+
+            /* BUSINESS BUTTON */
+            configureVerificationButton(
+                "businessVerificationButton",
+                businessVerified,
+                currentBusinessLicenseUrl,
+                "Chưa có giấy phép",
+                "Duyệt giấy phép"
+            );
+
+
+            /* STATUS BUTTON */
+            const currentUserIsAdmin =
+                detailBoolean(
+                    data.currentUserIsAdmin
+                );
+
+
+            currentUserCanLock =
+                canCurrentUserLockTarget(
+                    data.roles,
+                    currentUserIsAdmin
+                );
+
+
+            configureStatusButton(
+                id,
+                status,
+                currentUserCanLock
+            );
+
+
+            /* SHOW DRAWER */
+            userDetailDrawer.classList.add(
+                "open"
+            );
+
+
+            userDetailOverlay.classList.add(
+                "visible"
+            );
+
+
+            userDetailDrawer.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+
+            userDetailOverlay.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+
+            document.body.classList.add(
+                "user-detail-open"
+            );
+        }
+
+
+        /* =====================================================
+           CLOSE DRAWER
+        ====================================================== */
+
+        function closeUserDetail() {
+
+            userDetailDrawer.classList.remove(
+                "open"
+            );
+
+
+            userDetailOverlay.classList.remove(
+                "visible"
+            );
+
+
+            userDetailDrawer.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+
+
+            userDetailOverlay.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+
+
+            document.body.classList.remove(
+                "user-detail-open"
+            );
+        }
+
+
+        /* =====================================================
+           LOCK / UNLOCK ACCOUNT
+
+           API:
+           PUT /api/moderator/users/{id}/status
+
+           BODY:
+           {
+               "status": "BLOCKED"
+           }
+        ====================================================== */
+
+        async function updateUserStatus(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
+
+            if (!currentUserId) {
+                return;
+            }
+
+
+            const nextStatus =
+                (
+                    currentUserStatus === "BLOCKED"
+                    || currentUserStatus === "INACTIVE"
+                )
+                    ? "ACTIVE"
+                    : "BLOCKED";
+
+
+            if (
+                nextStatus === "BLOCKED"
+                &&
+                !currentUserCanLock
+            ) {
+
+                alert(
+                    "Bạn không có quyền khóa tài khoản này."
+                );
+
+
+                return;
+            }
+
+
+            const actionText =
+                nextStatus === "BLOCKED"
+                    ? "khóa"
+                    : "mở khóa";
+
+
+            const confirmed =
+                window.confirm(
+                    `Bạn có chắc muốn ${actionText} tài khoản này?`
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            const button =
+                document.getElementById(
+                    "statusUpdateButton"
+                );
+
+
+            button.disabled =
+                true;
+
+
+            try {
+
+                await callModeratorApi(
+                    `/api/moderator/users/${currentUserId}/status`,
+                    {
+                        method:
+                            "PUT",
+
+                        body:
+                            JSON.stringify({
+                                status:
+                                    nextStatus
+                            })
+                    }
+                );
+
+
+                currentUserStatus =
+                    nextStatus;
+
+
+                updateDrawerStatusBadge(
+                    currentUserStatus
+                );
+
+
+                configureStatusButton(
+                    currentUserId,
+                    currentUserStatus,
+                    currentUserCanLock
+                );
+
+
+                alert(
+                    nextStatus === "BLOCKED"
+                        ? "Đã khóa tài khoản."
+                        : "Đã mở khóa tài khoản."
+                );
+
+
+                await reloadUserList();
+
+
+            } catch (error) {
+
+                alert(
+                    error.message
+                );
+
+
+                button.disabled =
+                    false;
+            }
+        }
+
+
+        /* =====================================================
+           VERIFY IDENTITY
+
+           API:
+           PUT /api/moderator/users/{id}/verify-identity
+
+           BODY:
+           {
+               "verified": true
+           }
+        ====================================================== */
+
+        async function verifyIdentity(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
+
+            if (
+                !currentUserId
+                || currentIdentityVerified
+            ) {
+                return;
+            }
+
+
+            if (
+                !hasDocumentUrl(
+                    currentCccdUrl
+                )
+            ) {
+                return;
+            }
+
+
+            const confirmed =
+                window.confirm(
+                    "Xác nhận duyệt KYC danh tính cho người dùng này?"
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            const button =
+                document.getElementById(
+                    "identityVerificationButton"
+                );
+
+
+            button.disabled =
+                true;
+
+
+            try {
+
+                await callModeratorApi(
+                    `/api/moderator/users/${currentUserId}/verify-identity`,
+                    {
+                        method:
+                            "PUT",
+
+                        body:
+                            JSON.stringify({
+                                verified:
+                                    true
+                            })
+                    }
+                );
+
+
+                currentIdentityVerified =
+                    true;
+
+
+                setVerificationState(
+                    "detailIdentityVerification",
+                    true
+                );
+
+
+                button.textContent =
+                    "Đã xác minh";
+
+
+                button.disabled =
+                    true;
+
+
+                alert(
+                    "Đã duyệt KYC danh tính."
+                );
+
+
+            } catch (error) {
+
+                button.disabled =
+                    false;
+
+
+                alert(
+                    error.message
+                );
+            }
+        }
+
+
+        /* =====================================================
+           VERIFY BUSINESS
+
+           API:
+           PUT /api/moderator/users/{id}/verify-business
+
+           BODY:
+           {
+               "verified": true
+           }
+        ====================================================== */
+
+        async function verifyBusiness(event) {
+
+            /*
+             * Nút này nằm trong drawer "User Detail" đã mở sẵn - chặn
+             * bubbling để không bao giờ vô tình kích hoạt lại một
+             * handler mở drawer ở cấp cao hơn.
+             */
+            if (event) {
+                event.stopPropagation();
+            }
+
+
+            if (
+                !currentUserId
+                || currentBusinessVerified
+            ) {
+                return;
+            }
+
+
+            if (
+                !hasDocumentUrl(
+                    currentBusinessLicenseUrl
+                )
+            ) {
+                return;
+            }
+
+
+            const confirmed =
+                window.confirm(
+                    "Xác nhận duyệt giấy phép kinh doanh?"
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            const button =
+                document.getElementById(
+                    "businessVerificationButton"
+                );
+
+
+            button.disabled =
+                true;
+
+
+            try {
+
+                await callModeratorApi(
+                    `/api/moderator/users/${currentUserId}/verify-business`,
+                    {
+                        method:
+                            "PUT",
+
+                        body:
+                            JSON.stringify({
+                                verified:
+                                    true
+                            })
+                    }
+                );
+
+
+                currentBusinessVerified =
+                    true;
+
+
+                setVerificationState(
+                    "detailBusinessVerification",
+                    true
+                );
+
+
+                button.textContent =
+                    "Đã xác minh";
+
+
+                button.disabled =
+                    true;
+
+
+                alert(
+                    "Đã duyệt giấy phép kinh doanh."
+                );
+
+
+            } catch (error) {
+
+                button.disabled =
+                    false;
+
+
+                alert(
+                    error.message
+                );
+            }
+        }
+
+
+        /* =====================================================
+           REFRESH USER LIST WITH JWT
+        ====================================================== */
+
+        async function reloadUserList() {
+
+            const keywordElement =
+                document.getElementById(
+                    "keyword"
+                );
+
+
+            const statusElement =
+                document.getElementById(
+                    "status"
+                );
+
+
+            const roleElement =
+                document.getElementById(
+                    "role"
+                );
+
+
+            const keyword =
+                keywordElement
+                    ? keywordElement.value.trim()
+                    : "";
+
+
+            const status =
+                statusElement
+                    ? statusElement.value
+                    : "";
+
+
+            const role =
+                roleElement
+                    ? roleElement.value
+                    : "";
+
+
+            const params =
+                new URLSearchParams();
+
+
+            if (keyword !== "") {
+
+                params.set(
+                    "keyword",
+                    keyword
+                );
+            }
+
+
+            if (status !== "") {
+
+                params.set(
+                    "status",
+                    status
+                );
+            }
+
+
+            if (role !== "") {
+
+                params.set(
+                    "role",
+                    role
+                );
+            }
+
+
+            const query =
+                params.toString();
+
+
+            const url =
+                query
+                    ? `/moderator/users?${query}`
+                    : "/moderator/users";
+
+
+            await loadModeratorPage(
+                url
+            );
+        }
+
+
+        /* =====================================================
+           ESC TO CLOSE
+        ====================================================== */
+
+        document.addEventListener(
+            "keydown",
+            function (
+                event
+            ) {
+
+                if (
+                    event.key === "Escape"
+                    && userDetailDrawer.classList.contains(
+                        "open"
+                    )
+                ) {
+
+                    closeUserDetail();
+                }
+            }
+        );
+
+
+        /* =====================================================
+           PUBLIC API
+           Các hàm dưới đây được gọi trực tiếp từ thuộc tính
+           onclick/onchange trong HTML (chạy ở global scope), nên
+           cần gắn tường minh vào window. Đây là điểm export DUY
+           NHẤT ra ngoài IIFE - mọi biến/hàm khác vẫn ở local scope.
+        ====================================================== */
+
+        window.submitUserFilterForm = submitUserFilterForm;
+        window.resetUserList = resetUserList;
+        window.openUserDetail = openUserDetail;
+        window.loadUserPage = loadUserPage;
+        window.closeUserDetail = closeUserDetail;
+        window.verifyIdentity = verifyIdentity;
+        window.verifyBusiness = verifyBusiness;
+        window.updateUserStatus = updateUserStatus;
+
+        })();
+
+    </script>
+
+</section>
+
 </html>

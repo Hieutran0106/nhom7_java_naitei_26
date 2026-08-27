@@ -45,10 +45,14 @@ public class ModeratorUserWebController {
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     public String listUsers(
             @ModelAttribute("searchRequest") UserSearchRequest request,
+            Authentication authentication,
             Model model) {
-        PageResponse<UserSearchResponse> userPage = userService.searchUsers(request);
+        PageResponse<UserSearchResponse> userPage = userService.searchUsers(request, authentication.getName());
         model.addAttribute("users", userPage);
         model.addAttribute("statuses", UserStatus.values());
+        boolean isCurrentAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        model.addAttribute("currentUserIsAdmin", isCurrentAdmin);
         return "moderator/users";
     }
 
