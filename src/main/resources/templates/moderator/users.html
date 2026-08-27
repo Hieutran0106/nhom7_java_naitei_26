@@ -155,6 +155,8 @@
         </form>
 
 
+        <div id="userListResults">
+
         <!-- =================================================
              TOTAL
         ================================================== -->
@@ -511,6 +513,8 @@
                 </button>
 
             </div>
+
+        </div>
 
         </div>
 
@@ -1148,20 +1152,50 @@
                     await response.text();
 
 
+                const parser =
+                    new DOMParser();
+
+
+                const nextDocument =
+                    parser.parseFromString(
+                        html,
+                        "text/html"
+                    );
+
+
+                const nextResults =
+                    nextDocument.querySelector(
+                        "#userListResults"
+                    );
+
+
+                const currentResults =
+                    document.querySelector(
+                        "#userListResults"
+                    );
+
+
+                if (
+                    !nextResults
+                    || !currentResults
+                ) {
+
+                    throw new Error(
+                        "Không tìm thấy vùng danh sách người dùng để cập nhật."
+                    );
+                }
+
+
+                currentResults.replaceWith(
+                    nextResults
+                );
+
+
                 window.history.replaceState(
                     {},
                     "",
                     url
                 );
-
-
-                document.open();
-
-                document.write(
-                    html
-                );
-
-                document.close();
 
 
             } catch (error) {
@@ -1270,6 +1304,21 @@
         ====================================================== */
 
         function resetUserList() {
+
+            document.getElementById(
+                "keyword"
+            ).value = "";
+
+
+            document.getElementById(
+                "status"
+            ).value = "";
+
+
+            document.getElementById(
+                "role"
+            ).value = "";
+
 
             loadModeratorPage(
                 "/moderator/users"
