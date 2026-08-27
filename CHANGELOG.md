@@ -8,6 +8,29 @@ File ghi lại những thay đổi của dự án.
 
 ## [Unreleased]
 
+### 2026-08-27 - Venue Moderation Actions (#99318)
+
+#### Added
+- Thêm chức năng Approve Venue cho Moderator/Admin thông qua `PUT /api/moderator/venues/{id}/approve`.
+- Thêm chức năng Block Venue thông qua `PUT /api/moderator/venues/{id}/block`.
+- Thêm `BlockVenueRequest` và validation bắt buộc nhập lý do khi khóa Venue.
+- Thêm trường `blockReason` vào Venue để lưu lý do khóa.
+- Hiển thị lý do khóa trên trang chi tiết Venue khi trạng thái là `BLOCKED`.
+- Thêm nút Approve và Block trên giao diện chi tiết Venue:
+  - `PENDING`: hiển thị Approve và Block.
+  - `APPROVE`: chỉ hiển thị Block.
+  - `BLOCKED`: không hiển thị action và hiển thị lý do khóa.
+- Thêm modal nhập lý do khi Moderator/Admin thực hiện Block Venue.
+- Tích hợp Bearer Token khi giao diện gọi API Approve/Block.
+- Khi Block Venue, toàn bộ Space thuộc Venue được chuyển sang `INACTIVE`.
+- Khi Approve Venue, các Space không tự động được kích hoạt lại.
+
+#### Tests
+- Thêm test cho service Approve/Block Venue.
+- Thêm test cho API Approve/Block và validation lý do khóa.
+- Thêm test cho các thành phần moderation trên giao diện Venue Detail.
+- Full test suite: `289` tests passed, `0` failures, `0` errors.
+
 ### 2026-08-27 - Space Management API & Logic (Create, View, Edit, Delete, Managers) (#99344)
 
 **Người thực hiện:** Nguyễn Minh An
