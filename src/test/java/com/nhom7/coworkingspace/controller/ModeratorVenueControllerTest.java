@@ -2,6 +2,7 @@ package com.nhom7.coworkingspace.controller;
 
 import com.nhom7.coworkingspace.config.JwtProperties;
 import com.nhom7.coworkingspace.controller.api.ModeratorVenueController;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
 import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.exception.AppException;
@@ -22,10 +23,14 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,6 +55,22 @@ class ModeratorVenueControllerTest {
 
     @MockBean
     private TokenBlacklistService tokenBlacklistService;
+
+    @Test
+    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
+    @DisplayName("Authenticated MODERATOR -> GET /api/moderator/venues returns a filtered page")
+    void givenModeratorRole_whenListVenues_thenReturn200() throws Exception {
+        VenueResponse venue = VenueResponse.builder().id(1L).name("Innovation Hub")
+                .status(VenueStatus.PENDING).build();
+        PageResponse<VenueResponse> page = PageResponse.<VenueResponse>builder()
+                .content(List.of(venue)).pageNumber(0).pageSize(10).totalElements(1).totalPages(1).last(true).build();
+        given(venueService.getAllVenues(0, 10, VenueStatus.PENDING)).willReturn(page);
+
+        mockMvc.perform(get("/api/moderator/venues").param("status", "PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].name").value("Innovation Hub"))
+                .andExpect(jsonPath("$.data.content[0].status").value("PENDING"));
+    }
 
     @Test
     @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
@@ -111,13 +132,28 @@ class ModeratorVenueControllerTest {
 
     @Test
     @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
-    @DisplayName("Invalid status in body -> PUT /api/moderator/venues/{id}/status returns 400 Bad Request")
-    void givenInvalidStatus_whenUpdateVenueStatus_thenReturn400() throws Exception {
+    @DisplayName("Null status -> PUT /api/moderator/venues/{id}/status returns 400 Bad Request")
+    void givenNullStatus_whenUpdateVenueStatus_thenReturn400() throws Exception {
         mockMvc.perform(put("/api/moderator/venues/1/status")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": null}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "moderator@test.com", roles = {"MODERATOR"})
+    @DisplayName("Unknown status returns 400 with the list of accepted values")
+    void givenUnknownStatus_whenUpdateVenueStatus_thenReturnHelpfulBadRequest() throws Exception {
+        mockMvc.perform(put("/api/moderator/venues/1/status")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"REJECTED\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(containsString("PENDING, APPROVE, BLOCKED")));
+
+        verifyNoInteractions(venueService);
     }
 
     @Test

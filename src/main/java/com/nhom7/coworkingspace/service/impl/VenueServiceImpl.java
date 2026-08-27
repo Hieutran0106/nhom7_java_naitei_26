@@ -80,6 +80,19 @@ public class VenueServiceImpl implements VenueService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<VenueResponse> getAllVenues(int page, int size, VenueStatus status) {
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.min(Math.max(1, size), 100),
+                Sort.by(Sort.Direction.DESC, "id"));
+        Page<Venue> venuePage = status == null
+                ? venueRepository.findByDeletedFalse(pageable)
+                : venueRepository.findByStatusAndDeletedFalse(status, pageable);
+        return PageResponse.fromPage(venuePage.map(venueMapper::toVenueResponse));
+    }
+
+    @Override
     @Transactional
     public VenueResponse updateVenue(Long venueId, VenueRequest request, String hostEmail) {
         User host = resolveHostUser(hostEmail);
@@ -118,6 +131,10 @@ public class VenueServiceImpl implements VenueService {
             return venueMapper.toVenueResponse(venue);
         }
 
+        if (!isAllowedStatusTransition(venue.getStatus(), newStatus)) {
+            throw new AppException("venue.status.transition.invalid", HttpStatus.BAD_REQUEST);
+        }
+
         venue.setStatus(newStatus);
         Venue savedVenue = venueRepository.save(venue);
 
@@ -129,6 +146,16 @@ public class VenueServiceImpl implements VenueService {
         }
 
         return venueMapper.toVenueResponse(savedVenue);
+    }
+
+    /**
+     * A venue is approved exactly once after its initial review. It can subsequently be
+     * blocked and re-approved, but must never return to the review queue.
+     */
+    private boolean isAllowedStatusTransition(VenueStatus currentStatus, VenueStatus newStatus) {
+        return (currentStatus == VenueStatus.PENDING && newStatus == VenueStatus.APPROVE)
+                || (currentStatus == VenueStatus.APPROVE && newStatus == VenueStatus.BLOCKED)
+                || (currentStatus == VenueStatus.BLOCKED && newStatus == VenueStatus.APPROVE);
     }
 
     @Override

@@ -261,6 +261,27 @@ class VenueServiceImplTest {
     }
 
     @Nested
+    @DisplayName("getAllVenues")
+    class GetAllVenuesTests {
+
+        @Test
+        @DisplayName("Moderator listing can filter non-deleted venues by status")
+        void getAllVenues_WithStatus_ReturnsFilteredPage() {
+            Venue venue = Venue.builder().id(100L).name("Innovation Hub").status(VenueStatus.PENDING).build();
+            VenueResponse response = VenueResponse.builder().id(100L).name("Innovation Hub")
+                    .status(VenueStatus.PENDING).build();
+            given(venueRepository.findByStatusAndDeletedFalse(eq(VenueStatus.PENDING), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(List.of(venue)));
+            given(venueMapper.toVenueResponse(venue)).willReturn(response);
+
+            PageResponse<VenueResponse> result = venueService.getAllVenues(0, 10, VenueStatus.PENDING);
+
+            assertThat(result.getContent()).containsExactly(response);
+            verify(venueRepository).findByStatusAndDeletedFalse(eq(VenueStatus.PENDING), any(Pageable.class));
+        }
+    }
+
+    @Nested
     @DisplayName("updateVenueStatus")
     class UpdateVenueStatusTests {
 
@@ -318,6 +339,48 @@ class VenueServiceImplTest {
             assertThat(result.getStatus()).isEqualTo(VenueStatus.BLOCKED);
             assertThat(space.getStatus()).isEqualTo(SpaceStatus.INACTIVE);
             verify(spaceRepository).saveAll(List.of(space));
+        }
+
+        @Test
+        @DisplayName("PENDING venue can only be approved, not blocked")
+        void updateVenueStatus_PendingToBlocked_BadRequest() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.PENDING).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(100L, VenueStatus.BLOCKED, MODERATOR_EMAIL))
+                    .isInstanceOf(AppException.class)
+                    .hasMessage("venue.status.transition.invalid")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+
+            assertThat(existingVenue.getStatus()).isEqualTo(VenueStatus.PENDING);
+            verify(venueRepository, never()).save(any(Venue.class));
+        }
+
+        @Test
+        @DisplayName("An approved or blocked venue cannot return to PENDING")
+        void updateVenueStatus_ApprovedToPending_BadRequest() {
+            User owner = hostUser(1L);
+            User moderator = moderatorUser(99L);
+            Venue existingVenue = Venue.builder().id(100L).owner(owner).name("Venue").deleted(false)
+                    .status(VenueStatus.APPROVE).build();
+
+            given(venueRepository.findByIdAndDeletedFalse(100L)).willReturn(Optional.of(existingVenue));
+            given(userRepository.findByEmail(MODERATOR_EMAIL)).willReturn(Optional.of(moderator));
+
+            assertThatThrownBy(() -> venueService.updateVenueStatus(100L, VenueStatus.PENDING, MODERATOR_EMAIL))
+                    .isInstanceOf(AppException.class)
+                    .hasMessage("venue.status.transition.invalid")
+                    .extracting("status")
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+
+            assertThat(existingVenue.getStatus()).isEqualTo(VenueStatus.APPROVE);
+            verify(venueRepository, never()).save(any(Venue.class));
         }
 
         @Test

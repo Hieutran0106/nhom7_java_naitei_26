@@ -1,6 +1,8 @@
 package com.nhom7.coworkingspace.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -11,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,6 +53,19 @@ public class GlobalExceptionHandler {
         String message = resolveMessage("validation.failed", locale);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), message, errors));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadableException(
+            HttpMessageNotReadableException ex) {
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = ex.getMostSpecificCause() instanceof InvalidFormatException invalidFormatException
+                && VenueStatus.class.equals(invalidFormatException.getTargetType())
+                ? resolveMessage("venue.status.invalid", locale)
+                : resolveMessage("validation.failed", locale);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), message));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

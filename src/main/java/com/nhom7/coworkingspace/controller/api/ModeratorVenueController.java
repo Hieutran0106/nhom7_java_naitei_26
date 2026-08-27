@@ -2,7 +2,9 @@ package com.nhom7.coworkingspace.controller.api;
 
 import com.nhom7.coworkingspace.dto.request.UpdateVenueStatusRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
+import com.nhom7.coworkingspace.dto.response.PageResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
+import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.service.VenueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,12 +30,24 @@ public class ModeratorVenueController {
     private final VenueService venueService;
     private final MessageSource messageSource;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(summary = "List Venues", description = "Lists non-deleted venues with optional status filtering.")
+    public ResponseEntity<ApiResponse<PageResponse<VenueResponse>>> listVenues(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) VenueStatus status) {
+        PageResponse<VenueResponse> response = venueService.getAllVenues(page, size, status);
+        String message = messageSource.getMessage("venue.list.success", null, LocaleContextHolder.getLocale());
+        return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+
     // Approve or block a venue. A HOST can never reach this - status changes are moderator/admin only.
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     @Operation(
             summary = "Update Venue Status (Approve/Block)",
-            description = "Allows Moderator or Admin to change a venue's moderation status (PENDING, APPROVE, BLOCKED)."
+            description = "Allows Moderator or Admin to approve a PENDING venue, then switch it between APPROVE and BLOCKED."
     )
     public ResponseEntity<ApiResponse<VenueResponse>> updateVenueStatus(
             @PathVariable Long id,

@@ -26,6 +26,9 @@ public interface VenueService {
      */
     PageResponse<VenueResponse> getMyVenues(String hostEmail, int page, int size);
 
+    /** List non-deleted venues for moderator/admin management. */
+    PageResponse<VenueResponse> getAllVenues(int page, int size, VenueStatus status);
+
     /**
      * Update a venue owned by the currently authenticated HOST.
      *

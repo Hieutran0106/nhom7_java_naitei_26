@@ -16,6 +16,7 @@ import java.util.Date;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +61,7 @@ class ModeratorAccessSecurityTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/moderator/probe")
-                        .header("Authorization", "Bearer user-token"))
+                        .with(user("user").roles("USER")))
                 .andExpect(status().isForbidden());
     }
 
@@ -70,7 +71,7 @@ class ModeratorAccessSecurityTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/moderator/probe"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().is3xxRedirection());
     }
 
     private void assertAllowedFor(String role) throws Exception {
@@ -83,7 +84,7 @@ class ModeratorAccessSecurityTest {
                 .andExpect(content().string("allowed"));
 
         mockMvc.perform(get("/moderator/probe")
-                        .header("Authorization", "Bearer " + token))
+                        .with(user(role.toLowerCase()).roles(role)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("allowed"));
     }

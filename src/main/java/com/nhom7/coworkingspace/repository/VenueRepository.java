@@ -14,6 +14,10 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
 
     Page<Venue> findByOwnerIdAndDeletedFalse(Long ownerId, Pageable pageable);
 
+    Page<Venue> findByDeletedFalse(Pageable pageable);
+
+    Page<Venue> findByStatusAndDeletedFalse(VenueStatus status, Pageable pageable);
+
     Optional<Venue> findByIdAndDeletedFalse(Long id);
 
     long countByStatus(VenueStatus status);
