@@ -34,4 +34,6 @@ public class SpaceResponse {
     private LocalTime openTime;
     private LocalTime closeTime;
     private SpaceStatus status;
+    @Builder.Default
+    private java.util.Set<Long> managerIds = new java.util.HashSet<>();
 }

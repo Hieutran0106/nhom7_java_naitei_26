@@ -45,11 +45,46 @@ public class ModeratorUserWebController {
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     public String listUsers(
             @ModelAttribute("searchRequest") UserSearchRequest request,
+            Authentication authentication,
             Model model) {
-        PageResponse<UserSearchResponse> userPage = userService.searchUsers(request);
+        PageResponse<UserSearchResponse> userPage = userService.searchUsers(request, authentication.getName());
         model.addAttribute("users", userPage);
         model.addAttribute("statuses", UserStatus.values());
+        boolean isCurrentAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        model.addAttribute("currentUserIsAdmin", isCurrentAdmin);
         return "moderator/users";
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    public String viewUserDetail(@PathVariable Long id, Model model) {
+        model.addAttribute("user", userService.getUserById(id));
+        model.addAttribute("availableRoles", userService.getAvailableRoleNames());
+        return "moderator/user-detail";
+    }
+
+    @PostMapping("/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String updateUserRole(
+            @PathVariable Long id,
+            @RequestParam("role") String role,
+            RedirectAttributes redirectAttributes) {
+        Locale locale = LocaleContextHolder.getLocale();
+        try {
+            userService.addRole(id, role);
+            String successMsg = messageSource.getMessage("user.role.updated", null, locale);
+            redirectAttributes.addFlashAttribute("successMessage", successMsg);
+        } catch (AppException ex) {
+            log.warn("[ModeratorUserWebController] Failed to update user role (id={}): {}", id, ex.getMessageKey());
+            String errorMsg = messageSource.getMessage(ex.getMessageKey(), null, ex.getMessageKey(), locale);
+            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+        } catch (Exception ex) {
+            log.error("[ModeratorUserWebController] Unexpected error updating role (id={}): {}", id, ex.getMessage(), ex);
+            String errorMsg = messageSource.getMessage("common.error", null, locale);
+            redirectAttributes.addFlashAttribute("errorMessage", errorMsg);
+        }
+        return "redirect:/moderator/users/" + id;
     }
 
     // Handle form submission to update user status for moderator/admin.

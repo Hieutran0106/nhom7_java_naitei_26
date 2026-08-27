@@ -22,6 +22,11 @@ public class SpaceSpecification {
             List<Predicate> predicates = new ArrayList<>();
             Join<Space, Venue> venueJoin = root.join("venue", JoinType.INNER);
 
+            // Only active spaces in non-deleted, APPROVED venues are searchable
+            predicates.add(cb.equal(venueJoin.get("status"), com.nhom7.coworkingspace.enums.VenueStatus.APPROVE));
+            predicates.add(cb.equal(venueJoin.get("deleted"), false));
+            predicates.add(cb.equal(root.get("status"), com.nhom7.coworkingspace.enums.SpaceStatus.ACTIVE));
+
             // Filter by space name or venue name
             if (request.getName() != null && !request.getName().trim().isEmpty()) {
                 String pattern = "%" + request.getName().trim().toLowerCase() + "%";

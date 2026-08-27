@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <title>Đăng ký | Coworking Space</title>
+
+    <link rel="icon"
+          type="image/x-icon"
+          th:href="@{/favicon.ico}">
+
+    <link rel="stylesheet"
+          th:href="@{/css/moderator-login.css}">
+
+</head>
+
+<body>
+
+<main class="login-page register-page">
+
+    <section class="login-card register-card">
+
+        <div class="login-brand">
+
+            <div class="login-logo"
+                 aria-hidden="true">
+                C
+            </div>
+
+            <div>
+
+                <h1>
+                    Coworking Space
+                </h1>
+
+                <p>
+                    Tạo tài khoản mới
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="login-header">
+
+            <h2>
+                Đăng ký
+            </h2>
+
+            <p>
+                Điền thông tin để tạo tài khoản.
+            </p>
+
+        </div>
+
+
+        <div id="registerError"
+             class="login-alert"
+             role="alert"
+             hidden>
+        </div>
+
+
+        <div id="registerSuccess"
+             class="register-success"
+             role="status"
+             hidden>
+        </div>
+
+
+        <form id="registerForm"
+              class="login-form">
+
+            <div class="form-group">
+
+                <label for="name">
+                    Họ và tên
+                </label>
+
+                <input id="name"
+                       name="name"
+                       type="text"
+                       autocomplete="name"
+                       placeholder="Nguyễn Văn A"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="email">
+                    Email
+                </label>
+
+                <input id="email"
+                       name="email"
+                       type="email"
+                       autocomplete="email"
+                       placeholder="example@email.com"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="phone">
+                    Số điện thoại
+                </label>
+
+                <input id="phone"
+                       name="phone"
+                       type="tel"
+                       autocomplete="tel"
+                       placeholder="Nhập số điện thoại"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="password">
+                    Mật khẩu
+                </label>
+
+                <input id="password"
+                       name="password"
+                       type="password"
+                       autocomplete="new-password"
+                       placeholder="Nhập mật khẩu"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="confirmPassword">
+                    Xác nhận mật khẩu
+                </label>
+
+                <input id="confirmPassword"
+                       name="confirmPassword"
+                       type="password"
+                       autocomplete="new-password"
+                       placeholder="Nhập lại mật khẩu"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="cccdImage">
+                    Ảnh CCCD
+                </label>
+
+                <input id="cccdImage"
+                       name="cccdImage"
+                       type="file"
+                       accept="image/*"
+                       required>
+
+                <small class="form-hint">
+                    Chọn ảnh CCCD rõ nét để xác minh thông tin.
+                </small>
+
+            </div>
+
+
+            <button id="registerButton"
+                    class="login-button"
+                    type="submit">
+
+                Tạo tài khoản
+
+            </button>
+
+        </form>
+
+
+        <div class="login-register">
+
+            <span>
+                Đã có tài khoản?
+            </span>
+
+            <a th:href="@{/login}">
+                Đăng nhập
+            </a>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+
+    const registerForm =
+        document.getElementById(
+            "registerForm"
+        );
+
+    const registerButton =
+        document.getElementById(
+            "registerButton"
+        );
+
+    const registerError =
+        document.getElementById(
+            "registerError"
+        );
+
+    const registerSuccess =
+        document.getElementById(
+            "registerSuccess"
+        );
+
+
+    function showRegisterError(
+        message
+    ) {
+
+        registerSuccess.hidden =
+            true;
+
+        registerError.textContent =
+            message;
+
+        registerError.hidden =
+            false;
+    }
+
+
+    function showRegisterSuccess(
+        message
+    ) {
+
+        registerError.hidden =
+            true;
+
+        registerSuccess.textContent =
+            message;
+
+        registerSuccess.hidden =
+            false;
+    }
+
+
+    registerForm.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            registerError.hidden =
+                true;
+
+            registerSuccess.hidden =
+                true;
+
+
+            const name =
+                document
+                    .getElementById("name")
+                    .value
+                    .trim();
+
+            const email =
+                document
+                    .getElementById("email")
+                    .value
+                    .trim();
+
+            const phone =
+                document
+                    .getElementById("phone")
+                    .value
+                    .trim();
+
+            const password =
+                document
+                    .getElementById("password")
+                    .value;
+
+            const confirmPassword =
+                document
+                    .getElementById("confirmPassword")
+                    .value;
+
+            const cccdImage =
+                document
+                    .getElementById("cccdImage")
+                    .files[0];
+
+
+            if (
+                !name
+                ||
+                !email
+                ||
+                !phone
+                ||
+                !password
+                ||
+                !confirmPassword
+            ) {
+
+                showRegisterError(
+                    "Vui lòng nhập đầy đủ thông tin."
+                );
+
+                return;
+            }
+
+
+            if (
+                password !==
+                confirmPassword
+            ) {
+
+                showRegisterError(
+                    "Mật khẩu xác nhận không khớp."
+                );
+
+                return;
+            }
+
+
+            if (!cccdImage) {
+
+                showRegisterError(
+                    "Vui lòng chọn ảnh CCCD."
+                );
+
+                return;
+            }
+
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "name",
+                name
+            );
+
+            formData.append(
+                "email",
+                email
+            );
+
+            formData.append(
+                "phone",
+                phone
+            );
+
+            formData.append(
+                "password",
+                password
+            );
+
+            formData.append(
+                "cccdImage",
+                cccdImage
+            );
+
+
+            registerButton.disabled =
+                true;
+
+            registerButton.textContent =
+                "Đang tạo tài khoản...";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/auth/signup",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+
+                let responseBody =
+                    null;
+
+
+                try {
+
+                    responseBody =
+                        await response.json();
+
+                } catch (ignored) {
+
+                    responseBody =
+                        null;
+                }
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        responseBody?.message
+                        ||
+                        "Đăng ký thất bại."
+                    );
+                }
+
+
+                showRegisterSuccess(
+                    "Đăng ký thành công. "
+                    + "Vui lòng kiểm tra email để xác nhận tài khoản."
+                );
+
+
+                registerForm.reset();
+
+
+                setTimeout(
+                    function () {
+
+                        window.location.replace(
+                            "/login"
+                        );
+
+                    },
+                    1800
+                );
+
+
+            } catch (error) {
+
+                showRegisterError(
+                    error.message
+                    ||
+                    "Không thể đăng ký tài khoản."
+                );
+
+            } finally {
+
+                registerButton.disabled =
+                    false;
+
+                registerButton.textContent =
+                    "Tạo tài khoản";
+            }
+        }
+    );
+
+</script>
+
+</body>
+
+</html>

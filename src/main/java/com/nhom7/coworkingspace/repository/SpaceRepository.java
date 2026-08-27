@@ -31,4 +31,11 @@ public interface SpaceRepository extends JpaRepository<Space, Long>, JpaSpecific
     Optional<Space> findByIdForUpdate(@Param("id") Long id);
 
     List<Space> findByVenueId(Long venueId);
+
+    @EntityGraph(attributePaths = {"venue"})
+    Page<Space> findByVenueIdAndVenueDeletedFalse(Long venueId, Pageable pageable);
+
+    @Query("SELECT DISTINCT s FROM Space s LEFT JOIN s.hosts h WHERE (s.venue.owner.email = :email OR h.email = :email) AND s.venue.deleted = false")
+    @EntityGraph(attributePaths = {"venue"})
+    Page<Space> findMySpaces(@Param("email") String email, Pageable pageable);
 }

@@ -12,6 +12,8 @@ import com.nhom7.coworkingspace.dto.response.UserSearchResponse;
 import com.nhom7.coworkingspace.enums.UserStatus;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface UserService {
 
     UpdateUserRoleResponse addRole(Long userId, String roleName);
@@ -31,7 +33,18 @@ public interface UserService {
      */
     HostUpgradeResponse becomeHost(String email, MultipartFile businessLicense);
 
-    PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request);
+    /**
+     * Search/filter/paginate users, scoped to what the caller is allowed to see.
+     * A MODERATOR caller (without the ADMIN role) never sees ADMIN accounts in the results.
+     *
+     * @param request           search parameters
+     * @param currentUserEmail  email of the authenticated caller (from SecurityContext)
+     */
+    PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request, String currentUserEmail);
+
+    UserSearchResponse getUserById(Long userId);
+
+    List<String> getAvailableRoleNames();
 
     UpdateUserStatusResponse updateUserStatus(Long targetUserId, UserStatus newStatus, String currentAdminEmail);
 

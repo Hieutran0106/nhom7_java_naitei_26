@@ -38,6 +38,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -61,7 +62,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request) {
+    public PageResponse<UserSearchResponse> searchUsers(UserSearchRequest request, String currentUserEmail) {
         log.debug("[UserService] Searching users with params: keyword={}, status={}, role={}",
                 request.getKeyword(), request.getStatus(), request.getRole());
 
@@ -77,11 +78,32 @@ public class UserServiceImpl implements UserService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
-        Specification<User> spec = UserSpecification.buildSearchSpecification(request);
+        // A MODERATOR caller (without the ADMIN role) must never see ADMIN accounts in the list.
+        User currentUser = findUserByEmail(currentUserEmail);
+        boolean isCurrentAdmin = hasRole(currentUser, "ADMIN");
+        String excludedRole = isCurrentAdmin ? null : "ADMIN";
+
+        Specification<User> spec = UserSpecification.buildSearchSpecification(request, excludedRole);
         Page<User> userPage = userRepository.findAll(spec, pageable);
 
-        Page<UserSearchResponse> dtoPage = userPage.map(userMapper::toUserSearchResponse);
+        Page<UserSearchResponse> dtoPage = userPage.map(this::buildUserSearchResponse);
         return PageResponse.fromPage(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserSearchResponse getUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+        return userMapper.toUserSearchResponse(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getAvailableRoleNames() {
+        return roleRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
+                .map(Role::getName)
+                .toList();
     }
 
     @Override
@@ -238,6 +260,7 @@ public class UserServiceImpl implements UserService {
         }
 
         validateModeratorCannotModifyAdmin(currentUser, targetUser, currentAdminEmail);
+        validateCannotLockSamePrivilegedRole(currentUser, targetUser, newStatus, currentAdminEmail);
 
         if (targetUser.getStatus() == newStatus) {
             log.info("[UserService] User status already {}, no update required: targetUserId={}", newStatus, targetUserId);
@@ -314,6 +337,14 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUpdateUserVerificationResponse(savedUser);
     }
 
+
+    private UserSearchResponse buildUserSearchResponse(User user) {
+        UserSearchResponse response = userMapper.toUserSearchResponse(user);
+        response.setCccdUrl(resolveSignedUrl(user.getCccdUrl()));
+        response.setBusinessLicenseUrl(resolveSignedUrl(user.getBusinessLicenseUrl()));
+        return response;
+    }
+
     private UserProfileResponse buildProfileResponse(User user) {
         Set<String> roleNames = user.getRoles().stream()
                 .map(Role::getName)
@@ -359,6 +390,34 @@ public class UserServiceImpl implements UserService {
             log.warn("[UserService] Moderator {} attempted to modify Admin (id={})",
                     currentEmail, targetUser.getId());
             throw new AppException("user.cannot.modify.admin", HttpStatus.FORBIDDEN);
+        }
+    }
+
+    // A Moderator cannot lock another Moderator's account, and an Admin cannot lock another
+    // Admin's account. Unlocking (setting status back to ACTIVE) is still allowed, since that is
+    // a recovery action rather than a peer-vs-peer lockout.
+    private void validateCannotLockSamePrivilegedRole(User currentUser, User targetUser, UserStatus newStatus,
+            String currentEmail) {
+        boolean isLockingAction = newStatus == UserStatus.BLOCKED || newStatus == UserStatus.INACTIVE;
+        if (!isLockingAction) {
+            return;
+        }
+
+        boolean isCurrentAdmin = hasRole(currentUser, "ADMIN");
+        boolean isCurrentModerator = hasRole(currentUser, "MODERATOR");
+        boolean isTargetAdmin = hasRole(targetUser, "ADMIN");
+        boolean isTargetModerator = hasRole(targetUser, "MODERATOR");
+
+        if (isCurrentAdmin && isTargetAdmin) {
+            log.warn("[UserService] Admin {} attempted to lock another Admin (id={})",
+                    currentEmail, targetUser.getId());
+            throw new AppException("user.cannot.lock.peer.admin", HttpStatus.FORBIDDEN);
+        }
+
+        if (!isCurrentAdmin && isCurrentModerator && isTargetModerator) {
+            log.warn("[UserService] Moderator {} attempted to lock another Moderator (id={})",
+                    currentEmail, targetUser.getId());
+            throw new AppException("user.cannot.lock.peer.moderator", HttpStatus.FORBIDDEN);
         }
     }
 
