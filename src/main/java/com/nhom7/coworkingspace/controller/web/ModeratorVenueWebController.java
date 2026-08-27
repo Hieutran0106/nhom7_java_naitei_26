@@ -1,14 +1,17 @@
 package com.nhom7.coworkingspace.controller.web;
 
 import com.nhom7.coworkingspace.dto.response.PageResponse;
+import com.nhom7.coworkingspace.dto.response.SpaceResponse;
 import com.nhom7.coworkingspace.dto.response.VenueResponse;
 import com.nhom7.coworkingspace.enums.VenueStatus;
+import com.nhom7.coworkingspace.service.SpaceService;
 import com.nhom7.coworkingspace.service.VenueService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -19,8 +22,10 @@ public class ModeratorVenueWebController {
 
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 10;
+    private static final int DETAIL_SPACE_PAGE_SIZE = 100;
 
     private final VenueService venueService;
+    private final SpaceService spaceService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
@@ -74,5 +79,36 @@ public class ModeratorVenueWebController {
         );
 
         return "moderator/venues";
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    public String venueDetail(
+            @PathVariable Long id,
+            Model model
+    ) {
+        VenueResponse venue =
+                venueService.getVenueForModerator(
+                        id
+                );
+
+        PageResponse<SpaceResponse> spaces =
+                spaceService.getSpacesByVenue(
+                        id,
+                        DEFAULT_PAGE,
+                        DETAIL_SPACE_PAGE_SIZE
+                );
+
+        model.addAttribute(
+                "venue",
+                venue
+        );
+
+        model.addAttribute(
+                "spaces",
+                spaces
+        );
+
+        return "moderator/venue-detail";
     }
 }

@@ -1,31 +1,44 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Quản lý Venue</title>
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1">
+
+    <title>
+        Quản lý Venue
+    </title>
 
     <link
             rel="stylesheet"
-            th:href="@{/css/moderator-venues.css}"
-            href="/css/moderator-venues.css">
+            th:href="@{/css/moderator-venues.css}">
 </head>
 
 <body>
 
 <main>
 
+    <!-- PAGE HEADER -->
     <div class="page-header">
+
         <div>
-            <h1>Quản lý Venue</h1>
+
+            <h1>
+                Quản lý Venue
+            </h1>
 
             <p>
                 Xem và phân loại các Venue theo trạng thái duyệt.
             </p>
+
         </div>
+
     </div>
+
 
     <div class="card">
 
@@ -35,8 +48,12 @@
                 th:action="@{/moderator/venues}"
                 class="filters">
 
+            <!-- STATUS -->
             <label>
-                <span>Trạng thái</span>
+
+                <span>
+                    Trạng thái
+                </span>
 
                 <select name="status">
 
@@ -50,51 +67,64 @@
                             th:each="status : ${statuses}"
                             th:value="${status}"
                             th:selected="${selectedStatus == status}"
-                            th:text="${
-                                status.name() == 'PENDING'
-                                    ? 'Pending'
-                                    : status.name() == 'APPROVE'
-                                        ? 'Approved'
-                                        : 'Blocked'
-                            }">
-                        Status
+                            th:text="${status.name() == 'APPROVE'
+                                    ? 'Approved'
+                                    : #strings.capitalize(
+                                        #strings.toLowerCase(
+                                            status.name()
+                                        )
+                                    )}">
+                        Pending
                     </option>
 
                 </select>
+
             </label>
 
+
+            <!-- SIZE -->
             <label>
-                <span>Số Venue mỗi trang</span>
+
+                <span>
+                    Số Venue mỗi trang
+                </span>
 
                 <select name="size">
 
                     <option
                             value="5"
-                            th:selected="${venues != null and venues.pageSize == 5}">
+                            th:selected="${venues != null
+                                    && venues.pageSize == 5}">
                         5
                     </option>
 
                     <option
                             value="10"
-                            th:selected="${venues == null or venues.pageSize == 10}">
+                            th:selected="${venues == null
+                                    || venues.pageSize == 10}">
                         10
                     </option>
 
                     <option
                             value="20"
-                            th:selected="${venues != null and venues.pageSize == 20}">
+                            th:selected="${venues != null
+                                    && venues.pageSize == 20}">
                         20
                     </option>
 
                     <option
                             value="50"
-                            th:selected="${venues != null and venues.pageSize == 50}">
+                            th:selected="${venues != null
+                                    && venues.pageSize == 50}">
                         50
                     </option>
 
                 </select>
+
             </label>
 
+
+            <!-- ACTIONS -->
             <div class="filter-actions">
 
                 <button
@@ -115,16 +145,16 @@
 
 
         <!-- SUMMARY -->
-        <div
-                class="summary"
-                th:if="${venues != null}">
+        <div class="summary">
 
             <span>
                 Tổng số Venue:
             </span>
 
             <strong
-                    th:text="${venues.totalElements}">
+                    th:text="${venues != null
+                            ? venues.totalElements
+                            : 0}">
                 0
             </strong>
 
@@ -135,8 +165,8 @@
         <div
                 class="table-wrap"
                 th:if="${venues != null
-                    and venues.content != null
-                    and !venues.content.isEmpty()}">
+                        && venues.content != null
+                        && !venues.content.isEmpty()}">
 
             <table>
 
@@ -152,6 +182,7 @@
                 </tr>
 
                 </thead>
+
 
                 <tbody>
 
@@ -169,19 +200,28 @@
 
                         <div class="venue-info">
 
-                            <strong
-                                    th:text="${venue.name != null
-                                        and !#strings.isEmpty(venue.name)
-                                        ? venue.name
-                                        : 'Chưa cập nhật'}">
-                                Coworking Space
-                            </strong>
+                            <a
+                                    th:href="@{/moderator/venues/{id}(
+                                        id=${venue.id}
+                                    )}">
+
+                                <strong
+                                        th:text="${venue.name != null
+                                                ? venue.name
+                                                : '—'}">
+                                    Coworking Space Hanoi
+                                </strong>
+
+                            </a>
+
 
                             <span
-                                    th:if="${venue.street != null
-                                        and !#strings.isEmpty(venue.street)}"
-                                    th:text="${venue.street}">
-                                Street
+                                    th:if="${venue.description != null
+                                            && !#strings.isEmpty(
+                                                venue.description
+                                            )}"
+                                    th:text="${venue.description}">
+                                Venue description
                             </span>
 
                         </div>
@@ -196,16 +236,15 @@
 
                             <strong
                                     th:text="${venue.ownerName != null
-                                        and !#strings.isEmpty(venue.ownerName)
-                                        ? venue.ownerName
-                                        : 'Chưa cập nhật'}">
-                                Host
+                                            ? venue.ownerName
+                                            : '—'}">
+                                Host A
                             </strong>
 
                             <span
                                     th:if="${venue.ownerId != null}"
                                     th:text="'ID: ' + ${venue.ownerId}">
-                                ID: 1
+                                ID: 10
                             </span>
 
                         </div>
@@ -218,10 +257,12 @@
 
                         <span
                                 th:text="${venue.address != null
-                                    and !#strings.isEmpty(venue.address)
-                                    ? venue.address
-                                    : 'Chưa cập nhật'}">
-                            123 Nguyễn Trãi
+                                        && !#strings.isEmpty(
+                                            venue.address
+                                        )
+                                        ? venue.address
+                                        : '—'}">
+                            123 Nguyen Trai
                         </span>
 
                     </td>
@@ -232,10 +273,12 @@
 
                         <span
                                 th:text="${venue.city != null
-                                    and !#strings.isEmpty(venue.city)
-                                    ? venue.city
-                                    : 'Chưa cập nhật'}">
-                            Hà Nội
+                                        && !#strings.isEmpty(
+                                            venue.city
+                                        )
+                                        ? venue.city
+                                        : '—'}">
+                            Ha Noi
                         </span>
 
                     </td>
@@ -245,29 +288,25 @@
                     <td>
 
                         <span
-                                th:if="${venue.status != null}"
                                 class="status-badge"
-                                th:classappend="${
-                                    venue.status.name() == 'PENDING'
-                                        ? ' status-pending'
-                                        : venue.status.name() == 'APPROVE'
-                                            ? ' status-approved'
-                                            : ' status-blocked'
-                                }"
-                                th:text="${
-                                    venue.status.name() == 'PENDING'
-                                        ? 'Pending'
-                                        : venue.status.name() == 'APPROVE'
+                                th:classappend="${venue.status != null
+                                        ? ' status-'
+                                            + #strings.toLowerCase(
+                                                venue.status.name()
+                                            )
+                                        : ''}"
+                                th:text="${venue.status == null
+                                        ? 'Unknown'
+                                        : (venue.status.name()
+                                            == 'APPROVE'
                                             ? 'Approved'
-                                            : 'Blocked'
-                                }">
+                                            : #strings.capitalize(
+                                                #strings.toLowerCase(
+                                                    venue.status.name()
+                                                )
+                                            )
+                                        )}">
                             Pending
-                        </span>
-
-                        <span
-                                th:if="${venue.status == null}"
-                                class="status-badge status-unknown">
-                            Unknown
                         </span>
 
                     </td>
@@ -283,15 +322,17 @@
 
         <!-- EMPTY STATE -->
         <div
-                class="empty"
+                class="empty-state"
                 th:if="${venues == null
-                    or venues.content == null
-                    or venues.content.isEmpty()}">
+                        || venues.content == null
+                        || venues.content.isEmpty()}">
 
-            <h3>Không tìm thấy Venue</h3>
+            <strong>
+                Không tìm thấy Venue
+            </strong>
 
             <p>
-                Không có Venue phù hợp với trạng thái đã chọn.
+                Không có Venue nào phù hợp với trạng thái đã chọn.
             </p>
 
             <a
@@ -307,11 +348,13 @@
         <div
                 class="pagination"
                 th:if="${venues != null
-                    and venues.totalPages > 1}">
+                        && venues.totalPages > 1}">
 
+            <!-- PREVIOUS -->
             <div>
 
                 <a
+                        class="pagination-button"
                         th:if="${venues.pageNumber > 0}"
                         th:href="@{/moderator/venues(
                             page=${venues.pageNumber - 1},
@@ -324,7 +367,8 @@
             </div>
 
 
-            <div class="page-info">
+            <!-- PAGE INFO -->
+            <div class="pagination-info">
 
                 <span
                         th:text="'Trang '
@@ -337,9 +381,11 @@
             </div>
 
 
+            <!-- NEXT -->
             <div>
 
                 <a
+                        class="pagination-button"
                         th:if="${!venues.last}"
                         th:href="@{/moderator/venues(
                             page=${venues.pageNumber + 1},

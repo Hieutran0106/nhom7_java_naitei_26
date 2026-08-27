@@ -11,7 +11,7 @@ public interface VenueService {
      * Create a venue owned by the currently authenticated HOST.
      *
      * @param request   venue creation payload
-     * @param hostEmail email of the authenticated user (from SecurityContext)
+     * @param hostEmail email of the authenticated user
      * @return created venue details
      */
     VenueResponse createVenue(
@@ -22,7 +22,7 @@ public interface VenueService {
     /**
      * List all non-deleted venues owned by the currently authenticated HOST.
      *
-     * @param hostEmail email of the authenticated user (from SecurityContext)
+     * @param hostEmail email of the authenticated user
      * @param page      zero-based page index
      * @param size      page size
      * @return paginated venue responses
@@ -34,9 +34,9 @@ public interface VenueService {
     );
 
     /**
-     * List non-deleted venues for moderator/admin management.
+     * List non-deleted venues for Moderator/Admin.
      *
-     * @param status optional venue status filter
+     * @param status optional moderation status filter
      * @param page   zero-based page index
      * @param size   page size
      * @return paginated venue responses
@@ -48,11 +48,21 @@ public interface VenueService {
     );
 
     /**
+     * Get one non-deleted venue for Moderator/Admin.
+     *
+     * @param venueId venue id
+     * @return venue detail
+     */
+    VenueResponse getVenueForModerator(
+            Long venueId
+    );
+
+    /**
      * Update a venue owned by the currently authenticated HOST.
      *
      * @param venueId   id of the venue to update
      * @param request   updated venue payload
-     * @param hostEmail email of the authenticated user (from SecurityContext)
+     * @param hostEmail email of the authenticated user
      * @return updated venue details
      */
     VenueResponse updateVenue(
@@ -62,12 +72,11 @@ public interface VenueService {
     );
 
     /**
-     * Approve or block a venue (moderation). Only Moderator/Admin can call this;
-     * a HOST can never set their own venue's status via createVenue/updateVenue.
+     * Approve or block a venue.
      *
-     * @param venueId        id of the venue to moderate
+     * @param venueId        id of the venue
      * @param newStatus      new moderation status
-     * @param moderatorEmail email of the authenticated moderator/admin
+     * @param moderatorEmail email of authenticated moderator/admin
      * @return updated venue details
      */
     VenueResponse updateVenueStatus(
@@ -79,8 +88,8 @@ public interface VenueService {
     /**
      * Soft delete a venue owned by the currently authenticated HOST.
      *
-     * @param venueId   id of the venue to delete
-     * @param hostEmail email of the authenticated user (from SecurityContext)
+     * @param venueId   venue id
+     * @param hostEmail authenticated HOST email
      */
     void deleteVenue(
             Long venueId,

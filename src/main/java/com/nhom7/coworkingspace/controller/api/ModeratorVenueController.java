@@ -84,6 +84,38 @@ public class ModeratorVenueController {
         );
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
+    @Operation(
+            summary = "Get Venue Detail",
+            description = "Returns details of one non-deleted venue for Moderator or Admin."
+    )
+    public ResponseEntity<ApiResponse<VenueResponse>> getVenueDetail(
+            @PathVariable Long id
+    ) {
+        VenueResponse response =
+                venueService.getVenueForModerator(
+                        id
+                );
+
+        Locale locale =
+                LocaleContextHolder.getLocale();
+
+        String message =
+                messageSource.getMessage(
+                        "venue.list.success",
+                        null,
+                        locale
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        response,
+                        message
+                )
+        );
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
     @Operation(

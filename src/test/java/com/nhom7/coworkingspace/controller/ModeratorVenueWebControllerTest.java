@@ -8,6 +8,7 @@ import com.nhom7.coworkingspace.enums.VenueStatus;
 import com.nhom7.coworkingspace.security.CustomUserDetailsService;
 import com.nhom7.coworkingspace.security.JwtAuthenticationFilter;
 import com.nhom7.coworkingspace.security.JwtTokenProvider;
+import com.nhom7.coworkingspace.service.SpaceService;
 import com.nhom7.coworkingspace.service.TokenBlacklistService;
 import com.nhom7.coworkingspace.service.VenueService;
 
@@ -54,6 +55,9 @@ class ModeratorVenueWebControllerTest {
     private VenueService venueService;
 
     @MockBean
+    private SpaceService spaceService;
+
+    @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
@@ -86,7 +90,11 @@ class ModeratorVenueWebControllerTest {
 
         PageResponse<VenueResponse> pageResponse =
                 PageResponse.<VenueResponse>builder()
-                        .content(List.of(venue))
+                        .content(
+                                List.of(
+                                        venue
+                                )
+                        )
                         .pageNumber(0)
                         .pageSize(10)
                         .totalElements(1)
@@ -100,22 +108,32 @@ class ModeratorVenueWebControllerTest {
                         0,
                         10
                 )
-        ).willReturn(pageResponse);
+        ).willReturn(
+                pageResponse
+        );
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                 )
                 .andExpect(
                         status().isOk()
                 )
                 .andExpect(
-                        view().name("moderator/venues")
+                        view().name(
+                                "moderator/venues"
+                        )
                 )
                 .andExpect(
-                        model().attributeExists("venues")
+                        model().attributeExists(
+                                "venues"
+                        )
                 )
                 .andExpect(
-                        model().attributeExists("statuses")
+                        model().attributeExists(
+                                "statuses"
+                        )
                 )
                 .andExpect(
                         model().attribute(
@@ -150,16 +168,22 @@ class ModeratorVenueWebControllerTest {
                         0,
                         10
                 )
-        ).willReturn(emptyPage());
+        ).willReturn(
+                emptyPage()
+        );
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                 )
                 .andExpect(
                         status().isOk()
                 )
                 .andExpect(
-                        view().name("moderator/venues")
+                        view().name(
+                                "moderator/venues"
+                        )
                 );
     }
 
@@ -175,7 +199,9 @@ class ModeratorVenueWebControllerTest {
             throws Exception {
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                 )
                 .andExpect(
                         status().isForbidden()
@@ -190,7 +216,9 @@ class ModeratorVenueWebControllerTest {
             throws Exception {
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                 )
                 .andExpect(
                         status().isUnauthorized()
@@ -214,10 +242,14 @@ class ModeratorVenueWebControllerTest {
                         eq(0),
                         eq(10)
                 )
-        ).willReturn(emptyPage());
+        ).willReturn(
+                emptyPage()
+        );
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                                 .param(
                                         "status",
                                         "PENDING"
@@ -259,10 +291,14 @@ class ModeratorVenueWebControllerTest {
                         2,
                         5
                 )
-        ).willReturn(emptyPage());
+        ).willReturn(
+                emptyPage()
+        );
 
         mockMvc.perform(
-                        get("/moderator/venues")
+                        get(
+                                "/moderator/venues"
+                        )
                                 .param(
                                         "page",
                                         "2"
@@ -289,7 +325,9 @@ class ModeratorVenueWebControllerTest {
 
         return PageResponse
                 .<VenueResponse>builder()
-                .content(List.of())
+                .content(
+                        List.of()
+                )
                 .pageNumber(0)
                 .pageSize(10)
                 .totalElements(0)

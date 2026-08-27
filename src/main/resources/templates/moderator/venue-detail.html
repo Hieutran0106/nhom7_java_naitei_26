@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0">
+
+    <title
+            th:text="${venue.name != null
+                    ? venue.name + ' - Chi tiết Venue'
+                    : 'Chi tiết Venue'}">
+        Chi tiết Venue
+    </title>
+
+    <link
+            rel="stylesheet"
+            th:href="@{/css/moderator-venue-detail.css}">
+</head>
+
+<body>
+
+<main class="page-container">
+
+    <!-- HEADER -->
+    <header class="page-header">
+
+        <div>
+            <a
+                    class="back-link"
+                    th:href="@{/moderator/venues}">
+                ← Quay lại danh sách
+            </a>
+
+            <div class="title-row">
+
+                <div>
+                    <p class="eyebrow">
+                        VENUE DETAIL
+                    </p>
+
+                    <h1
+                            th:text="${venue.name}">
+                        Coworking Space Hanoi
+                    </h1>
+
+                    <p class="venue-id">
+                        Venue ID:
+                        <strong
+                                th:text="${venue.id}">
+                            1
+                        </strong>
+                    </p>
+                </div>
+
+                <span
+                        class="status-badge"
+                        th:classappend="${venue.status != null
+                                ? ' status-' + #strings.toLowerCase(venue.status.name())
+                                : ''}"
+                        th:text="${venue.status == null
+                                ? 'UNKNOWN'
+                                : (venue.status.name() == 'APPROVE'
+                                    ? 'APPROVED'
+                                    : venue.status.name())}">
+                    PENDING
+                </span>
+
+            </div>
+        </div>
+
+    </header>
+
+
+    <!-- IMAGE PLACEHOLDER -->
+    <section class="card image-card">
+
+        <div class="section-heading">
+            <div>
+                <p class="section-kicker">
+                    Hình ảnh
+                </p>
+
+                <h2>
+                    Venue Gallery
+                </h2>
+            </div>
+        </div>
+
+        <div class="image-placeholder">
+
+            <div class="image-placeholder-icon">
+                ▧
+            </div>
+
+            <strong>
+                Chưa có hình ảnh
+            </strong>
+
+            <span>
+                Venue hiện chưa có dữ liệu hình ảnh.
+            </span>
+
+        </div>
+
+    </section>
+
+
+    <!-- VENUE INFORMATION -->
+    <section class="card">
+
+        <div class="section-heading">
+            <div>
+                <p class="section-kicker">
+                    Thông tin
+                </p>
+
+                <h2>
+                    Thông tin Venue
+                </h2>
+            </div>
+        </div>
+
+        <div class="info-grid">
+
+            <div class="info-item">
+                <span class="info-label">
+                    Tên Venue
+                </span>
+
+                <strong
+                        th:text="${venue.name != null
+                                ? venue.name
+                                : '—'}">
+                    Coworking Space Hanoi
+                </strong>
+            </div>
+
+
+            <div class="info-item">
+                <span class="info-label">
+                    Chủ sở hữu
+                </span>
+
+                <strong
+                        th:text="${venue.ownerName != null
+                                ? venue.ownerName
+                                : '—'}">
+                    Host A
+                </strong>
+
+                <span
+                        class="info-sub"
+                        th:if="${venue.ownerId != null}"
+                        th:text="'Owner ID: ' + ${venue.ownerId}">
+                    Owner ID: 10
+                </span>
+            </div>
+
+
+            <div class="info-item">
+                <span class="info-label">
+                    Thành phố
+                </span>
+
+                <strong
+                        th:text="${venue.city != null
+                                ? venue.city
+                                : '—'}">
+                    Ha Noi
+                </strong>
+            </div>
+
+
+            <div class="info-item">
+                <span class="info-label">
+                    Khu vực / Đường
+                </span>
+
+                <strong
+                        th:text="${venue.street != null
+                                ? venue.street
+                                : '—'}">
+                    Thanh Xuan
+                </strong>
+            </div>
+
+
+            <div class="info-item info-item-wide">
+                <span class="info-label">
+                    Địa chỉ
+                </span>
+
+                <strong
+                        th:text="${venue.address != null
+                                ? venue.address
+                                : '—'}">
+                    123 Nguyen Trai
+                </strong>
+            </div>
+
+
+            <div class="info-item">
+                <span class="info-label">
+                    Latitude
+                </span>
+
+                <strong
+                        th:text="${venue.latitude != null
+                                ? venue.latitude
+                                : '—'}">
+                    21.028511
+                </strong>
+            </div>
+
+
+            <div class="info-item">
+                <span class="info-label">
+                    Longitude
+                </span>
+
+                <strong
+                        th:text="${venue.longitude != null
+                                ? venue.longitude
+                                : '—'}">
+                    105.804817
+                </strong>
+            </div>
+
+        </div>
+
+
+        <div class="description-block">
+
+            <span class="info-label">
+                Mô tả
+            </span>
+
+            <p
+                    th:text="${venue.description != null
+                            && !#strings.isEmpty(venue.description)
+                            ? venue.description
+                            : 'Chưa có mô tả.'}">
+                Không gian làm việc hiện đại
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- AMENITIES -->
+    <section class="card">
+
+        <div class="section-heading">
+
+            <div>
+                <p class="section-kicker">
+                    Tiện ích
+                </p>
+
+                <h2>
+                    Amenities
+                </h2>
+            </div>
+
+            <span
+                    class="count-pill"
+                    th:text="${venue.amenities != null
+                            ? venue.amenities.size()
+                            : 0}">
+                0
+            </span>
+
+        </div>
+
+
+        <div
+                class="amenity-list"
+                th:if="${venue.amenities != null
+                        && !venue.amenities.isEmpty()}">
+
+            <span
+                    class="amenity-chip"
+                    th:each="amenity : ${venue.amenities}"
+                    th:text="${amenity.name}">
+                WiFi
+            </span>
+
+        </div>
+
+
+        <div
+                class="empty-state"
+                th:if="${venue.amenities == null
+                        || venue.amenities.isEmpty()}">
+
+            <strong>
+                Chưa có Amenity
+            </strong>
+
+            <span>
+                Venue này hiện chưa được gắn tiện ích.
+            </span>
+
+        </div>
+
+    </section>
+
+
+    <!-- SPACES -->
+    <section class="card">
+
+        <div class="section-heading">
+
+            <div>
+                <p class="section-kicker">
+                    Không gian
+                </p>
+
+                <h2>
+                    Spaces
+                </h2>
+            </div>
+
+            <span
+                    class="count-pill"
+                    th:text="${spaces != null
+                            ? spaces.totalElements
+                            : 0}">
+                0
+            </span>
+
+        </div>
+
+
+        <div
+                class="table-wrapper"
+                th:if="${spaces != null
+                        && spaces.content != null
+                        && !spaces.content.isEmpty()}">
+
+            <table>
+
+                <thead>
+
+                <tr>
+                    <th>ID</th>
+                    <th>Space</th>
+                    <th>Loại</th>
+                    <th>Sức chứa</th>
+                    <th>Giá</th>
+                    <th>Thời gian</th>
+                    <th>Trạng thái</th>
+                </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                <tr th:each="space : ${spaces.content}">
+
+                    <td
+                            class="id-cell"
+                            th:text="${space.id}">
+                        100
+                    </td>
+
+
+                    <td>
+
+                        <div class="space-name">
+
+                            <strong
+                                    th:text="${space.name != null
+                                            ? space.name
+                                            : '—'}">
+                                Meeting Room A
+                            </strong>
+
+                            <span
+                                    th:if="${space.description != null
+                                            && !#strings.isEmpty(space.description)}"
+                                    th:text="${space.description}">
+                                Phòng họp riêng
+                            </span>
+
+                        </div>
+
+                    </td>
+
+
+                    <td
+                            th:text="${space.type != null
+                                    ? space.type
+                                    : '—'}">
+                        MEETING_ROOM
+                    </td>
+
+
+                    <td
+                            th:text="${space.capacity != null
+                                    ? space.capacity
+                                    : '—'}">
+                        8
+                    </td>
+
+
+                    <td>
+
+                        <div class="price-cell">
+
+                            <strong
+                                    th:text="${space.price != null
+                                            ? space.price
+                                            : '—'}">
+                                200000
+                            </strong>
+
+                            <span
+                                    th:if="${space.priceUnit != null}"
+                                    th:text="${space.priceUnit}">
+                                HOUR
+                            </span>
+
+                        </div>
+
+                    </td>
+
+
+                    <td>
+
+                        <span
+                                th:if="${space.openTime != null
+                                        || space.closeTime != null}"
+                                th:text="${(space.openTime != null
+                                        ? space.openTime
+                                        : '—')
+                                        + ' - '
+                                        + (space.closeTime != null
+                                        ? space.closeTime
+                                        : '—')}">
+                            08:00 - 18:00
+                        </span>
+
+                        <span
+                                th:if="${space.openTime == null
+                                        && space.closeTime == null}">
+                            —
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span
+                                class="space-status"
+                                th:classappend="${space.status != null
+                                        ? ' space-status-' + #strings.toLowerCase(space.status.name())
+                                        : ''}"
+                                th:text="${space.status != null
+                                        ? space.status
+                                        : 'UNKNOWN'}">
+                            ACTIVE
+                        </span>
+
+                    </td>
+
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <div
+                class="empty-state"
+                th:if="${spaces == null
+                        || spaces.content == null
+                        || spaces.content.isEmpty()}">
+
+            <strong>
+                Chưa có Space
+            </strong>
+
+            <span>
+                Venue này hiện chưa có không gian làm việc nào.
+            </span>
+
+        </div>
+
+    </section>
+
+</main>
+
+</body>
+
+</html>
