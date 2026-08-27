@@ -371,6 +371,8 @@
 
                                 th:data-current-user-is-admin="${currentUserIsAdmin}"
 
+                                th:data-is-self="${user.email == currentUserEmail}"
+
                                 onclick="openUserDetail(this, event)">
 
                             Xem chi tiết
@@ -927,6 +929,9 @@
 
         let currentUserCanLock =
             true;
+
+        let currentTargetIsSelf =
+            false;
 
 
         const userDetailDrawer =
@@ -1502,7 +1507,8 @@
             verified,
             documentUrl,
             missingText,
-            readyText
+            readyText,
+            canVerify = true
         ) {
 
             const button =
@@ -1544,7 +1550,7 @@
 
 
             button.disabled =
-                false;
+                !canVerify;
 
 
             button.textContent =
@@ -1638,7 +1644,8 @@
         function configureStatusButton(
             userId,
             status,
-            canLock = true
+            canLock = true,
+            isSelf = false
         ) {
 
             currentUserId =
@@ -1659,6 +1666,25 @@
                 status === "BLOCKED"
                 ||
                 status === "INACTIVE";
+
+
+            if (isSelf) {
+
+                button.textContent =
+                    "Không có quyền khóa";
+
+
+                button.className =
+                    "user-detail-action-button "
+                    + "user-detail-action-danger";
+
+
+                button.disabled =
+                    true;
+
+
+                return;
+            }
 
 
             if (isCurrentlyLocked) {
@@ -1773,6 +1799,16 @@
                 detailBoolean(
                     data.businessVerified
                 );
+
+
+            const isSelf =
+                detailBoolean(
+                    data.isSelf
+                );
+
+
+            currentTargetIsSelf =
+                isSelf;
 
 
             currentUserId =
@@ -1901,7 +1937,8 @@
                 identityVerified,
                 currentCccdUrl,
                 "Chưa có CCCD",
-                "Duyệt KYC"
+                "Duyệt KYC",
+                !isSelf
             );
 
 
@@ -1911,7 +1948,8 @@
                 businessVerified,
                 currentBusinessLicenseUrl,
                 "Chưa có giấy phép",
-                "Duyệt giấy phép"
+                "Duyệt giấy phép",
+                !isSelf
             );
 
 
@@ -1932,7 +1970,8 @@
             configureStatusButton(
                 id,
                 status,
-                currentUserCanLock
+                currentUserCanLock,
+                isSelf
             );
 
 
@@ -2023,7 +2062,10 @@
             }
 
 
-            if (!currentUserId) {
+            if (
+                !currentUserId
+                || currentTargetIsSelf
+            ) {
                 return;
             }
 
@@ -2108,7 +2150,8 @@
                 configureStatusButton(
                     currentUserId,
                     currentUserStatus,
-                    currentUserCanLock
+                    currentUserCanLock,
+                    currentTargetIsSelf
                 );
 
 
@@ -2161,6 +2204,7 @@
 
             if (
                 !currentUserId
+                || currentTargetIsSelf
                 || currentIdentityVerified
             ) {
                 return;
@@ -2276,6 +2320,7 @@
 
             if (
                 !currentUserId
+                || currentTargetIsSelf
                 || currentBusinessVerified
             ) {
                 return;
