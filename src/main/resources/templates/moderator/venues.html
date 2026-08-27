@@ -1,38 +1,23 @@
 <!DOCTYPE html>
 <html lang="vi"
-      xmlns:th="http://www.thymeleaf.org">
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/moderator-layout :: layout(
+          'Quản lý Venue',
+          'venues',
+          ~{::section}
+      )}">
 
-<head>
-    <meta charset="UTF-8">
+<section>
 
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1">
-
-    <title>
-        Quản lý Venue
-    </title>
-
-    <link
-            rel="stylesheet"
-            th:href="@{/css/moderator-venues.css}">
-</head>
-
-<body>
-
-<main>
-
-    <!-- PAGE HEADER -->
-    <div class="page-header">
+    <!-- =====================================================
+         PAGE DESCRIPTION
+    ====================================================== -->
+    <div class="page-header venue-list-page-header">
 
         <div>
 
-            <h1>
-                Quản lý Venue
-            </h1>
-
-            <p>
-                Xem và phân loại các Venue theo trạng thái duyệt.
+            <p class="page-description">
+                Theo dõi, phân loại và kiểm duyệt các địa điểm trong hệ thống.
             </p>
 
         </div>
@@ -40,103 +25,118 @@
     </div>
 
 
-    <div class="card">
+    <!-- =====================================================
+         MAIN CARD
+    ====================================================== -->
+    <div class="content-card venue-list-card">
 
-        <!-- FILTER -->
-        <form
-                method="get"
-                th:action="@{/moderator/venues}"
-                class="filters">
+        <!-- =================================================
+             FILTER
+        ================================================== -->
+        <form method="get"
+              th:action="@{/moderator/venues}"
+              class="venue-list-filter">
 
-            <!-- STATUS -->
-            <label>
+            <div class="venue-list-filter-group">
 
-                <span>
+                <label for="venueStatus">
                     Trạng thái
-                </span>
+                </label>
 
-                <select name="status">
+                <select id="venueStatus"
+                        name="status">
 
-                    <option
-                            value=""
+                    <option value=""
                             th:selected="${selectedStatus == null}">
-                        Tất cả
+                        Tất cả trạng thái
                     </option>
 
-                    <option
-                            th:each="status : ${statuses}"
-                            th:value="${status}"
-                            th:selected="${selectedStatus == status}"
-                            th:text="${status.name() == 'APPROVE'
-                                    ? 'Approved'
-                                    : #strings.capitalize(
-                                        #strings.toLowerCase(
-                                            status.name()
-                                        )
-                                    )}">
-                        Pending
+                    <option th:each="statusItem : ${statuses}"
+                            th:value="${statusItem}"
+                            th:selected="${selectedStatus == statusItem}"
+                            th:text="${statusItem.name() == 'APPROVE'
+                                    ? 'Đã duyệt'
+                                    : (statusItem.name() == 'PENDING'
+                                        ? 'Chờ duyệt'
+                                        : (statusItem.name() == 'BLOCKED'
+                                            ? 'Đã khóa'
+                                            : statusItem.name()))}">
+                        Chờ duyệt
                     </option>
 
                 </select>
 
-            </label>
+            </div>
 
 
-            <!-- SIZE -->
-            <label>
+            <div class="venue-list-filter-group venue-list-size-filter">
 
-                <span>
-                    Số Venue mỗi trang
-                </span>
+                <label for="venuePageSize">
+                    Hiển thị
+                </label>
 
-                <select name="size">
+                <select id="venuePageSize"
+                        name="size">
 
-                    <option
-                            value="5"
+                    <option value="5"
                             th:selected="${venues != null
                                     && venues.pageSize == 5}">
-                        5
+                        5 địa điểm
                     </option>
 
-                    <option
-                            value="10"
+                    <option value="10"
                             th:selected="${venues == null
                                     || venues.pageSize == 10}">
-                        10
+                        10 địa điểm
                     </option>
 
-                    <option
-                            value="20"
+                    <option value="20"
                             th:selected="${venues != null
                                     && venues.pageSize == 20}">
-                        20
+                        20 địa điểm
                     </option>
 
-                    <option
-                            value="50"
+                    <option value="50"
                             th:selected="${venues != null
                                     && venues.pageSize == 50}">
-                        50
+                        50 địa điểm
                     </option>
 
                 </select>
 
-            </label>
+            </div>
 
 
-            <!-- ACTIONS -->
-            <div class="filter-actions">
+            <div class="venue-list-filter-actions">
 
-                <button
-                        type="submit"
-                        class="button-primary">
-                    Lọc
+                <button type="submit"
+                        class="venue-list-button venue-list-button-primary">
+
+                    <svg width="17"
+                         height="17"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         stroke-linecap="round"
+                         stroke-linejoin="round"
+                         aria-hidden="true">
+
+                        <path d="M4 5h16"/>
+                        <path d="M7 12h10"/>
+                        <path d="M10 19h4"/>
+
+                    </svg>
+
+                    <span>
+                        Lọc
+                    </span>
+
                 </button>
 
-                <a
-                        th:href="@{/moderator/venues}"
-                        class="button-secondary">
-                    Xóa bộ lọc
+                <a th:href="@{/moderator/venues}"
+                   class="venue-list-button venue-list-button-secondary">
+                    Đặt lại
                 </a>
 
             </div>
@@ -144,41 +144,116 @@
         </form>
 
 
-        <!-- SUMMARY -->
-        <div class="summary">
+        <!-- =================================================
+             SUMMARY
+        ================================================== -->
+        <div class="venue-list-toolbar">
 
-            <span>
-                Tổng số Venue:
-            </span>
+            <div class="venue-list-summary">
 
-            <strong
-                    th:text="${venues != null
+                <span class="venue-list-summary-icon"
+                      aria-hidden="true">
+
+                    <svg width="18"
+                         height="18"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         stroke-linecap="round"
+                         stroke-linejoin="round">
+
+                        <rect x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"/>
+
+                        <path d="M9 21V9h6v12"/>
+                        <path d="M9 5h.01"/>
+                        <path d="M15 5h.01"/>
+
+                    </svg>
+
+                </span>
+
+                <div>
+
+                    <strong th:text="${venues != null
                             ? venues.totalElements
                             : 0}">
-                0
-            </strong>
+                        0
+                    </strong>
+
+                    <span>
+                        địa điểm
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="venue-list-quick-filters"
+                 th:with="currentSize=${venues != null ? venues.pageSize : 10}"
+                 aria-label="Lọc nhanh theo trạng thái">
+
+                <span class="venue-list-quick-filter-label">
+                    Lọc nhanh:
+                </span>
+
+                <a class="venue-list-quick-filter"
+                   th:classappend="${selectedStatus == null ? ' is-active' : ''}"
+                   th:href="@{/moderator/venues(size=${currentSize})}">
+                    Tất cả
+                </a>
+
+                <a class="venue-list-quick-filter venue-list-quick-filter-approved"
+                   th:classappend="${selectedStatus != null && selectedStatus.name() == 'APPROVE' ? ' is-active' : ''}"
+                   th:href="@{/moderator/venues(status=APPROVE,size=${currentSize})}">
+                    <span class="venue-list-legend-dot venue-list-legend-dot-approved"></span>
+                    Đã duyệt
+                </a>
+
+                <a class="venue-list-quick-filter venue-list-quick-filter-pending"
+                   th:classappend="${selectedStatus != null && selectedStatus.name() == 'PENDING' ? ' is-active' : ''}"
+                   th:href="@{/moderator/venues(status=PENDING,size=${currentSize})}">
+                    <span class="venue-list-legend-dot venue-list-legend-dot-pending"></span>
+                    Chờ duyệt
+                </a>
+
+                <a class="venue-list-quick-filter venue-list-quick-filter-blocked"
+                   th:classappend="${selectedStatus != null && selectedStatus.name() == 'BLOCKED' ? ' is-active' : ''}"
+                   th:href="@{/moderator/venues(status=BLOCKED,size=${currentSize})}">
+                    <span class="venue-list-legend-dot venue-list-legend-dot-blocked"></span>
+                    Đã khóa
+                </a>
+
+            </div>
 
         </div>
 
 
-        <!-- TABLE -->
-        <div
-                class="table-wrap"
-                th:if="${venues != null
-                        && venues.content != null
-                        && !venues.content.isEmpty()}">
+        <!-- =================================================
+             TABLE
+        ================================================== -->
+        <div class="table-wrapper venue-list-table-wrapper"
+             th:if="${venues != null
+                     && venues.content != null
+                     && !venues.content.isEmpty()}">
 
-            <table>
+            <table class="data-table venue-list-table">
 
                 <thead>
 
                 <tr>
-                    <th>ID</th>
+                    <th class="venue-list-id-column">ID</th>
                     <th>Venue</th>
                     <th>Chủ sở hữu</th>
                     <th>Địa chỉ</th>
                     <th>Thành phố</th>
                     <th>Trạng thái</th>
+                    <th class="venue-list-action-column">Hành động</th>
                 </tr>
 
                 </thead>
@@ -189,38 +264,47 @@
                 <tr th:each="venue : ${venues.content}">
 
                     <!-- ID -->
-                    <td
-                            th:text="${venue.id}">
+                    <td class="venue-list-id-cell"
+                        th:text="${venue.id}">
                         1
                     </td>
 
 
                     <!-- VENUE -->
-                    <td>
+                    <td class="venue-list-name-cell">
 
-                        <div class="venue-info">
+                        <div class="venue-list-primary-info">
 
-                            <a
-                                    th:href="@{/moderator/venues/{id}(
-                                        id=${venue.id}
-                                    )}">
+                            <a class="venue-list-name-link"
+                               th:href="@{/moderator/venues/{id}(id=${venue.id})}">
 
-                                <strong
-                                        th:text="${venue.name != null
-                                                ? venue.name
-                                                : '—'}">
+                                <span th:text="${venue.name != null
+                                        && !#strings.isEmpty(venue.name)
+                                        ? venue.name
+                                        : '—'}">
                                     Coworking Space Hanoi
-                                </strong>
+                                </span>
+
+                                <svg width="15"
+                                     height="15"
+                                     viewBox="0 0 24 24"
+                                     fill="none"
+                                     stroke="currentColor"
+                                     stroke-width="2"
+                                     stroke-linecap="round"
+                                     stroke-linejoin="round"
+                                     aria-hidden="true">
+
+                                    <path d="m9 18 6-6-6-6"/>
+
+                                </svg>
 
                             </a>
 
-
-                            <span
-                                    th:if="${venue.description != null
-                                            && !#strings.isEmpty(
-                                                venue.description
-                                            )}"
-                                    th:text="${venue.description}">
+                            <span class="venue-list-secondary-text"
+                                  th:if="${venue.description != null
+                                          && !#strings.isEmpty(venue.description)}"
+                                  th:text="${venue.description}">
                                 Venue description
                             </span>
 
@@ -232,19 +316,19 @@
                     <!-- OWNER -->
                     <td>
 
-                        <div class="owner-info">
+                        <div class="venue-list-primary-info">
 
-                            <strong
-                                    th:text="${venue.ownerName != null
-                                            ? venue.ownerName
-                                            : '—'}">
+                            <strong th:text="${venue.ownerName != null
+                                    && !#strings.isEmpty(venue.ownerName)
+                                    ? venue.ownerName
+                                    : '—'}">
                                 Host A
                             </strong>
 
-                            <span
-                                    th:if="${venue.ownerId != null}"
-                                    th:text="'ID: ' + ${venue.ownerId}">
-                                ID: 10
+                            <span class="venue-list-secondary-text"
+                                  th:if="${venue.ownerId != null}"
+                                  th:text="'ID #' + ${venue.ownerId}">
+                                ID #10
                             </span>
 
                         </div>
@@ -253,15 +337,12 @@
 
 
                     <!-- ADDRESS -->
-                    <td>
+                    <td class="venue-list-location-cell">
 
-                        <span
-                                th:text="${venue.address != null
-                                        && !#strings.isEmpty(
-                                            venue.address
-                                        )
-                                        ? venue.address
-                                        : '—'}">
+                        <span th:text="${venue.address != null
+                                && !#strings.isEmpty(venue.address)
+                                ? venue.address
+                                : '—'}">
                             123 Nguyen Trai
                         </span>
 
@@ -269,16 +350,13 @@
 
 
                     <!-- CITY -->
-                    <td>
+                    <td class="venue-list-city-cell">
 
-                        <span
-                                th:text="${venue.city != null
-                                        && !#strings.isEmpty(
-                                            venue.city
-                                        )
-                                        ? venue.city
-                                        : '—'}">
-                            Ha Noi
+                        <span th:text="${venue.city != null
+                                && !#strings.isEmpty(venue.city)
+                                ? venue.city
+                                : '—'}">
+                            Hà Nội
                         </span>
 
                     </td>
@@ -287,27 +365,71 @@
                     <!-- STATUS -->
                     <td>
 
-                        <span
-                                class="status-badge"
-                                th:classappend="${venue.status != null
-                                        ? ' status-'
-                                            + #strings.toLowerCase(
-                                                venue.status.name()
-                                            )
-                                        : ''}"
-                                th:text="${venue.status == null
-                                        ? 'Unknown'
-                                        : (venue.status.name()
-                                            == 'APPROVE'
-                                            ? 'Approved'
-                                            : #strings.capitalize(
-                                                #strings.toLowerCase(
-                                                    venue.status.name()
-                                                )
-                                            )
-                                        )}">
-                            Pending
+                        <span class="venue-list-status-badge"
+                              th:classappend="${venue.status == null
+                                      ? ' venue-list-status-unknown'
+                                      : (venue.status.name() == 'APPROVE'
+                                          ? ' venue-list-status-approved'
+                                          : (venue.status.name() == 'PENDING'
+                                              ? ' venue-list-status-pending'
+                                              : (venue.status.name() == 'BLOCKED'
+                                                  ? ' venue-list-status-blocked'
+                                                  : ' venue-list-status-unknown')))}"
+                              th:text="${venue.status == null
+                                      ? 'Không xác định'
+                                      : (venue.status.name() == 'APPROVE'
+                                          ? 'Đã duyệt'
+                                          : (venue.status.name() == 'PENDING'
+                                              ? 'Chờ duyệt'
+                                              : (venue.status.name() == 'BLOCKED'
+                                                  ? 'Đã khóa'
+                                                  : venue.status.name())))}">
+                            Chờ duyệt
                         </span>
+
+                    </td>
+
+
+                    <!-- ACTION -->
+                    <td class="venue-list-action-cell">
+
+                        <a class="venue-list-detail-action"
+                           th:href="@{/moderator/venues/{id}(id=${venue.id})}"
+                           aria-label="Xem chi tiết Venue">
+
+                            <svg width="16"
+                                 height="16"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2"
+                                 stroke-linecap="round"
+                                 stroke-linejoin="round"
+                                 aria-hidden="true">
+
+                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12"/>
+                                <circle cx="12" cy="12" r="3"/>
+
+                            </svg>
+
+                            <span>Xem chi tiết</span>
+
+                            <svg class="venue-list-detail-action-arrow"
+                                 width="14"
+                                 height="14"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2"
+                                 stroke-linecap="round"
+                                 stroke-linejoin="round"
+                                 aria-hidden="true">
+
+                                <path d="m9 18 6-6-6-6"/>
+
+                            </svg>
+
+                        </a>
 
                     </td>
 
@@ -320,78 +442,97 @@
         </div>
 
 
-        <!-- EMPTY STATE -->
-        <div
-                class="empty-state"
-                th:if="${venues == null
-                        || venues.content == null
-                        || venues.content.isEmpty()}">
+        <!-- =================================================
+             EMPTY STATE
+        ================================================== -->
+        <div class="empty-state venue-list-empty"
+             th:if="${venues == null
+                     || venues.content == null
+                     || venues.content.isEmpty()}">
 
-            <strong>
+            <div class="venue-list-empty-icon"
+                 aria-hidden="true">
+
+                <svg width="28"
+                     height="28"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round">
+
+                    <rect x="3"
+                          y="3"
+                          width="18"
+                          height="18"
+                          rx="2"/>
+
+                    <path d="M9 21V9h6v12"/>
+
+                </svg>
+
+            </div>
+
+            <h3>
                 Không tìm thấy Venue
-            </strong>
+            </h3>
 
             <p>
-                Không có Venue nào phù hợp với trạng thái đã chọn.
+                Không có địa điểm nào phù hợp với bộ lọc hiện tại.
             </p>
 
-            <a
-                    th:href="@{/moderator/venues}"
-                    class="button-secondary">
+            <a th:href="@{/moderator/venues}"
+               class="venue-list-button venue-list-button-secondary">
                 Xóa bộ lọc
             </a>
 
         </div>
 
 
-        <!-- PAGINATION -->
-        <div
-                class="pagination"
-                th:if="${venues != null
-                        && venues.totalPages > 1}">
+        <!-- =================================================
+             PAGINATION
+        ================================================== -->
+        <div class="pagination venue-list-pagination"
+             th:if="${venues != null
+                     && venues.totalPages > 1}">
 
-            <!-- PREVIOUS -->
-            <div>
+            <div class="venue-list-pagination-side">
 
-                <a
-                        class="pagination-button"
-                        th:if="${venues.pageNumber > 0}"
-                        th:href="@{/moderator/venues(
-                            page=${venues.pageNumber - 1},
-                            size=${venues.pageSize},
-                            status=${selectedStatus}
-                        )}">
+                <a class="pagination-button"
+                   th:if="${venues.pageNumber > 0}"
+                   th:href="@{/moderator/venues(
+                       page=${venues.pageNumber - 1},
+                       size=${venues.pageSize},
+                       status=${selectedStatus}
+                   )}">
                     ← Trang trước
                 </a>
 
             </div>
 
 
-            <!-- PAGE INFO -->
             <div class="pagination-info">
 
-                <span
-                        th:text="'Trang '
-                            + ${venues.pageNumber + 1}
-                            + ' / '
-                            + ${venues.totalPages}">
+                <span th:text="'Trang '
+                        + ${venues.pageNumber + 1}
+                        + ' / '
+                        + ${venues.totalPages}">
                     Trang 1 / 1
                 </span>
 
             </div>
 
 
-            <!-- NEXT -->
-            <div>
+            <div class="venue-list-pagination-side venue-list-pagination-next">
 
-                <a
-                        class="pagination-button"
-                        th:if="${!venues.last}"
-                        th:href="@{/moderator/venues(
-                            page=${venues.pageNumber + 1},
-                            size=${venues.pageSize},
-                            status=${selectedStatus}
-                        )}">
+                <a class="pagination-button"
+                   th:if="${!venues.last}"
+                   th:href="@{/moderator/venues(
+                       page=${venues.pageNumber + 1},
+                       size=${venues.pageSize},
+                       status=${selectedStatus}
+                   )}">
                     Trang sau →
                 </a>
 
@@ -401,8 +542,6 @@
 
     </div>
 
-</main>
-
-</body>
+</section>
 
 </html>

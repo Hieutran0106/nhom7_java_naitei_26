@@ -1,1170 +1,731 @@
 <!DOCTYPE html>
 <html lang="vi"
-      xmlns:th="http://www.thymeleaf.org">
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/moderator-layout :: layout(
+          'Chi tiết Venue',
+          'venues',
+          ~{::section}
+      )}">
 
-<head>
-    <meta charset="UTF-8">
+<section class="venue-detail-page">
 
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0">
+    <a class="venue-detail-back-link"
+       th:href="@{/moderator/venues}">
+        <span aria-hidden="true">←</span>
+        <span>Quay lại Quản lý Venue</span>
+    </a>
 
-    <title
-            th:text="${venue.name != null
-                    ? venue.name + ' - Chi tiết Venue'
-                    : 'Chi tiết Venue'}">
-        Chi tiết Venue
-    </title>
-
-    <link
-            rel="stylesheet"
-            th:href="@{/css/moderator-venue-detail.css}">
-</head>
-
-<body>
-
-<main class="page-container">
-
-    <!-- HEADER -->
-    <header class="page-header">
-
-        <a
-                class="back-link"
-                th:href="@{/moderator/venues}">
-            ← Quay lại danh sách Venue
-        </a>
-
-        <div class="title-row">
-
-            <div>
-
-                <p class="eyebrow">
-                    Venue detail
-                </p>
-
-                <h1
-                        th:text="${venue.name != null
-                                ? venue.name
-                                : 'Venue'}">
-                    Coworking Space Hanoi
-                </h1>
-
-                <p class="venue-id">
-                    ID:
-                    <strong
-                            th:text="${venue.id}">
-                        1
-                    </strong>
-                </p>
-
-            </div>
-
-            <span
-                    class="status-badge"
-                    th:classappend="${venue.status != null
-                            ? ' status-' + #strings.toLowerCase(venue.status.name())
-                            : ''}"
-                    th:text="${venue.status != null
-                            ? venue.status
-                            : 'UNKNOWN'}">
-                PENDING
-            </span>
-
-        </div>
-
-    </header>
-
-
-    <!-- MODERATION ACTIONS -->
-    <section
-            class="card moderation-card"
-            th:if="${venue.status != null}">
-
-        <div class="section-heading">
-
-            <div>
-                <p class="section-kicker">
-                    Kiểm duyệt
-                </p>
-
-                <h2>
-                    Quản lý trạng thái Venue
-                </h2>
-            </div>
-
-        </div>
-
-
-        <div
-                class="moderation-actions"
-                th:if="${venue.status.name() == 'PENDING'
-                        || venue.status.name() == 'APPROVE'}">
-
-            <button
-                    id="approveVenueButton"
-                    class="action-button action-button-approve"
-                    type="button"
-                    th:if="${venue.status.name() == 'PENDING'}">
-                Approve
-            </button>
-
-            <button
-                    id="blockVenueButton"
-                    class="action-button action-button-block"
-                    type="button"
-                    th:if="${venue.status.name() == 'PENDING'
-                            || venue.status.name() == 'APPROVE'}">
-                Block
-            </button>
-
-        </div>
-
-
-        <div
-                class="blocked-reason"
-                th:if="${venue.status.name() == 'BLOCKED'}">
-
-            <span class="blocked-reason-label">
-                Lý do khóa
-            </span>
-
-            <p
-                    th:text="${venue.blockReason != null
-                            && !#strings.isEmpty(venue.blockReason)
-                            ? venue.blockReason
-                            : 'Không có lý do được ghi nhận.'}">
-                Thông tin Venue chưa hợp lệ
+    <div class="content-card venue-detail-hero">
+        <div class="venue-detail-hero-main">
+            <p class="venue-detail-eyebrow">
+                Chi tiết Venue
             </p>
 
-        </div>
+            <h2 th:text="${venue.name != null ? venue.name : 'Venue'}">
+                Coworking Space Hanoi
+            </h2>
 
-    </section>
-
-
-    <!-- IMAGE -->
-    <section class="card">
-
-        <div class="section-heading">
-
-            <div>
-                <p class="section-kicker">
-                    Hình ảnh
-                </p>
-
-                <h2>
-                    Ảnh Venue
-                </h2>
-            </div>
-
-        </div>
-
-        <div class="image-placeholder">
-
-            <div class="image-placeholder-icon">
-                ▧
-            </div>
-
-            <strong>
-                Chưa có hình ảnh
-            </strong>
-
-            <span>
-                Venue hiện chưa có dữ liệu hình ảnh.
-            </span>
-
-        </div>
-
-    </section>
-
-
-    <!-- VENUE INFORMATION -->
-    <section class="card">
-
-        <div class="section-heading">
-
-            <div>
-                <p class="section-kicker">
-                    Thông tin
-                </p>
-
-                <h2>
-                    Thông tin Venue
-                </h2>
-            </div>
-
-        </div>
-
-
-        <div class="info-grid">
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Chủ sở hữu
+            <div class="venue-detail-meta">
+                <span class="venue-detail-meta-item"
+                      th:text="'ID #' + ${venue.id}">
+                    ID #1
                 </span>
 
-                <strong
-                        th:text="${venue.ownerName != null
-                                ? venue.ownerName
-                                : '—'}">
-                    Host A
-                </strong>
-
-                <span
-                        class="info-sub"
-                        th:if="${venue.ownerId != null}"
-                        th:text="'Owner ID: ' + ${venue.ownerId}">
-                    Owner ID: 10
+                <span class="venue-detail-meta-separator"
+                      aria-hidden="true">
+                    •
                 </span>
 
-            </div>
-
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Thành phố
-                </span>
-
-                <strong
-                        th:text="${venue.city != null
-                                ? venue.city
-                                : '—'}">
+                <span class="venue-detail-meta-item"
+                      th:text="${venue.city != null && !#strings.isEmpty(venue.city)
+                              ? venue.city
+                              : 'Chưa cập nhật thành phố'}">
                     Hà Nội
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Đường
                 </span>
-
-                <strong
-                        th:text="${venue.street != null
-                                ? venue.street
-                                : '—'}">
-                    Thanh Xuân
-                </strong>
-
             </div>
-
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Địa chỉ
-                </span>
-
-                <strong
-                        th:text="${venue.address != null
-                                ? venue.address
-                                : '—'}">
-                    123 Nguyen Trai
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Latitude
-                </span>
-
-                <strong
-                        th:text="${venue.latitude != null
-                                ? venue.latitude
-                                : '—'}">
-                    21.028511
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span class="info-label">
-                    Longitude
-                </span>
-
-                <strong
-                        th:text="${venue.longitude != null
-                                ? venue.longitude
-                                : '—'}">
-                    105.804817
-                </strong>
-
-            </div>
-
         </div>
 
+        <span class="venue-detail-status-badge"
+              th:classappend="${venue.status != null
+                      ? ' venue-detail-status-' + #strings.toLowerCase(venue.status.name())
+                      : ''}"
+              th:text="${venue.status == null
+                      ? 'Không xác định'
+                      : (venue.status.name() == 'APPROVE'
+                          ? 'Đã duyệt'
+                          : (venue.status.name() == 'PENDING'
+                              ? 'Chờ duyệt'
+                              : (venue.status.name() == 'BLOCKED'
+                                  ? 'Đã khóa'
+                                  : venue.status.name())))}">
+            Chờ duyệt
+        </span>
+    </div>
 
-        <div class="description-block">
+    <div class="venue-detail-overview-grid">
 
-            <span class="info-label">
-                Mô tả
-            </span>
+        <article class="content-card venue-detail-info-card">
+            <div class="venue-detail-section-heading">
+                <div>
+                    <p class="venue-detail-section-kicker">
+                        Thông tin
+                    </p>
+                    <h3>
+                        Thông tin Venue
+                    </h3>
+                </div>
+            </div>
 
-            <p
-                    th:text="${venue.description != null
-                            && !#strings.isEmpty(venue.description)
-                            ? venue.description
-                            : 'Chưa có mô tả.'}">
-                Không gian làm việc hiện đại
+            <div class="venue-detail-info-grid">
+                <div class="venue-detail-info-item">
+                    <span class="venue-detail-info-label">
+                        Chủ sở hữu
+                    </span>
+                    <strong th:text="${venue.ownerName != null ? venue.ownerName : '—'}">
+                        Host A
+                    </strong>
+                    <span class="venue-detail-info-sub"
+                          th:if="${venue.ownerId != null}"
+                          th:text="'Owner ID #' + ${venue.ownerId}">
+                        Owner ID #10
+                    </span>
+                </div>
+
+                <div class="venue-detail-info-item">
+                    <span class="venue-detail-info-label">
+                        Thành phố
+                    </span>
+                    <strong th:text="${venue.city != null ? venue.city : '—'}">
+                        Hà Nội
+                    </strong>
+                </div>
+
+                <div class="venue-detail-info-item">
+                    <span class="venue-detail-info-label">
+                        Đường
+                    </span>
+                    <strong th:text="${venue.street != null ? venue.street : '—'}">
+                        Nguyễn Trãi
+                    </strong>
+                </div>
+
+                <div class="venue-detail-info-item venue-detail-info-item-wide">
+                    <span class="venue-detail-info-label">
+                        Địa chỉ
+                    </span>
+                    <strong th:text="${venue.address != null ? venue.address : '—'}">
+                        123 Nguyễn Trãi
+                    </strong>
+                </div>
+
+                <div class="venue-detail-info-item">
+                    <span class="venue-detail-info-label">
+                        Vĩ độ
+                    </span>
+                    <strong th:text="${venue.latitude != null ? venue.latitude : '—'}">
+                        21.028511
+                    </strong>
+                </div>
+
+                <div class="venue-detail-info-item">
+                    <span class="venue-detail-info-label">
+                        Kinh độ
+                    </span>
+                    <strong th:text="${venue.longitude != null ? venue.longitude : '—'}">
+                        105.804817
+                    </strong>
+                </div>
+            </div>
+
+            <div class="venue-detail-description">
+                <span class="venue-detail-info-label">
+                    Mô tả
+                </span>
+                <p th:text="${venue.description != null && !#strings.isEmpty(venue.description)
+                        ? venue.description
+                        : 'Venue chưa có mô tả.'}">
+                    Không gian làm việc hiện đại.
+                </p>
+            </div>
+        </article>
+
+        <aside class="content-card venue-detail-moderation-card"
+               th:if="${venue.status != null}">
+            <div class="venue-detail-section-heading">
+                <div>
+                    <p class="venue-detail-section-kicker">
+                        Kiểm duyệt
+                    </p>
+                    <h3>
+                        Trạng thái Venue
+                    </h3>
+                </div>
+            </div>
+
+            <div class="venue-detail-current-status">
+                <span class="venue-detail-info-label">
+                    Trạng thái hiện tại
+                </span>
+
+                <span class="venue-detail-status-badge"
+                      th:classappend="${' venue-detail-status-' + #strings.toLowerCase(venue.status.name())}"
+                      th:text="${venue.status.name() == 'APPROVE'
+                              ? 'Đã duyệt'
+                              : (venue.status.name() == 'PENDING'
+                                  ? 'Chờ duyệt'
+                                  : (venue.status.name() == 'BLOCKED'
+                                      ? 'Đã khóa'
+                                      : venue.status.name()))}">
+                    Chờ duyệt
+                </span>
+            </div>
+
+            <p class="venue-detail-moderation-note"
+               th:if="${venue.status.name() == 'PENDING'}">
+                Venue đang chờ kiểm duyệt. Hãy kiểm tra thông tin trước khi duyệt hoặc khóa.
             </p>
 
-        </div>
+            <p class="venue-detail-moderation-note venue-detail-moderation-note-success"
+               th:if="${venue.status.name() == 'APPROVE'}">
+                Venue đã được duyệt và đang có trạng thái hợp lệ trong hệ thống.
+            </p>
 
-    </section>
+            <div class="venue-detail-blocked-reason"
+                 th:if="${venue.status.name() == 'BLOCKED'}">
+                <span class="venue-detail-info-label">
+                    Lý do khóa
+                </span>
+                <p th:text="${venue.blockReason != null && !#strings.isEmpty(venue.blockReason)
+                        ? venue.blockReason
+                        : 'Không có lý do được ghi nhận.'}">
+                    Thông tin Venue chưa hợp lệ.
+                </p>
+            </div>
 
+            <div class="venue-detail-moderation-actions"
+                 th:if="${venue.status.name() == 'PENDING'
+                         || venue.status.name() == 'APPROVE'}">
+                <button id="approveVenueButton"
+                        class="venue-detail-action-button venue-detail-action-approve"
+                        type="button"
+                        th:if="${venue.status.name() == 'PENDING'}">
+                    <span aria-hidden="true">✓</span>
+                    <span>Duyệt Venue</span>
+                </button>
 
-    <!-- AMENITIES -->
-    <section class="card">
+                <button id="blockVenueButton"
+                        class="venue-detail-action-button venue-detail-action-block"
+                        type="button"
+                        th:if="${venue.status.name() == 'PENDING'
+                                || venue.status.name() == 'APPROVE'}">
+                    <span aria-hidden="true">⊘</span>
+                    <span>Khóa Venue</span>
+                </button>
+            </div>
+        </aside>
 
-        <div class="section-heading">
+    </div>
 
+    <section class="content-card venue-detail-amenities-card">
+        <div class="venue-detail-section-heading">
             <div>
-
-                <p class="section-kicker">
+                <p class="venue-detail-section-kicker">
                     Tiện ích
                 </p>
-
-                <h2>
-                    Amenities
-                </h2>
-
+                <h3>
+                    Tiện ích của Venue
+                </h3>
             </div>
 
-            <span
-                    class="count-pill"
-                    th:text="${venue.amenities != null
-                            ? venue.amenities.size()
-                            : 0}">
+            <span class="venue-detail-count-pill"
+                  th:text="${venue.amenities != null ? venue.amenities.size() : 0}">
                 0
             </span>
-
         </div>
 
-
-        <div
-                class="amenity-list"
-                th:if="${venue.amenities != null
-                        && !venue.amenities.isEmpty()}">
-
-            <span
-                    class="amenity-chip"
-                    th:each="amenity : ${venue.amenities}"
-                    th:text="${amenity.name}">
+        <div class="venue-detail-amenity-list"
+             th:if="${venue.amenities != null && !venue.amenities.isEmpty()}">
+            <span class="venue-detail-amenity-chip"
+                  th:each="amenity : ${venue.amenities}"
+                  th:text="${amenity.name}">
                 WiFi
             </span>
-
         </div>
 
-
-        <div
-                class="empty-state"
-                th:if="${venue.amenities == null
-                        || venue.amenities.isEmpty()}">
-
-            <strong>
-                Chưa có Amenity
-            </strong>
-
-            <span>
-                Venue này hiện chưa được gắn tiện ích.
-            </span>
-
+        <div class="venue-detail-empty-state"
+             th:if="${venue.amenities == null || venue.amenities.isEmpty()}">
+            <strong>Chưa có tiện ích</strong>
+            <span>Venue này hiện chưa được gắn tiện ích.</span>
         </div>
-
     </section>
 
-
-    <!-- SPACES -->
-    <section class="card">
-
-        <div class="section-heading">
-
+    <section class="content-card venue-detail-spaces-card">
+        <div class="venue-detail-section-heading">
             <div>
-
-                <p class="section-kicker">
+                <p class="venue-detail-section-kicker">
                     Không gian
                 </p>
-
-                <h2>
-                    Spaces
-                </h2>
-
+                <h3>
+                    Không gian làm việc
+                </h3>
             </div>
 
-            <span
-                    class="count-pill"
-                    th:text="${spaces != null
-                            ? spaces.totalElements
-                            : 0}">
+            <span class="venue-detail-count-pill"
+                  th:text="${spaces != null ? spaces.totalElements : 0}">
                 0
             </span>
-
         </div>
 
-
-        <div
-                class="table-wrapper"
-                th:if="${spaces != null
-                        && spaces.content != null
-                        && !spaces.content.isEmpty()}">
-
-            <table>
-
+        <div class="venue-detail-table-wrapper"
+             th:if="${spaces != null
+                     && spaces.content != null
+                     && !spaces.content.isEmpty()}">
+            <table class="venue-detail-table">
                 <thead>
-
                 <tr>
                     <th>ID</th>
-                    <th>Space</th>
+                    <th>Không gian</th>
                     <th>Loại</th>
                     <th>Sức chứa</th>
                     <th>Giá</th>
                     <th>Thời gian</th>
                     <th>Trạng thái</th>
                 </tr>
-
                 </thead>
 
                 <tbody>
-
-                <tr
-                        th:each="space : ${spaces.content}">
-
-                    <td
-                            class="id-cell"
-                            th:text="${space.id}">
+                <tr th:each="space : ${spaces.content}">
+                    <td class="venue-detail-id-cell"
+                        th:text="${space.id}">
                         1
                     </td>
 
-
                     <td>
-
-                        <div class="space-name">
-
-                            <strong
-                                    th:text="${space.name != null
-                                            ? space.name
-                                            : '—'}">
+                        <div class="venue-detail-space-name">
+                            <strong th:text="${space.name != null ? space.name : '—'}">
                                 Meeting Room A
                             </strong>
-
-                            <span
-                                    th:if="${space.description != null
-                                            && !#strings.isEmpty(space.description)}"
-                                    th:text="${space.description}">
+                            <span th:if="${space.description != null && !#strings.isEmpty(space.description)}"
+                                  th:text="${space.description}">
                                 Phòng họp
                             </span>
-
                         </div>
-
                     </td>
 
-
-                    <td
-                            th:text="${space.type != null
-                                    ? space.type
-                                    : '—'}">
+                    <td th:text="${space.type != null ? space.type : '—'}">
                         MEETING_ROOM
                     </td>
 
-
-                    <td
-                            th:text="${space.capacity != null
-                                    ? space.capacity
-                                    : '—'}">
+                    <td th:text="${space.capacity != null ? space.capacity : '—'}">
                         8
                     </td>
 
-
                     <td>
-
-                        <div class="price-cell">
-
-                            <strong
-                                    th:text="${space.price != null
-                                            ? space.price
-                                            : '—'}">
+                        <div class="venue-detail-price-cell">
+                            <strong th:text="${space.price != null ? space.price : '—'}">
                                 200000
                             </strong>
-
-                            <span
-                                    th:if="${space.priceUnit != null}"
-                                    th:text="${space.priceUnit}">
+                            <span th:if="${space.priceUnit != null}"
+                                  th:text="${space.priceUnit}">
                                 HOUR
                             </span>
-
                         </div>
-
                     </td>
 
-
                     <td>
-
-                        <span
-                                th:if="${space.openTime != null
-                                        || space.closeTime != null}"
-                                th:text="${(space.openTime != null
-                                        ? space.openTime
-                                        : '—')
-                                        + ' - '
-                                        + (space.closeTime != null
-                                        ? space.closeTime
-                                        : '—')}">
+                        <span th:if="${space.openTime != null || space.closeTime != null}"
+                              th:text="${(space.openTime != null ? space.openTime : '—')
+                                      + ' - '
+                                      + (space.closeTime != null ? space.closeTime : '—')}">
                             08:00 - 18:00
                         </span>
-
-                        <span
-                                th:if="${space.openTime == null
-                                        && space.closeTime == null}">
+                        <span th:if="${space.openTime == null && space.closeTime == null}">
                             —
                         </span>
-
                     </td>
-
 
                     <td>
-
-                        <span
-                                class="space-status"
-                                th:classappend="${space.status != null
-                                        ? ' space-status-' + #strings.toLowerCase(space.status.name())
-                                        : ''}"
-                                th:text="${space.status != null
-                                        ? space.status
-                                        : 'UNKNOWN'}">
-                            ACTIVE
+                        <span class="venue-detail-space-status"
+                              th:classappend="${space.status != null
+                                      ? ' venue-detail-space-status-' + #strings.toLowerCase(space.status.name())
+                                      : ''}"
+                              th:text="${space.status == null
+                                      ? 'Không xác định'
+                                      : (space.status.name() == 'ACTIVE'
+                                          ? 'Hoạt động'
+                                          : (space.status.name() == 'INACTIVE'
+                                              ? 'Ngừng hoạt động'
+                                              : space.status.name()))}">
+                            Hoạt động
                         </span>
-
                     </td>
-
                 </tr>
-
                 </tbody>
-
             </table>
-
         </div>
 
-
-        <div
-                class="empty-state"
-                th:if="${spaces == null
-                        || spaces.content == null
-                        || spaces.content.isEmpty()}">
-
-            <strong>
-                Chưa có Space
-            </strong>
-
-            <span>
-                Venue này hiện chưa có không gian làm việc nào.
-            </span>
-
+        <div class="venue-detail-empty-state"
+             th:if="${spaces == null
+                     || spaces.content == null
+                     || spaces.content.isEmpty()}">
+            <strong>Chưa có không gian làm việc</strong>
+            <span>Venue này hiện chưa có Space nào.</span>
         </div>
-
     </section>
 
-</main>
+    <div id="blockVenueModal"
+         class="venue-detail-modal-overlay"
+         hidden>
+        <div class="venue-detail-modal-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="blockVenueModalTitle">
 
+            <div class="venue-detail-modal-header">
+                <div>
+                    <p class="venue-detail-section-kicker">
+                        Kiểm duyệt Venue
+                    </p>
+                    <h3 id="blockVenueModalTitle">
+                        Khóa Venue
+                    </h3>
+                </div>
 
-<!-- BLOCK MODAL -->
-<div
-        id="blockVenueModal"
-        class="modal-overlay"
-        hidden>
-
-    <div
-            class="modal-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="blockVenueModalTitle">
-
-        <div class="modal-header">
-
-            <div>
-
-                <p class="section-kicker">
-                    Kiểm duyệt Venue
-                </p>
-
-                <h2 id="blockVenueModalTitle">
-                    Khóa Venue
-                </h2>
-
+                <button id="closeBlockVenueModalButton"
+                        class="venue-detail-modal-close"
+                        type="button"
+                        aria-label="Đóng">
+                    ×
+                </button>
             </div>
 
-            <button
-                    id="closeBlockVenueModalButton"
-                    class="modal-close-button"
-                    type="button"
-                    aria-label="Đóng">
-                ×
-            </button>
+            <form id="blockVenueForm">
+                <div class="venue-detail-modal-body">
+                    <label class="venue-detail-modal-label"
+                           for="blockReason">
+                        Lý do khóa
+                    </label>
 
+                    <textarea id="blockReason"
+                              name="reason"
+                              rows="5"
+                              required
+                              placeholder="Nhập lý do khóa Venue..."></textarea>
+
+                    <p id="blockReasonError"
+                       class="venue-detail-field-error"
+                       hidden>
+                        Vui lòng nhập lý do khóa Venue.
+                    </p>
+                </div>
+
+                <div class="venue-detail-modal-actions">
+                    <button id="cancelBlockVenueButton"
+                            class="venue-detail-action-button venue-detail-action-secondary"
+                            type="button">
+                        Hủy
+                    </button>
+
+                    <button id="confirmBlockVenueButton"
+                            class="venue-detail-action-button venue-detail-action-block"
+                            type="submit">
+                        Xác nhận khóa
+                    </button>
+                </div>
+            </form>
         </div>
-
-
-        <form id="blockVenueForm">
-
-            <div class="modal-body">
-
-                <label
-                        class="modal-label"
-                        for="blockReason">
-                    Lý do khóa
-                </label>
-
-                <textarea
-                        id="blockReason"
-                        name="reason"
-                        rows="5"
-                        required
-                        placeholder="Nhập lý do khóa Venue..."></textarea>
-
-                <p
-                        id="blockReasonError"
-                        class="field-error"
-                        hidden>
-                    Vui lòng nhập lý do khóa Venue.
-                </p>
-
-            </div>
-
-
-            <div class="modal-actions">
-
-                <button
-                        id="cancelBlockVenueButton"
-                        class="action-button action-button-secondary"
-                        type="button">
-                    Hủy
-                </button>
-
-                <button
-                        id="confirmBlockVenueButton"
-                        class="action-button action-button-block"
-                        type="submit">
-                    Xác nhận Block
-                </button>
-
-            </div>
-
-        </form>
-
     </div>
 
-</div>
+    <script th:inline="javascript">
+        const venueId = /*[[${venue.id}]]*/ 0;
 
-
-<script
-        th:inline="javascript">
-
-    const venueId =
-        /*[[${venue.id}]]*/
-        0;
-
-
-    function getAccessToken() {
-
-        return (
-            sessionStorage.getItem(
-                "accessToken"
-            )
-            ||
-            localStorage.getItem(
-                "accessToken"
-            )
-        );
-    }
-
-
-    async function callModeratorApi(
-        url,
-        options = {}
-    ) {
-
-        const token =
-            getAccessToken();
-
-
-        if (!token) {
-
-            throw new Error(
-                "Không tìm thấy access token. "
-                + "Vui lòng đăng nhập lại."
+        function getAccessToken() {
+            return (
+                sessionStorage.getItem("accessToken")
+                || localStorage.getItem("accessToken")
             );
         }
 
+        async function callModeratorApi(url, options = {}) {
+            const token = getAccessToken();
 
-        const response =
-            await fetch(
+            if (!token) {
+                throw new Error(
+                    "Không tìm thấy access token. Vui lòng đăng nhập lại."
+                );
+            }
+
+            const response = await fetch(
                 url,
                 {
                     ...options,
-
                     headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        Authorization:
-                            `Bearer ${token}`,
-
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
                         ...(options.headers || {})
                     }
                 }
             );
 
+            let body = null;
+            const contentType = response.headers.get("content-type");
 
-        let body =
-            null;
-
-
-        const contentType =
-            response.headers.get(
-                "content-type"
-            );
-
-
-        if (
-            contentType
-            && contentType.includes(
-                "application/json"
-            )
-        ) {
-
-            try {
-
-                body =
-                    await response.json();
-
-            } catch (error) {
-
-                body =
-                    null;
+            if (contentType && contentType.includes("application/json")) {
+                try {
+                    body = await response.json();
+                } catch (error) {
+                    body = null;
+                }
             }
+
+            if (!response.ok) {
+                const message =
+                    body?.message
+                    || body?.error
+                    || `Thao tác thất bại (${response.status}).`;
+
+                throw new Error(message);
+            }
+
+            return body;
         }
 
+        async function loadModeratorPage(url) {
+            const token = getAccessToken();
 
-        if (!response.ok) {
+            if (!token) {
+                alert(
+                    "Không tìm thấy access token. Vui lòng đăng nhập lại."
+                );
+                return;
+            }
 
-            const message =
-                body?.message
-                || body?.error
-                || `Thao tác thất bại (${response.status}).`;
-
-            throw new Error(
-                message
-            );
-        }
-
-
-        return body;
-    }
-
-
-    async function loadModeratorPage(
-        url
-    ) {
-
-        const token =
-            getAccessToken();
-
-
-        if (!token) {
-
-            alert(
-                "Không tìm thấy access token. "
-                + "Vui lòng đăng nhập lại."
-            );
-
-            return;
-        }
-
-
-        const response =
-            await fetch(
+            const response = await fetch(
                 url,
                 {
                     headers: {
-
-                        Authorization:
-                            `Bearer ${token}`
+                        Authorization: `Bearer ${token}`
                     }
                 }
             );
 
+            if (!response.ok) {
+                throw new Error(
+                    `Không thể tải lại Venue (${response.status}).`
+                );
+            }
 
-        if (!response.ok) {
+            const html = await response.text();
 
-            throw new Error(
-                `Không thể tải lại Venue (${response.status}).`
-            );
+            window.history.replaceState({}, "", url);
+            document.open();
+            document.write(html);
+            document.close();
         }
 
+        async function approveVenue() {
+            const button = document.getElementById("approveVenueButton");
 
-        const html =
-            await response.text();
+            if (!button) {
+                return;
+            }
 
-
-        window.history.replaceState(
-            {},
-            "",
-            url
-        );
-
-
-        document.open();
-
-        document.write(
-            html
-        );
-
-        document.close();
-    }
-
-
-    async function approveVenue() {
-
-        const button =
-            document.getElementById(
-                "approveVenueButton"
-            );
-
-
-        if (!button) {
-            return;
-        }
-
-
-        const confirmed =
-            window.confirm(
+            const confirmed = window.confirm(
                 "Xác nhận duyệt Venue này?"
             );
 
-
-        if (!confirmed) {
-            return;
-        }
-
-
-        button.disabled =
-            true;
-
-
-        try {
-
-            await callModeratorApi(
-                `/api/moderator/venues/${venueId}/approve`,
-                {
-                    method:
-                        "PUT"
-                }
-            );
-
-
-            await loadModeratorPage(
-                `/moderator/venues/${venueId}`
-            );
-
-        } catch (error) {
-
-            button.disabled =
-                false;
-
-            alert(
-                error.message
-            );
-        }
-    }
-
-
-    const blockVenueModal =
-        document.getElementById(
-            "blockVenueModal"
-        );
-
-
-    const blockReason =
-        document.getElementById(
-            "blockReason"
-        );
-
-
-    const blockReasonError =
-        document.getElementById(
-            "blockReasonError"
-        );
-
-
-    function openBlockVenueModal() {
-
-        if (!blockVenueModal) {
-            return;
-        }
-
-
-        blockVenueModal.hidden =
-            false;
-
-        document.body.classList.add(
-            "modal-open"
-        );
-
-
-        if (blockReason) {
-
-            blockReason.value =
-                "";
-
-            blockReason.focus();
-        }
-
-
-        if (blockReasonError) {
-
-            blockReasonError.hidden =
-                true;
-        }
-    }
-
-
-    function closeBlockVenueModal() {
-
-        if (!blockVenueModal) {
-            return;
-        }
-
-
-        blockVenueModal.hidden =
-            true;
-
-        document.body.classList.remove(
-            "modal-open"
-        );
-
-
-        if (blockReasonError) {
-
-            blockReasonError.hidden =
-                true;
-        }
-    }
-
-
-    async function submitBlockVenue(
-        event
-    ) {
-
-        event.preventDefault();
-
-
-        const reason =
-            blockReason
-                ? blockReason.value.trim()
-                : "";
-
-
-        if (!reason) {
-
-            if (blockReasonError) {
-
-                blockReasonError.hidden =
-                    false;
+            if (!confirmed) {
+                return;
             }
 
+            button.disabled = true;
+
+            try {
+                await callModeratorApi(
+                    `/api/moderator/venues/${venueId}/approve`,
+                    {
+                        method: "PUT"
+                    }
+                );
+
+                await loadModeratorPage(
+                    `/moderator/venues/${venueId}`
+                );
+            } catch (error) {
+                button.disabled = false;
+                alert(error.message);
+            }
+        }
+
+        const blockVenueModal =
+            document.getElementById("blockVenueModal");
+
+        const blockReason =
+            document.getElementById("blockReason");
+
+        const blockReasonError =
+            document.getElementById("blockReasonError");
+
+        function openBlockVenueModal() {
+            if (!blockVenueModal) {
+                return;
+            }
+
+            blockVenueModal.hidden = false;
+            document.body.classList.add("modal-open");
 
             if (blockReason) {
-
+                blockReason.value = "";
                 blockReason.focus();
             }
 
-
-            return;
+            if (blockReasonError) {
+                blockReasonError.hidden = true;
+            }
         }
 
-
-        if (blockReasonError) {
-
-            blockReasonError.hidden =
-                true;
-        }
-
-
-        const button =
-            document.getElementById(
-                "confirmBlockVenueButton"
-            );
-
-
-        if (button) {
-
-            button.disabled =
-                true;
-        }
-
-
-        try {
-
-            await callModeratorApi(
-                `/api/moderator/venues/${venueId}/block`,
-                {
-                    method:
-                        "PUT",
-
-                    body:
-                        JSON.stringify({
-                            reason:
-                                reason
-                        })
-                }
-            );
-
-
-            closeBlockVenueModal();
-
-
-            await loadModeratorPage(
-                `/moderator/venues/${venueId}`
-            );
-
-        } catch (error) {
-
-            if (button) {
-
-                button.disabled =
-                    false;
+        function closeBlockVenueModal() {
+            if (!blockVenueModal) {
+                return;
             }
 
+            blockVenueModal.hidden = true;
+            document.body.classList.remove("modal-open");
 
-            alert(
-                error.message
+            if (blockReasonError) {
+                blockReasonError.hidden = true;
+            }
+        }
+
+        async function submitBlockVenue(event) {
+            event.preventDefault();
+
+            const reason = blockReason
+                ? blockReason.value.trim()
+                : "";
+
+            if (!reason) {
+                if (blockReasonError) {
+                    blockReasonError.hidden = false;
+                }
+
+                if (blockReason) {
+                    blockReason.focus();
+                }
+
+                return;
+            }
+
+            if (blockReasonError) {
+                blockReasonError.hidden = true;
+            }
+
+            const button =
+                document.getElementById("confirmBlockVenueButton");
+
+            if (button) {
+                button.disabled = true;
+            }
+
+            try {
+                await callModeratorApi(
+                    `/api/moderator/venues/${venueId}/block`,
+                    {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            reason: reason
+                        })
+                    }
+                );
+
+                closeBlockVenueModal();
+
+                await loadModeratorPage(
+                    `/moderator/venues/${venueId}`
+                );
+            } catch (error) {
+                if (button) {
+                    button.disabled = false;
+                }
+
+                alert(error.message);
+            }
+        }
+
+        const approveVenueButton =
+            document.getElementById("approveVenueButton");
+
+        if (approveVenueButton) {
+            approveVenueButton.addEventListener(
+                "click",
+                approveVenue
             );
         }
-    }
 
+        const blockVenueButton =
+            document.getElementById("blockVenueButton");
 
-    const approveVenueButton =
-        document.getElementById(
-            "approveVenueButton"
-        );
+        if (blockVenueButton) {
+            blockVenueButton.addEventListener(
+                "click",
+                openBlockVenueModal
+            );
+        }
 
+        const closeBlockVenueModalButton =
+            document.getElementById("closeBlockVenueModalButton");
 
-    if (approveVenueButton) {
+        if (closeBlockVenueModalButton) {
+            closeBlockVenueModalButton.addEventListener(
+                "click",
+                closeBlockVenueModal
+            );
+        }
 
-        approveVenueButton.addEventListener(
-            "click",
-            approveVenue
-        );
-    }
+        const cancelBlockVenueButton =
+            document.getElementById("cancelBlockVenueButton");
 
+        if (cancelBlockVenueButton) {
+            cancelBlockVenueButton.addEventListener(
+                "click",
+                closeBlockVenueModal
+            );
+        }
 
-    const blockVenueButton =
-        document.getElementById(
-            "blockVenueButton"
-        );
+        const blockVenueForm =
+            document.getElementById("blockVenueForm");
 
+        if (blockVenueForm) {
+            blockVenueForm.addEventListener(
+                "submit",
+                submitBlockVenue
+            );
+        }
 
-    if (blockVenueButton) {
+        if (blockVenueModal) {
+            blockVenueModal.addEventListener(
+                "click",
+                function (event) {
+                    if (event.target === blockVenueModal) {
+                        closeBlockVenueModal();
+                    }
+                }
+            );
+        }
 
-        blockVenueButton.addEventListener(
-            "click",
-            openBlockVenueModal
-        );
-    }
-
-
-    const closeBlockVenueModalButton =
-        document.getElementById(
-            "closeBlockVenueModalButton"
-        );
-
-
-    if (closeBlockVenueModalButton) {
-
-        closeBlockVenueModalButton.addEventListener(
-            "click",
-            closeBlockVenueModal
-        );
-    }
-
-
-    const cancelBlockVenueButton =
-        document.getElementById(
-            "cancelBlockVenueButton"
-        );
-
-
-    if (cancelBlockVenueButton) {
-
-        cancelBlockVenueButton.addEventListener(
-            "click",
-            closeBlockVenueModal
-        );
-    }
-
-
-    const blockVenueForm =
-        document.getElementById(
-            "blockVenueForm"
-        );
-
-
-    if (blockVenueForm) {
-
-        blockVenueForm.addEventListener(
-            "submit",
-            submitBlockVenue
-        );
-    }
-
-
-    if (blockVenueModal) {
-
-        blockVenueModal.addEventListener(
-            "click",
-            function (
-                event
-            ) {
-
+        document.addEventListener(
+            "keydown",
+            function (event) {
                 if (
-                    event.target
-                    === blockVenueModal
+                    event.key === "Escape"
+                    && blockVenueModal
+                    && !blockVenueModal.hidden
                 ) {
-
                     closeBlockVenueModal();
                 }
             }
         );
-    }
+    </script>
 
-
-    document.addEventListener(
-        "keydown",
-        function (
-            event
-        ) {
-
-            if (
-                event.key === "Escape"
-                && blockVenueModal
-                && !blockVenueModal.hidden
-            ) {
-
-                closeBlockVenueModal();
-            }
-        }
-    );
-
-</script>
-
-</body>
-
+</section>
 </html>

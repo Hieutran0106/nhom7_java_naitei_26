@@ -278,12 +278,19 @@ class ModeratorVenueDetailWebControllerTest {
                         )
                 )
                 .andExpect(
-                        content().string(
-                                containsString(
-                                        "Chưa có hình ảnh"
-                                )
-                        )
-                );
+        content().string(
+                containsString(
+                        "Duyệt Venue"
+                )
+        )
+)
+.andExpect(
+        content().string(
+                containsString(
+                        "Khóa Venue"
+                )
+        )
+);
 
         verify(
                 venueService
