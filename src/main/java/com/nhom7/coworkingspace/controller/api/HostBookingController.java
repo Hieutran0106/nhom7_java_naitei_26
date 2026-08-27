@@ -1,5 +1,6 @@
 package com.nhom7.coworkingspace.controller.api;
 
+import com.nhom7.coworkingspace.dto.request.UpdateBookingStatusRequest;
 import com.nhom7.coworkingspace.dto.response.ApiResponse;
 import com.nhom7.coworkingspace.dto.response.BookingResponse;
 import com.nhom7.coworkingspace.dto.response.PageResponse;
@@ -8,6 +9,7 @@ import com.nhom7.coworkingspace.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -15,17 +17,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/host/bookings")
 @RequiredArgsConstructor
-@Tag(name = "View spaces booking state", description = "Endpoints for HOST to view bookings made on their own Spaces and approve/reject bookings")
+@Tag(name = "Host View Booking State", description = "Endpoints for HOST to view bookings made on their own Spaces and approve/reject them")
 @SecurityRequirement(name = "BearerAuth")
 public class HostBookingController {
 
@@ -58,6 +57,25 @@ public class HostBookingController {
         Locale locale = LocaleContextHolder.getLocale();
         String messageKey = response.getContent().isEmpty() ? "booking.list.empty" : "booking.list.fetched";
         String message = messageSource.getMessage(messageKey, null, locale);
+        return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+
+    // Only the Host who owns the Space behind this booking may approve/reject it, enforced in
+    // BookingServiceImpl (booking must also still be PENDING).
+    @PutMapping("/{bookingId}/status")
+    @PreAuthorize("hasRole('HOST')")
+    @Operation(
+            summary = "Approve or Reject a Booking",
+            description = "Allows the Host who owns the Space to approve or reject a PENDING booking made on it."
+    )
+    public ResponseEntity<ApiResponse<BookingResponse>> updateBookingStatus(
+            @PathVariable Long bookingId,
+            @Valid @RequestBody UpdateBookingStatusRequest request,
+            Authentication authentication) {
+        BookingResponse response = bookingService.updateBookingStatusByHost(
+                bookingId, request.getStatus(), authentication.getName());
+        Locale locale = LocaleContextHolder.getLocale();
+        String message = messageSource.getMessage("booking.status.updated", null, locale);
         return ResponseEntity.ok(ApiResponse.success(response, message));
     }
 }

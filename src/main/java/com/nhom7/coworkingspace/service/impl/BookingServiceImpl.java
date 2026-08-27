@@ -9,6 +9,7 @@ import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Payment;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.entity.Venue;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.enums.PaymentStatus;
 import com.nhom7.coworkingspace.enums.PriceUnit;
@@ -364,36 +365,66 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public Booking changeStatus(
-            Long bookingId,
-            String newStatus
-    ) {
-        BookingStatus normalizedStatus =
-                normalizeStatus(newStatus);
+    public Booking changeStatus(Long bookingId, String newStatus) {
+        BookingStatus normalizedStatus = normalizeStatus(newStatus);
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
 
-        Booking booking =
-                bookingRepository.findById(bookingId)
-                        .orElseThrow(
-                                () -> new BookingNotFoundException(
-                                        bookingId
-                                )
-                        );
-
-        BookingStatus previousStatus =
-                booking.getStatus();
-
-        if (normalizedStatus == previousStatus) {
+        if (normalizedStatus == booking.getStatus()) {
             return booking;
         }
 
-        booking.setStatus(
-                normalizedStatus
-        );
+        return persistStatusChange(booking, normalizedStatus);
+    }
 
-        Booking savedBooking =
-                bookingRepository.saveAndFlush(
-                        booking
-                );
+    // Host-facing counterpart of changeStatus: restricted to APPROVED/REJECTED, only the Host who
+    // owns the booking's Space (via Space -> Venue -> owner, the same ownership path used by
+    // VenueServiceImpl) may act, and only while the booking is still PENDING.
+    @Override
+    @Transactional
+    public BookingResponse updateBookingStatusByHost(Long bookingId, String newStatus, String hostEmail) {
+        BookingStatus targetStatus = resolveHostTargetStatus(newStatus);
+
+        User host = userRepository.findByEmail(hostEmail)
+                .orElseThrow(() -> new AppException("user.not.found", HttpStatus.NOT_FOUND));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        Venue venue = booking.getSpace().getVenue();
+        if (venue == null || venue.getOwner() == null || !venue.getOwner().getId().equals(host.getId())) {
+            throw new AppException("booking.access.denied", HttpStatus.FORBIDDEN);
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new AppException("booking.status.transition.invalid", HttpStatus.BAD_REQUEST);
+        }
+
+        Booking savedBooking = persistStatusChange(booking, targetStatus);
+        return bookingMapper.toBookingResponse(savedBooking);
+    }
+
+    // Accepts whatever raw string the Host submitted and turns it into a valid target status,
+    // or rejects it with a message that spells out the only two accepted values - covers both a
+    // typo/garbage value (e.g. "aproved") and a real BookingStatus the Host just isn't allowed to
+    // set here (e.g. "CONFIRMED") with the same actionable error instead of a raw 500.
+    private BookingStatus resolveHostTargetStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            throw new AppException("booking.status.required", HttpStatus.BAD_REQUEST);
+        }
+        String normalized = rawStatus.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.equals(BookingStatus.APPROVED.name()) && !normalized.equals(BookingStatus.REJECTED.name())) {
+            throw new AppException("booking.status.update.invalid", HttpStatus.BAD_REQUEST);
+        }
+        return BookingStatus.valueOf(normalized);
+    }
+
+    // Shared by changeStatus and updateBookingStatusByHost: persists the new status and notifies
+    // the booking's user by email, same side effects changeStatus already had.
+    private Booking persistStatusChange(Booking booking, BookingStatus newStatus) {
+        BookingStatus previousStatus = booking.getStatus();
+        booking.setStatus(newStatus);
+        Booking savedBooking = bookingRepository.saveAndFlush(booking);
 
         Locale locale =
                 toLocale(

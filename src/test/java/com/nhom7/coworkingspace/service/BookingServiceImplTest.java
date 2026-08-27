@@ -9,6 +9,7 @@ import com.nhom7.coworkingspace.entity.Booking;
 import com.nhom7.coworkingspace.entity.Payment;
 import com.nhom7.coworkingspace.entity.Space;
 import com.nhom7.coworkingspace.entity.User;
+import com.nhom7.coworkingspace.entity.Venue;
 import com.nhom7.coworkingspace.enums.SpaceStatus;
 import com.nhom7.coworkingspace.enums.BookingStatus;
 import com.nhom7.coworkingspace.exception.AppException;
@@ -896,6 +897,256 @@ class BookingServiceImplTest {
                                         .hasMessage("booking.cannot.cancel.invalid.status")
                                         .extracting("status")
                                         .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+        }
+
+        @Nested
+        @DisplayName("updateBookingStatusByHost Tests")
+        class UpdateBookingStatusByHostTests {
+
+                @Test
+                @DisplayName("Should approve a PENDING booking when requested by the Space's owning Host")
+                void updateBookingStatusByHost_Approve_Success() {
+                        String hostEmail = "host@test.com";
+                        User host = User.builder().id(5L).email(hostEmail).build();
+                        User customer = User.builder().id(1L).name("Nguyen Van A").email("customer@test.com")
+                                        .language("en").build();
+                        Venue venue = Venue.builder().id(20L).owner(host).build();
+                        Space space = Space.builder().id(10L).name("Meeting Room A").venue(venue).build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .user(customer)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(100L)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.APPROVED)
+                                        .build();
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                        Locale locale = Locale.ENGLISH;
+                        given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                        .willReturn("<p>Approved</p>");
+                        given(messageSource.getMessage("email.booking.status.subject", new Object[] { 100L }, locale))
+                                        .willReturn("Booking #100 status updated");
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.updateBookingStatusByHost(100L, "APPROVED",
+                                        hostEmail);
+
+                        assertThat(response).isNotNull();
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.APPROVED);
+                        assertThat(booking.getStatus()).isEqualTo(BookingStatus.APPROVED);
+                        verify(bookingRepository).saveAndFlush(booking);
+                        verify(emailService).sendHtmlEmail("customer@test.com", "Booking #100 status updated",
+                                        "<p>Approved</p>");
+                }
+
+                @Test
+                @DisplayName("Should reject a PENDING booking when requested by the Space's owning Host")
+                void updateBookingStatusByHost_Reject_Success() {
+                        String hostEmail = "host@test.com";
+                        User host = User.builder().id(5L).email(hostEmail).build();
+                        User customer = User.builder().id(1L).name("Nguyen Van B").email("customer2@test.com")
+                                        .language("en").build();
+                        Venue venue = Venue.builder().id(20L).owner(host).build();
+                        Space space = Space.builder().id(10L).name("Desk 1").venue(venue).build();
+                        Booking booking = Booking.builder()
+                                        .id(101L)
+                                        .user(customer)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(101L)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.REJECTED)
+                                        .build();
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findById(101L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                        Locale locale = Locale.ENGLISH;
+                        given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                        .willReturn("<p>Rejected</p>");
+                        given(messageSource.getMessage("email.booking.status.subject", new Object[] { 101L }, locale))
+                                        .willReturn("Booking #101 status updated");
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.updateBookingStatusByHost(101L, "REJECTED",
+                                        hostEmail);
+
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.REJECTED);
+                        verify(bookingRepository).saveAndFlush(booking);
+                        verify(emailService).sendHtmlEmail("customer2@test.com", "Booking #101 status updated",
+                                        "<p>Rejected</p>");
+                }
+
+                @Test
+                @DisplayName("Should throw 404 BookingNotFoundException when booking does not exist")
+                void updateBookingStatusByHost_BookingNotFound() {
+                        String hostEmail = "host@test.com";
+                        given(userRepository.findByEmail(hostEmail))
+                                        .willReturn(Optional.of(User.builder().id(5L).email(hostEmail).build()));
+                        given(bookingRepository.findById(999L)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(999L, "APPROVED", hostEmail))
+                                        .isInstanceOf(com.nhom7.coworkingspace.exception.BookingNotFoundException.class)
+                                        .hasMessage("booking.not.found");
+                        verifyNoInteractions(emailService, emailTemplateService);
+                }
+
+                @Test
+                @DisplayName("Should throw 404 AppException when the acting Host user does not exist")
+                void updateBookingStatusByHost_HostNotFound() {
+                        String hostEmail = "ghost@test.com";
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.empty());
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "APPROVED", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("user.not.found")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
+                        verifyNoInteractions(bookingRepository);
+                }
+
+                @Test
+                @DisplayName("Should throw 403 Forbidden when the Host does not own the Space's Venue")
+                void updateBookingStatusByHost_Forbidden_NotOwner() {
+                        String hostEmail = "otherhost@test.com";
+                        User otherHost = User.builder().id(6L).email(hostEmail).build();
+                        User actualOwner = User.builder().id(5L).email("owner@test.com").build();
+                        Venue venue = Venue.builder().id(20L).owner(actualOwner).build();
+                        Space space = Space.builder().id(10L).venue(venue).build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(otherHost));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "APPROVED", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.access.denied")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.FORBIDDEN);
+                        verifyNoInteractions(emailService, emailTemplateService);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when booking is not in PENDING status")
+                void updateBookingStatusByHost_InvalidTransition_NotPending() {
+                        String hostEmail = "host@test.com";
+                        User host = User.builder().id(5L).email(hostEmail).build();
+                        Venue venue = Venue.builder().id(20L).owner(host).build();
+                        Space space = Space.builder().id(10L).venue(venue).build();
+                        Booking booking = Booking.builder()
+                                        .id(100L)
+                                        .space(space)
+                                        .status(BookingStatus.APPROVED)
+                                        .build();
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findById(100L)).willReturn(Optional.of(booking));
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "REJECTED", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.status.transition.invalid")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request when target status is a real BookingStatus but neither APPROVED nor REJECTED")
+                void updateBookingStatusByHost_InvalidTargetStatus() {
+                        String hostEmail = "host@test.com";
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "CANCELLED", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.status.update.invalid")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                        verifyNoInteractions(userRepository, bookingRepository);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request with the same helpful message when status does not match any BookingStatus at all")
+                void updateBookingStatusByHost_UnknownStatusString() {
+                        String hostEmail = "host@test.com";
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "aproved-typo", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.status.update.invalid")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                        verifyNoInteractions(userRepository, bookingRepository);
+                }
+
+                @Test
+                @DisplayName("Should throw 400 Bad Request (booking.status.required) when status is blank")
+                void updateBookingStatusByHost_BlankStatus() {
+                        String hostEmail = "host@test.com";
+
+                        assertThatThrownBy(
+                                        () -> bookingService.updateBookingStatusByHost(100L, "   ", hostEmail))
+                                        .isInstanceOf(AppException.class)
+                                        .hasMessage("booking.status.required")
+                                        .extracting("status")
+                                        .isEqualTo(HttpStatus.BAD_REQUEST);
+                        verifyNoInteractions(userRepository, bookingRepository);
+                }
+
+                @Test
+                @DisplayName("Should accept a lower-case status value the same as upper-case")
+                void updateBookingStatusByHost_CaseInsensitive_Success() {
+                        String hostEmail = "host@test.com";
+                        User host = User.builder().id(5L).email(hostEmail).build();
+                        User customer = User.builder().id(1L).name("Nguyen Van C").email("customer3@test.com")
+                                        .language("en").build();
+                        Venue venue = Venue.builder().id(20L).owner(host).build();
+                        Space space = Space.builder().id(10L).name("Desk 2").venue(venue).build();
+                        Booking booking = Booking.builder()
+                                        .id(102L)
+                                        .user(customer)
+                                        .space(space)
+                                        .status(BookingStatus.PENDING)
+                                        .build();
+
+                        BookingResponse expectedResponse = BookingResponse.builder()
+                                        .id(102L)
+                                        .spaceId(10L)
+                                        .status(BookingStatus.APPROVED)
+                                        .build();
+
+                        given(userRepository.findByEmail(hostEmail)).willReturn(Optional.of(host));
+                        given(bookingRepository.findById(102L)).willReturn(Optional.of(booking));
+                        given(bookingRepository.saveAndFlush(booking)).willReturn(booking);
+                        Locale locale = Locale.ENGLISH;
+                        given(emailTemplateService.renderBookingStatusChanged(booking, "PENDING", locale))
+                                        .willReturn("<p>Approved</p>");
+                        given(messageSource.getMessage("email.booking.status.subject", new Object[] { 102L }, locale))
+                                        .willReturn("Booking #102 status updated");
+                        given(bookingMapper.toBookingResponse(booking)).willReturn(expectedResponse);
+
+                        BookingResponse response = bookingService.updateBookingStatusByHost(102L, "  approved  ",
+                                        hostEmail);
+
+                        assertThat(response.getStatus()).isEqualTo(BookingStatus.APPROVED);
+                        assertThat(booking.getStatus()).isEqualTo(BookingStatus.APPROVED);
                 }
         }
 
